@@ -1,0 +1,286 @@
+@import "tailwindcss";
+
+/*
+ * Lanima design tokens.
+ * Source of truth for both themes. The contrast test (tests/unit/contrast.test.ts)
+ * parses this file, so keep each token on its own line as `--name: #RRGGBB;`.
+ */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f5;
+  --surface: #ffffff;
+  --surface-alt: #eef2f5;
+  --subtle: #eceeed;
+  --text: #1f2a33;
+  --text-2: #60676b;
+  --accent: #3e5566;
+  --brand: #5d7a8c;
+  --btn: #4b6577;
+  --active: #dce4ea;
+  --deep: #1f2a33;
+  --border: #dde0e0;
+  --border-strong: #c6cacb;
+  --checkbox: #a3a9ac;
+  --ink: #1f2a33;
+  --success: #4f9a78;
+  --warning: #d4a03f;
+  --danger: #c8605a;
+  /* State colors as text: darker variants that reach 4.5:1 (the base ones are for borders, fills and icons). */
+  --success-text: #3c6d5c;
+  --danger-text: #95504e;
+  --warning-text: #746139;
+  --on-deep-2: #c2cfd8;
+
+  --hl-yellow: #f7e38a;
+  --hl-pink: #f6bacb;
+  --hl-green: #bfe5cb;
+  --hl-sky: #b3d8f2;
+  --hl-lilac: #d6c8f0;
+
+  /* Notebook highlighter (pastel + multiply in light theme). */
+  --marker-yellow: #f7e38a;
+  --marker-pink: #f6bacb;
+  --marker-green: #bfe5cb;
+  --marker-sky: #b3d8f2;
+  --marker-lilac: #d6c8f0;
+  --marker-blend: multiply;
+
+  --elev-card: 0 1px 2px rgba(31, 42, 51, 0.05), 0 6px 16px rgba(31, 42, 51, 0.06);
+  --elev-float: 0 16px 40px -4px rgba(31, 42, 51, 0.14);
+  --scrim: rgba(31, 42, 51, 0.4);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12181d;
+  --surface: #1b232a;
+  --surface-alt: #222d35;
+  --subtle: #28333c;
+  --text: #eceeed;
+  --text-2: #a3afb8;
+  --accent: #c2cfd8;
+  --brand: #7e97a7;
+  --btn: #4b6577;
+  --active: #2b3d4a;
+  --deep: #3e5566;
+  --border: #2c3740;
+  --border-strong: #3e4a54;
+  --checkbox: #56636d;
+  --ink: #1f2a33;
+  --success: #4f9a78;
+  --warning: #d4a03f;
+  --danger: #c8605a;
+  --success-text: #79b298;
+  --danger-text: #da9490;
+  --warning-text: #d4a03f;
+  --on-deep-2: #dce4ea;
+
+  --hl-yellow: #f7e38a;
+  --hl-pink: #f6bacb;
+  --hl-green: #bfe5cb;
+  --hl-sky: #b3d8f2;
+  --hl-lilac: #d6c8f0;
+
+  --marker-yellow: #6e6230;
+  --marker-pink: #6e3f50;
+  --marker-green: #3d6651;
+  --marker-sky: #34586e;
+  --marker-lilac: #54486e;
+  --marker-blend: normal;
+
+  /* Dark theme separates cards by surface and border, never by shadow. */
+  --elev-card: none;
+  --elev-float: none;
+  --scrim: rgba(8, 12, 15, 0.6);
+}
+
+@theme inline {
+  /* Only the Lanima palette exists: no default Tailwind colors, no pure black. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #ffffff;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-subtle: var(--subtle);
+  --color-fg: var(--text);
+  --color-fg-2: var(--text-2);
+  --color-accent: var(--accent);
+  --color-brand: var(--brand);
+  --color-btn: var(--btn);
+  --color-active: var(--active);
+  --color-deep: var(--deep);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-checkbox: var(--checkbox);
+  --color-ink: var(--ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-success-text: var(--success-text);
+  --color-danger-text: var(--danger-text);
+  --color-warning-text: var(--warning-text);
+  --color-on-deep-2: var(--on-deep-2);
+  --color-scrim: var(--scrim);
+
+  --color-hl-yellow: var(--hl-yellow);
+  --color-hl-pink: var(--hl-pink);
+  --color-hl-green: var(--hl-green);
+  --color-hl-sky: var(--hl-sky);
+  --color-hl-lilac: var(--hl-lilac);
+
+  /* Dark immersive screens (focus, atlas, onboarding) use these in both themes. */
+  --color-night-800: #2e404d;
+  --color-night-900: #1f2a33;
+  --color-night-950: #141b21;
+
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-hand: var(--font-caveat), cursive;
+
+  --radius-*: initial;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-card: 20px;
+  --radius-xl: 28px;
+
+  --shadow-card: var(--elev-card);
+  --shadow-float: var(--elev-float);
+
+  --breakpoint-*: initial;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+/* Type scale (section 4.2). */
+@utility type-display {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 52px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+@utility type-page-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+@utility type-metric {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+@utility type-timer {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -2px;
+  font-size: 76px;
+  line-height: 1;
+  @media (width >= 768px) {
+    font-size: 112px;
+  }
+}
+@utility type-h1 {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+}
+@utility type-h2 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+@utility type-body {
+  font-size: 14px;
+  line-height: 20px;
+}
+@utility type-caption {
+  font-size: 12px;
+  line-height: 16px;
+}
+@utility type-overline {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Touch behaviour per area (section 2). */
+@utility touch-canvas {
+  touch-action: none;
+}
+@utility touch-list {
+  touch-action: pan-y;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  dialog {
+    color: inherit;
+  }
+
+  dialog::backdrop {
+    background: var(--scrim);
+  }
+
+  /* Prevent the native top-layer dialog from adding its own margins. */
+  dialog[open] {
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

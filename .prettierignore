@@ -1,0 +1,11 @@
+.next/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+design-reference/
+public/
+package-lock.json
+next-env.d.ts
+PROMPT_CLAUDE_CODE.md
+AGENTS.md
