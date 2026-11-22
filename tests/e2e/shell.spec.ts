@@ -183,6 +183,17 @@ test.describe("PWA", () => {
     expect((await request.get("/icons/apple-touch-icon.png")).ok()).toBe(true);
   });
 
+  test("service worker é estático: nunca é reempacotado no servidor em produção", async ({ request }) => {
+    // Regression: with a 15-minute revalidation, the server re-ran Serwist (glob + hash + esbuild)
+    // at runtime and froze for 7–10 s, which made navigations time out.
+    for (const path of ["/serwist/sw.js", "/serwist/sw.js.map"]) {
+      const res = await request.get(path);
+      expect(res.ok(), path).toBe(true);
+      const sMaxAge = Number(/s-maxage=(\d+)/.exec(res.headers()["cache-control"] ?? "")?.[1] ?? 0);
+      expect(sMaxAge, `${path} cache-control: ${res.headers()["cache-control"]}`).toBeGreaterThanOrEqual(31_536_000);
+    }
+  });
+
   test("service worker registra com escopo da raiz", async ({ page, browserName }) => {
     test.skip(browserName !== "chromium", "Registro de service worker verificado no Chromium (Galaxy Tab).");
     await page.goto("/inicio");

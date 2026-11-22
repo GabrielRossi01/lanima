@@ -3,41 +3,65 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 /**
- * E2E_CHROMIUM_ONLY=1 runs the iPad/iPhone profiles (viewport, touch, user agent) on Chromium.
- * Useful on Windows machines where antivirus blocks the WebKit binary; CI runs real WebKit.
+ * 127.0.0.1, not "localhost": on Windows "localhost" resolves to ::1 first, and on the dev
+ * machine local HTTP over that path was intercepted (likely antivirus web protection): requests
+ * reached `next start` 10–30 s late or never, while the server itself answered in ms.
+ * With 127.0.0.1 the same suite passed 6/6 runs. Measured on 2026-11-22; see README.
  */
-const chromiumOnly = process.env.E2E_CHROMIUM_ONLY === "1" || process.env.npm_lifecycle_event === "test:e2e:chromium";
-const webkit = chromiumOnly ? { browserName: "chromium" as const } : {};
+const HOST = "127.0.0.1";
 
 /**
- * Device matrix from section 2: Galaxy Tab S (main device), iPad Pro 11, iPhone.
- * Runs against the production build (`next build` first), so the service worker is real.
+ * Explicit opt-in to test an already running production server (e.g. one that has been up for
+ * a long time). Without it, Playwright always builds and starts its own server.
  */
+const EXTERNAL_BASE_URL = process.env.E2E_BASE_URL;
+
+/**
+ * Engines: every iOS/iPadOS browser is WebKit, so the iPad and iPhone profiles run on WebKit;
+ * Galaxy Tab and the Android phone run on Chromium.
+ *
+ * E2E_CHROMIUM_ONLY=1 (or `npm run test:e2e:chromium`) moves the Apple profiles to Chromium
+ * (same viewport, touch and user agent), for Windows machines where antivirus blocks the WebKit
+ * binary. CI always runs real WebKit.
+ */
+const chromiumOnly = process.env.E2E_CHROMIUM_ONLY === "1" || process.env.npm_lifecycle_event === "test:e2e:chromium";
+const apple = chromiumOnly ? { browserName: "chromium" as const } : { browserName: "webkit" as const };
+const chromium = { browserName: "chromium" as const };
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
-  // Chromium + WebKit side by side overload `next start` on modest machines; 2 is stable.
   workers: 2,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // No retries: a flaky test is a bug to fix, not to hide.
+  retries: 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: EXTERNAL_BASE_URL ?? `http://${HOST}:${PORT}`,
     locale: "pt-BR",
     timezoneId: "America/Sao_Paulo",
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "galaxy-tab-landscape", use: { ...devices["Galaxy Tab S9 landscape"] } },
-    { name: "galaxy-tab-portrait", use: { ...devices["Galaxy Tab S9"] } },
-    { name: "ipad-landscape", use: { ...devices["iPad Pro 11 landscape"], ...webkit } },
-    { name: "ipad-portrait", use: { ...devices["iPad Pro 11"], ...webkit } },
-    { name: "iphone", use: { ...devices["iPhone 16"], ...webkit } },
+    { name: "galaxy-tab-landscape", use: { ...devices["Galaxy Tab S9 landscape"], ...chromium } },
+    { name: "galaxy-tab-portrait", use: { ...devices["Galaxy Tab S9"], ...chromium } },
+    { name: "android-phone", use: { ...devices["Pixel 7"], ...chromium } },
+    { name: "ipad-landscape", use: { ...devices["iPad Pro 11 landscape"], ...apple } },
+    { name: "ipad-portrait", use: { ...devices["iPad Pro 11"], ...apple } },
+    { name: "iphone", use: { ...devices["iPhone 16"], ...apple } },
   ],
-  webServer: {
-    command: `npx next start -p ${PORT}`,
-    url: `http://localhost:${PORT}/inicio`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  /**
+   * Always the production build with the service worker active (Serwist is disabled only in
+   * `next dev`). Never reuses a running server, so a stray `next dev` on the port can't be tested
+   * by mistake: if the port is busy, the run fails instead.
+   */
+  webServer: EXTERNAL_BASE_URL
+    ? undefined
+    : {
+        command: `npm run build && npx next start -H ${HOST} -p ${PORT}`,
+        url: `http://${HOST}:${PORT}/inicio`,
+        reuseExistingServer: false,
+        timeout: 300_000,
+        stdout: "pipe",
+      },
 });
