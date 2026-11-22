@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { describeHorizontalOverflow } from "./helpers/overflow";
 
 type Layout = "sidebar" | "rail" | "tabbar";
 
@@ -93,8 +94,8 @@ test.describe("AppShell responsivo", () => {
   test("não tem rolagem horizontal", async ({ page }) => {
     for (const path of ["/inicio", "/perfil", "/design"]) {
       await page.goto(path);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow, path).toBeLessThanOrEqual(0);
+      const { overflow, report } = await page.evaluate(describeHorizontalOverflow);
+      expect(overflow, `${path}: ${overflow}px de rolagem horizontal${report}`).toBeLessThanOrEqual(0);
     }
   });
 

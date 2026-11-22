@@ -239,6 +239,8 @@
     font-size: 14px;
     line-height: 20px;
     -webkit-font-smoothing: antialiased;
+    /* Long words (file names, codes) break instead of widening the page. */
+    overflow-wrap: break-word;
     -moz-osx-font-smoothing: grayscale;
   }
 

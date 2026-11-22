@@ -31,8 +31,8 @@ export function SubjectCard({ href, name, color, icon, schedule, nextAssessment,
       <div aria-hidden className={cn("absolute inset-x-0 top-0 h-1.5", SUBJECT_BG[color])} />
       <IconTile icon={icon} color={color} size={48} />
       <div className="flex flex-col gap-0.5">
-        <span className="text-[17px] leading-6 font-semibold">{name}</span>
-        {schedule && <span className="text-[13px] text-fg-2">{schedule}</span>}
+        <span className="text-[17px] leading-6 font-semibold wrap-break-word">{name}</span>
+        {schedule && <span className="text-[13px] wrap-break-word text-fg-2">{schedule}</span>}
       </div>
       {nextAssessment && (
         <span className="inline-flex h-[26px] items-center gap-1.5 self-start rounded-full bg-surface-alt px-2.5 text-xs font-semibold text-accent">

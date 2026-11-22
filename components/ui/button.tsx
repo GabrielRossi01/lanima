@@ -7,7 +7,7 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "inverse";
 export type ButtonSize = "m" | "s";
 
 const base =
-  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border font-semibold no-underline transition-colors duration-150 disabled:opacity-50";
+  "inline-flex max-w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border font-semibold no-underline transition-colors duration-150 disabled:opacity-50";
 
 const variants: Record<ButtonVariant, string> = {
   primary: "border-btn bg-btn text-white hover:brightness-110",
@@ -39,11 +39,11 @@ function Content({
   iconPosition = "start",
   children,
 }: Pick<CommonProps, "icon" | "iconPosition" | "children">) {
-  const glyph = Icon ? <Icon aria-hidden size={18} strokeWidth={1.75} /> : null;
+  const glyph = Icon ? <Icon aria-hidden size={18} strokeWidth={1.75} className="shrink-0" /> : null;
   return (
     <>
       {iconPosition === "start" && glyph}
-      <span>{children}</span>
+      <span className="min-w-0 truncate">{children}</span>
       {iconPosition === "end" && glyph}
     </>
   );

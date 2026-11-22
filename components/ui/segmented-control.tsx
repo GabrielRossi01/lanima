@@ -50,7 +50,11 @@ export function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className={cn("inline-flex gap-1 rounded-full p-1", tone === "default" ? "bg-subtle" : "bg-white/10", className)}
+      className={cn(
+        "inline-flex max-w-full gap-1 rounded-full p-1",
+        tone === "default" ? "bg-subtle" : "bg-white/10",
+        className,
+      )}
     >
       {options.map((option, index) => {
         const checked = option.value === value;
@@ -67,7 +71,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
             className={cn(
-              "inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150",
+              "inline-flex min-h-10 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150",
               tone === "default"
                 ? checked
                   ? "bg-surface text-fg shadow-card"
@@ -77,7 +81,7 @@ export function SegmentedControl<T extends string>({
                   : "text-white/75 hover:text-white",
             )}
           >
-            {option.label}
+            <span className="min-w-0 truncate">{option.label}</span>
           </button>
         );
       })}

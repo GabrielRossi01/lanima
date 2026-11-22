@@ -20,11 +20,11 @@ export function EmptyState({ icon, title, description, action, className }: Empt
       )}
     >
       <IconTile icon={icon} size={48} />
-      <div className="flex max-w-sm flex-col gap-1">
+      <div className="flex min-w-0 max-w-sm flex-col gap-1 wrap-break-word">
         <h2 className="type-h2 m-0">{title}</h2>
         {description && <p className="type-body m-0 text-fg-2">{description}</p>}
       </div>
-      {action && <div className="mt-1">{action}</div>}
+      {action && <div className="mt-1 max-w-full">{action}</div>}
     </div>
   );
 }

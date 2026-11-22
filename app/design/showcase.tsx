@@ -69,7 +69,7 @@ const ALTERNATIVES = [
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex min-w-0 flex-col gap-3">
       <h2 className="type-overline m-0 text-fg-2">{title}</h2>
       {children}
     </section>
@@ -77,7 +77,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Row({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-wrap items-center gap-3", className)}>{children}</div>;
+  return <div className={cn("flex min-w-0 flex-wrap items-center gap-3", className)}>{children}</div>;
 }
 
 /** Every base component, rendered inside one theme scope. */
@@ -99,9 +99,9 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
       <Section title="Paleta">
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
           {TOKENS.map((t) => (
-            <div key={t} className="flex flex-col gap-1">
+            <div key={t} className="flex min-w-0 flex-col gap-1">
               <div className="h-12 rounded-md border border-line" style={{ background: `var(--${t})` }} />
-              <span className="type-caption truncate text-fg-2">--{t}</span>
+              <code className="type-caption font-sans wrap-anywhere text-fg-2">--{t}</code>
             </div>
           ))}
         </div>
@@ -115,11 +115,13 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
         </Row>
         <div className="flex flex-col gap-1">
           <span className="type-caption text-fg-2">Marca-texto do caderno</span>
-          <p className="type-body m-0">
+          {/* A wrapping flex row: mapped <mark>s have no whitespace between them, so as inline text
+              they formed one unbreakable ~495 px run that scrolled the page on phones. */}
+          <p className="type-body m-0 flex flex-wrap gap-2">
             {MARKERS.map((m) => (
               <mark
                 key={m}
-                className="mr-2 rounded-sm px-1 text-fg [mix-blend-mode:var(--marker-blend)]"
+                className="rounded-sm px-1 text-fg [mix-blend-mode:var(--marker-blend)]"
                 style={{ background: `var(--marker-${m})` }}
               >
                 osteoclastos
@@ -130,8 +132,8 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
       </Section>
 
       <Section title="Tipografia">
-        <span className="type-display">Bom dia, Maria</span>
-        <span className="type-page-title">Título de página</span>
+        <span className="type-display wrap-break-word">Bom dia, Maria</span>
+        <span className="type-page-title wrap-break-word">Título de página</span>
         <span className="type-timer text-accent">25:00</span>
         <span className="type-h1">Título de seção 24</span>
         <span className="type-h2">Subtítulo 16 semibold</span>
@@ -177,13 +179,13 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
       </Section>
 
       <Section title="Cards">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <MetricCard icon={Timer} value="1h 45m" label="Foco hoje · meta 2h" />
           <MetricCard icon={Flame} color="amarelo" value="12 dias" label="Sequência de estudo" />
           <MetricCard icon={Check} color="verde" value="7 de 10" label="Metas da semana" />
           <MetricCard icon={Target} color="rosa" value="78%" label="Acerto médio nos testes" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SubjectCard
             href="#"
             name="Anatomia Humana"
@@ -194,14 +196,14 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
             progress={62}
             counts={{ notes: 12, summaries: 4, files: 3 }}
           />
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <Card>
               <CardHeader title="Card padrão" action={<a href="#">Ver tudo</a>} />
               <p className="type-body m-0 text-fg-2">Superfície com borda e sombra só no tema claro.</p>
             </Card>
             <Card tone="deep" className="gap-2">
               <span className="type-overline text-on-deep-2">Resultado</span>
-              <span className="font-serif text-[30px] leading-9 font-semibold">70% · 14 de 20</span>
+              <span className="font-serif text-[30px] leading-9 font-semibold wrap-break-word">70% · 14 de 20</span>
               <span className="type-caption text-on-deep-2">Para revisar: tecido ósseo.</span>
             </Card>
           </div>
@@ -229,7 +231,7 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
             { value: "musculos", label: "Músculos" },
             { value: "celulas", label: "Células" },
           ]}
-          className="self-start"
+          className="max-w-full self-start"
         />
         <Switch
           checked={switchOn}
@@ -237,7 +239,7 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
           label="Aparecer no ranking"
           description="Suas amigas veem só pontos e horas."
         />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nome" placeholder="Como quer ser chamada" />
           <Field label="Instituição" defaultValue="x" error="Escreva o nome completo da instituição." />
         </div>
@@ -245,7 +247,7 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
       </Section>
 
       <Section title="Abas">
-        <Tabs value={tab} onChange={setTab}>
+        <Tabs value={tab} onChange={setTab} className="min-w-0">
           <TabList
             label="Seções da matéria"
             tabs={[
@@ -264,12 +266,12 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
       </Section>
 
       <Section title="Navegação">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1 rounded-card border border-line bg-surface p-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface p-3">
             <NavItem href="#" label="Início" icon={House} active />
             <NavItem href="#" label="Matérias" icon={BookOpen} active={false} />
           </div>
-          <div className="flex items-stretch rounded-card border border-line bg-surface p-2">
+          <div className="flex min-w-0 items-stretch rounded-card border border-line bg-surface p-2">
             <TabBarItem href="#" label="Início" icon={House} active />
             <TabBarItem href="#" label="Foco" icon={Timer} active={false} />
             <TabBarItem href="#" label="Ranking" icon={Trophy} active={false} />

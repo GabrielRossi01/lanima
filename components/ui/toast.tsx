@@ -76,8 +76,8 @@ function ToastView({ item }: { item: ToastItem }) {
     >
       <Icon aria-hidden size={20} strokeWidth={1.75} className={cn("mt-0.5 shrink-0", iconColor[item.tone])} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="m-0 text-sm font-semibold">{item.title}</p>
-        {item.description && <p className="type-caption m-0 text-fg-2">{item.description}</p>}
+        <p className="m-0 text-sm font-semibold wrap-anywhere">{item.title}</p>
+        {item.description && <p className="type-caption m-0 wrap-anywhere text-fg-2">{item.description}</p>}
         {item.actions && (
           <div className="mt-1.5 flex flex-wrap gap-2">
             {item.actions.map((action) => (

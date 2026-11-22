@@ -128,8 +128,8 @@ export function Sheet({
       {open && (
         <div className="flex max-h-[inherit] flex-col">
           <header className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
-            <div className="flex flex-col gap-1">
-              <h2 id={titleId} className={cn("type-h1 m-0", hideTitle && "sr-only")}>
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 id={titleId} className={cn("type-h1 m-0 wrap-break-word", hideTitle && "sr-only")}>
                 {title}
               </h2>
               {description && (

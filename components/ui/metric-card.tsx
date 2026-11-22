@@ -18,9 +18,9 @@ export function MetricCard({ icon, color = "brand", value, label, className }: M
   return (
     <Card padding="compact" className={cn("min-w-0 flex-1", className)}>
       <IconTile icon={icon} color={color} size={36} />
-      <div className="flex flex-col gap-0.5">
-        <span className="type-metric">{value}</span>
-        <span className="text-[13px] text-fg-2">{label}</span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="type-metric wrap-break-word">{value}</span>
+        <span className="text-[13px] wrap-break-word text-fg-2">{label}</span>
       </div>
     </Card>
   );

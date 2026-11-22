@@ -73,9 +73,9 @@ export function QuestionCard({
       <div className="flex flex-wrap items-center gap-1.5">
         <DifficultyBadge level={difficulty} />
         <TypeBadge>{typeLabel}</TypeBadge>
-        {topic && <span className="text-xs text-fg-2">{topic}</span>}
+        {topic && <span className="min-w-0 text-xs wrap-break-word text-fg-2">{topic}</span>}
       </div>
-      <h2 className="m-0 font-serif text-xl leading-7 font-semibold tracking-[-0.3px] md:text-2xl md:leading-8">
+      <h2 className="m-0 font-serif wrap-break-word text-xl leading-7 font-semibold tracking-[-0.3px] md:text-2xl md:leading-8">
         {statement}
       </h2>
       <div role="radiogroup" aria-label="Alternativas" className="flex flex-col gap-2.5">
@@ -113,7 +113,7 @@ export function QuestionCard({
               >
                 {LETTERS[index]}
               </span>
-              <span className="flex-1">{alt.text}</span>
+              <span className="min-w-0 flex-1 wrap-break-word">{alt.text}</span>
               {isRight && (
                 <>
                   <Check aria-hidden size={20} strokeWidth={2} className="shrink-0 text-success" />

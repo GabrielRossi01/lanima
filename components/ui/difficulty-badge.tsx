@@ -35,11 +35,11 @@ export function TypeBadge({ children, className }: { children: string; className
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center whitespace-nowrap rounded-full bg-subtle px-2.5 text-xs font-medium text-fg-2",
+        "inline-flex h-6 max-w-full items-center whitespace-nowrap rounded-full bg-subtle px-2.5 text-xs font-medium text-fg-2",
         className,
       )}
     >
-      {children}
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }

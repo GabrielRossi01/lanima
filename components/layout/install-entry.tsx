@@ -103,7 +103,7 @@ function Step({ n, icon, children }: { n: number; icon?: ReactNode; children: Re
       >
         {n}
       </span>
-      <span className="type-body flex-1">
+      <span className="type-body min-w-0 flex-1">
         <span className="sr-only">Passo {n}: </span>
         {children}
       </span>
