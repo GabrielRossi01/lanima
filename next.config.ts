@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    // Phase 2 will route signed-out users to /entrar and new users to onboarding.
+    // Signed-out and new users are sent on to /entrar or /boas-vindas on the device (AuthGate).
     return [{ source: "/", destination: "/inicio", permanent: false }];
   },
 };

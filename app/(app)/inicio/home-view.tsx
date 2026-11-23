@@ -10,6 +10,8 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { SearchField } from "@/components/ui/input";
 import { greetingFor, longDate } from "@/lib/dates/greeting";
 import { useNow } from "@/lib/hooks/use-now";
+import { useProfile } from "@/features/profile/queries";
+import { formatFocusGoal } from "@/lib/profile/profile";
 
 /**
  * Phase 1 home: real greeting and layout, empty states instead of data.
@@ -17,12 +19,14 @@ import { useNow } from "@/lib/hooks/use-now";
  */
 export function HomeView() {
   const now = useNow();
+  const { data: profile } = useProfile();
+  const firstName = profile?.name.trim().split(/s+/)[0];
   const [query, setQuery] = useState("");
 
   return (
     <>
       <PageHeader
-        title={now ? `${greetingFor(now)}!` : " "}
+        title={now ? (firstName ? `${greetingFor(now)}, ${firstName}` : `${greetingFor(now)}!`) : " "}
         subtitle={now ? longDate(now) : " "}
         actions={
           <>
@@ -35,7 +39,11 @@ export function HomeView() {
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard icon={Timer} value="0m" label="Foco hoje · meta 2h" />
+        <MetricCard
+          icon={Timer}
+          value="0m"
+          label={`Foco hoje · meta ${formatFocusGoal(profile?.daily_focus_goal_min ?? 120)}`}
+        />
         <MetricCard icon={Flame} color="amarelo" value="0 dias" label="Sequência de estudo" />
         <MetricCard icon={Check} color="verde" value="0 de 0" label="Metas da semana" />
         <MetricCard icon={Target} color="rosa" value="–" label="Acerto médio nos testes" />

@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { useAvatarUrl, useProfile } from "@/features/profile/queries";
 import { cn } from "@/lib/cn";
+import { profileSubtitle } from "@/lib/profile/profile";
 
 interface ProfileCardProps {
   compact?: boolean;
@@ -9,11 +13,12 @@ interface ProfileCardProps {
   active?: boolean;
 }
 
-/**
- * Sidebar footer card. Until auth lands (phase 2) it shows a neutral placeholder
- * instead of mock data.
- */
+/** Sidebar footer card with her name, photo, course and semester. */
 export function ProfileCard({ compact = false, onNavigate, active = false }: ProfileCardProps) {
+  const { data: profile } = useProfile();
+  const avatarUrl = useAvatarUrl(profile?.avatar_path).data;
+  const name = profile?.name || undefined;
+
   if (compact) {
     return (
       <Link
@@ -24,7 +29,7 @@ export function ProfileCard({ compact = false, onNavigate, active = false }: Pro
         onClick={onNavigate}
         className="flex size-11 items-center justify-center rounded-full"
       >
-        <Avatar size={40} />
+        <Avatar size={40} name={name} src={avatarUrl} />
       </Link>
     );
   }
@@ -38,10 +43,10 @@ export function ProfileCard({ compact = false, onNavigate, active = false }: Pro
         active ? "bg-active" : "bg-surface-alt hover:bg-active",
       )}
     >
-      <Avatar size={40} />
+      <Avatar size={40} name={name} src={avatarUrl} />
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-semibold text-fg">Seu perfil</span>
-        <span className="truncate text-xs text-fg-2">Biomedicina</span>
+        <span className="truncate text-sm font-semibold text-fg">{name ?? "Seu perfil"}</span>
+        <span className="truncate text-xs text-fg-2">{profile ? profileSubtitle(profile) : "Biomedicina"}</span>
       </span>
       <Settings aria-hidden size={18} strokeWidth={1.75} className="shrink-0 text-fg-2" />
     </Link>

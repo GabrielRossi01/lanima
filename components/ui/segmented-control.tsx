@@ -71,7 +71,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
             className={cn(
-              "inline-flex min-h-10 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150",
+              "inline-flex min-h-10 min-w-0 flex-auto items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150",
               tone === "default"
                 ? checked
                   ? "bg-surface text-fg shadow-card"

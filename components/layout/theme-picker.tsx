@@ -1,8 +1,8 @@
 "use client";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { useSyncedTheme } from "@/features/profile/theme-sync";
 import type { ThemePreference } from "@/lib/theme/theme";
-import { useTheme } from "@/lib/theme/use-theme";
 
 const OPTIONS = [
   { value: "light", label: "Claro" },
@@ -11,7 +11,7 @@ const OPTIONS = [
 ] as const satisfies readonly { value: ThemePreference; label: string }[];
 
 export function ThemePicker({ className }: { className?: string }) {
-  const { preference, setPreference } = useTheme();
+  const { preference, setPreference } = useSyncedTheme();
   return (
     <SegmentedControl
       label="Tema"

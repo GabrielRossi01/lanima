@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toast";
 import { THEME_COLORS, themeBootScript } from "@/lib/theme/theme";
 import { caveat, dmSans, fraunces } from "./fonts";
 import "./globals.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   applicationName: "Lanima",
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <SerwistProvider swUrl="/serwist/sw.js" disable={process.env.NODE_ENV === "development"}>
-          {children}
+          <Providers>{children}</Providers>
           <Toaster />
         </SerwistProvider>
       </body>

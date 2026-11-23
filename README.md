@@ -2,16 +2,25 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 1 (fundação).** Sistema visual, componentes-base, AppShell responsivo, temas claro e escuro, PWA instalável com service worker. Login, dados e funcionalidades chegam nas próximas fases (ver `PROMPT_CLAUDE_CODE.md`, seção 10).
+> **Estado atual: Fase 2 (login, perfil e onboarding).** Entrada por e-mail (link e código de 6 números) ou Google, onboarding em 3 passos com foto e matérias, Perfil editável, tema salvo na conta, RLS testado. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
-Requisitos: Node.js 22 ou mais recente e npm.
+Requisitos: Node.js 22 ou mais recente, npm e o [Docker Desktop](https://www.docker.com/products/docker-desktop/) aberto (para o Supabase local).
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000 (sem service worker em desenvolvimento)
+cp .env.example .env.local   # e preencha com os valores do Supabase local (abaixo)
+npm run db:start             # sobe o Supabase local: banco, login, arquivos e caixa de e-mail
+npm run dev                  # http://localhost:3000 (sem service worker em desenvolvimento)
 ```
+
+O `npm run db:start` mostra a **API URL** e a **Publishable key** locais: copie para `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` no `.env.local` (`npx supabase status` mostra de novo). Esses valores locais são padrão do CLI e só funcionam no seu computador.
+
+- **E-mails de login no computador:** nenhum e-mail sai de verdade. Eles aparecem no Mailpit, em http://127.0.0.1:54324.
+- **Usuária de exemplo:** `maria@lanima.test`, com as matérias dos mockups (`supabase/seed.sql`). Peça o código em /entrar e abra o Mailpit.
+- **Painel do banco:** Supabase Studio em http://127.0.0.1:54323.
+- `npm run db:reset` apaga o banco local e roda de novo as migrações e o seed. `npm run db:stop` desliga tudo.
 
 Para testar o PWA de verdade (service worker, modo offline), use o build de produção:
 
@@ -33,9 +42,17 @@ npm run start        # http://localhost:3000
 | `npm run test:e2e:chromium`       | O mesmo, com os perfis do iPad e do iPhone no Chromium (veja a nota sobre Windows abaixo)                                                                |
 | `npm run format`                  | Prettier                                                                                                                                                 |
 | `npm run icons`                   | Gera os ícones do PWA em `public/icons` a partir do logo                                                                                                 |
+| `npm run db:start` / `db:stop`    | Liga e desliga o Supabase local (Docker)                                                                                                                 |
+| `npm run db:reset`                | Recria o banco local: migrações + `supabase/seed.sql`                                                                                                    |
+| `npm run db:types`                | Gera `lib/supabase/database.types.ts` a partir do banco local                                                                                            |
+| `npm run test:db`                 | Testes de RLS (pgTAP) no banco local: uma usuária não lê nem altera os dados de outra                                                                    |
 | `npm run check`                   | Lint + typecheck + testes unitários                                                                                                                      |
 
 Na primeira vez, instale os navegadores do Playwright: `npx playwright install chromium webkit`.
+
+O E2E usa sempre o **Supabase local** (precisa do `npm run db:start` antes) e nunca um projeto hospedado: ele cria contas de teste, lê os e-mails no Mailpit e confere o banco direto.
+
+> **Windows + Docker Desktop:** na máquina de desenvolvimento, uma parte pequena dos pedidos ao Supabase local (cerca de 4% sob a carga da suíte) fica parada entre o Windows e a porta do Docker: o Kong registra `499` (o cliente desistiu) e o serviço de login nunca recebe o pedido, enquanto centenas de pedidos isolados, do navegador e do Node, respondem em ~15 ms. No E2E local isso aparece como timeouts aleatórios em testes que falam com o Supabase. O CI (Linux) é a referência; localmente, rode de novo só o teste que falhou para confirmar.
 
 > **Windows:** alguns antivírus bloqueiam o executável do WebKit do Playwright (`Playwright.exe`, erro `EPERM`). Nesse caso, rode `npm run test:e2e:chromium` localmente: ele usa a tela, o toque e o user agent do iPad e do iPhone no Chromium. O WebKit de verdade roda no GitHub Actions a cada push. O E2E nunca reaproveita um servidor já aberto: se a porta 3100 estiver ocupada, ele falha em vez de testar o servidor errado.
 
@@ -52,7 +69,77 @@ Na primeira vez, instale os navegadores do Playwright: `npx playwright install c
 3. **Add New → Project**, escolha o repositório e clique em **Deploy**. A Vercel detecta o Next.js sozinha; não precisa mudar nenhuma configuração.
 4. Ao terminar, a Vercel mostra o endereço `https://<nome>.vercel.app`. Cada `git push` na branch `main` publica de novo.
 
-Nesta fase não há variáveis de ambiente. Nas próximas, elas são cadastradas em **Project → Settings → Environment Variables** (modelo em `.env.example`).
+Antes do primeiro deploy da Fase 2, crie o projeto no Supabase (próxima seção) e cadastre em **Project → Settings → Environment Variables**:
+
+| Variável                               | Valor                                                                         |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase → Project Settings → Data API → Project URL                          |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys → Publishable key (`sb_publishable_…`) |
+| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | `true` depois de configurar o Google (seção abaixo); antes disso, `false`     |
+
+Depois de mudar variáveis, faça **Deployments → ⋯ → Redeploy**: as `NEXT_PUBLIC_*` entram no código no momento do build.
+
+## Supabase grátis (projeto de verdade)
+
+### 1. Criar o projeto
+
+1. Entre em [supabase.com](https://supabase.com) com a conta do GitHub e crie uma organização no plano **Free**.
+2. **New project**: nome `lanima`, uma senha forte para o banco (guarde num gerenciador de senhas) e a região **South America (São Paulo)**.
+3. Em **Project Settings → API Keys**, copie a **Publishable key**; em **Data API**, a **Project URL**. Elas vão para a Vercel (seção anterior) e, se quiser testar o app local contra o projeto real, para o `.env.local`.
+
+### 2. Rodar as migrações
+
+No computador, na pasta do projeto:
+
+```bash
+npx supabase login                          # abre o navegador para autorizar o CLI
+npx supabase link --project-ref <ref>       # <ref> é o código em https://supabase.com/dashboard/project/<ref>
+npx supabase db push                        # cria tabelas, RLS e o bucket "avatars"
+```
+
+O `seed.sql` (dados de exemplo) **não** vai para o projeto real. A cada fase nova, rode `npx supabase db push` de novo.
+
+### 3. Configurar o login
+
+Em **Authentication → URL Configuration**:
+
+- **Site URL:** `https://<seu-app>.vercel.app`
+- **Redirect URLs:** `https://<seu-app>.vercel.app/callback` (e `http://localhost:3000/callback`, se for testar local contra o projeto real)
+
+Em **Authentication → Emails → Templates**, nos modelos **Magic Link** e **Confirm signup**:
+
+- **Assunto:** `Seu acesso ao Lanima`
+- **Corpo:** cole o conteúdo de `supabase/templates/magic-link.html`. Ele traz o link **e** o código de 6 números. O código é o que funciona no iPhone e no iPad com o app instalado, porque o app instalado não compartilha o login com o Safari.
+
+Em **Authentication → Providers → Email**, confira que o código tem **6** dígitos (Email OTP Length).
+
+### 4. E-mail de verdade (SMTP gratuito)
+
+O envio de e-mail que vem com o Supabase é só para testes: manda pouquíssimos e-mails por hora e só para os endereços da equipe do projeto. Para as amigas conseguirem entrar, configure um SMTP gratuito em **Project Settings → Authentication → SMTP Settings** (confira os limites atuais na documentação de cada serviço):
+
+- **Gmail** (mais simples): numa conta Google com verificação em duas etapas, crie uma [senha de app](https://myaccount.google.com/apppasswords). Host `smtp.gmail.com`, porta `465`, usuário = o e-mail, senha = a senha de app, remetente = o mesmo e-mail.
+- **Brevo** (plano grátis): crie a conta, verifique o e-mail remetente e use as credenciais SMTP do painel (host `smtp-relay.brevo.com`, porta `587`).
+
+Em **Authentication → Rate Limits**, ajuste o limite de e-mails por hora ao que o SMTP escolhido permite.
+
+### 5. Entrar com o Google (opcional, grátis)
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e configure a **tela de consentimento OAuth** (tipo Externo; escopos só `email`, `profile` e `openid`).
+2. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**. Em **URIs de redirecionamento autorizados**, coloque `https://<ref>.supabase.co/auth/v1/callback`.
+3. Copie o **ID do cliente** e a **chave secreta** para **Supabase → Authentication → Providers → Google** e ative.
+4. Na Vercel, mude `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` para `true` e faça o redeploy.
+
+No iPhone e no iPad com o app instalado, o Google pode abrir uma janela do Safari e não voltar logado para o app: nesse caso, use o e-mail com código. Isso só dá para confirmar no aparelho.
+
+### 6. Se o Supabase pausar
+
+No plano Free, o projeto **pausa depois de 7 dias sem uso**: o app abre, mas não entra nem salva nada. Para reativar:
+
+1. Entre em [supabase.com/dashboard](https://supabase.com/dashboard) e abra o projeto `lanima`.
+2. Clique em **Restore project** e espere alguns minutos. Os dados continuam lá.
+3. Não deixe pausado por muito tempo: depois de um período longo, a restauração pelo painel deixa de estar disponível. Confira o prazo atual na documentação do Supabase.
+
+Usar o app pelo menos uma vez por semana evita a pausa.
 
 ## Instalar o Lanima
 
@@ -81,6 +168,14 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 | @playwright/test                     | 1.65.1          |                                                                                                                                 |
 | sharp                                | 0.35.5          | Só para gerar os ícones                                                                                                         |
 | @types/node                          | 22.20.5         | Alinhado com o Node 22                                                                                                          |
+| @supabase/supabase-js                | 2.119.2         | Banco, login e arquivos                                                                                                         |
+| @supabase/ssr                        | 0.12.7          | Sessão em cookies (proxy, `/callback`)                                                                                          |
+| supabase (CLI)                       | 3.2.0           | Supabase local, migrações, tipos e testes de RLS                                                                                |
+| @tanstack/react-query                | 5.108.3         | Dados remotos com cache                                                                                                         |
+| zod                                  | 4.6.7           | Validação de formulários                                                                                                        |
+| browser-image-compression            | 2.0.2           | Reduz a foto antes do corte (sem o modo worker, que baixa código de um CDN)                                                     |
+| react-easy-crop                      | 6.2.5           | Corte quadrado da foto com toque e pinça                                                                                        |
+| server-only                          | 0.0.1           | Garante que `lib/supabase/server.ts` nunca vá para o navegador                                                                  |
 
 ## Decisões técnicas da Fase 1
 
@@ -89,6 +184,17 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Tema sem piscar:** um script inline no `<head>` aplica `data-theme` antes da primeira pintura, a partir da escolha salva (Claro, Escuro) ou do sistema (Automático). A escolha fica no aparelho por enquanto e passa para o perfil (`profiles.tema`) na Fase 2.
 - **Service worker:** gerado pelo Serwist em `/serwist/sw.js`, pelo route handler documentado (`force-static`, `revalidate = false`): é empacotado uma vez no `next build` e servido como arquivo estático, nunca em tempo de execução. O precache inclui o app shell, as fontes (`.woff2`), os ícones, `/inicio` e a página `/~offline`.
 - **Folhas e diálogos:** usam o `<dialog>` nativo com `showModal()`: foco preso, Esc fecha, o resto da página fica inerte e o foco volta para quem abriu.
+
+## Decisões técnicas da Fase 2
+
+- **Colunas do banco em inglês** (`name`, `daily_focus_goal_min`, `show_in_ranking`…), interface em português. As cores das matérias continuam com as chaves da spec (`amarelo`, `rosa`…).
+- **Quem decide "login, onboarding ou app" é o aparelho**, não o servidor (`features/auth/auth-gate.tsx`, regra pura em `lib/auth/gate.ts`). As páginas são cascas estáticas e os dados vêm do Supabase no navegador, protegidos pelo RLS. Um redirecionamento no servidor quebraria o uso offline e poderia fazer o service worker guardar a tela de login no lugar do `/inicio`. O `proxy.ts` só renova o cookie da sessão.
+- **Offline:** a última conta e o último perfil ficam no aparelho; sem internet, o app abre com eles em vez de mandar para o login.
+- **E-mail com link e código:** o link entra direto em qualquer navegador (`/callback?token_hash=…`, sem depender do navegador que pediu); o código resolve o iPhone e o iPad com o app instalado.
+- **`/callback` redireciona com endereço relativo** (`Location: /inicio`). O `next start` informa `localhost` como origem mesmo atendendo `127.0.0.1`; um redirecionamento absoluto levava a pessoa para outro host, sem o cookie da sessão.
+- **O service worker nunca guarda respostas da API do Supabase** (`app/sw.ts`). A regra padrão do Serwist para outras origens guardaria perfil e matérias num cache que a próxima pessoa num tablet compartilhado poderia ver offline. Exceção: as fotos de perfil (cada envio tem um nome novo).
+- **Foto de perfil:** recorte quadrado no aparelho, 512 px, WebP (ou JPEG quando o navegador não codifica WebP), em `avatars/<id da usuária>/avatar-<data>.webp`, bucket privado com URL assinada.
+- **Tema na conta:** a escolha vale em todos os aparelhos (`profiles.theme`). O `localStorage` continua aplicando o tema antes da primeira pintura; uma troca feita offline é enviada quando a conexão volta.
 
 ### Por que o cacheComponents está desligado
 
@@ -110,7 +216,10 @@ app/                  rotas (App Router); (app) com menu, (full) em tela cheia
   design/             página de componentes
 components/ui/        componentes-base
 components/layout/    AppShell, navegação, instalação, tema
-lib/                  tema, PWA, datas, cores de matéria
+features/             telas e lógica por módulo (auth, onboarding, perfil, matérias)
+lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil
+proxy.ts              renova o cookie da sessão (Next 16: antigo middleware)
+supabase/             config local, migrações, seed, testes de RLS e modelo de e-mail
 tests/unit/           Vitest
 tests/e2e/            Playwright
 design-reference/     mockups aprovados (somente leitura)
@@ -118,4 +227,4 @@ design-reference/     mockups aprovados (somente leitura)
 
 ## Próximas seções deste README
 
-Chegam com as fases correspondentes: criar o projeto no Supabase, rodar as migrações, reativar o Supabase depois de uma pausa, e criar as chaves gratuitas do Gemini e do Groq.
+Chegam com as fases correspondentes: as chaves gratuitas do Gemini e do Groq (fase 6), grupos e ranking (fase 9).

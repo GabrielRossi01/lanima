@@ -1,6 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
+import { localSupabaseEnv } from "./tests/e2e/helpers/local-supabase";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+
+/**
+ * E2E always runs against the LOCAL Supabase stack (`npm run db:start`), never a hosted project.
+ * Exported to the environment so test workers (admin helpers, Mailpit) read the same values.
+ */
+const supabase = localSupabaseEnv();
+process.env.E2E_SUPABASE_URL = supabase.url;
+process.env.E2E_SUPABASE_PUBLISHABLE_KEY = supabase.publishableKey;
+process.env.E2E_SUPABASE_SECRET_KEY = supabase.secretKey;
+process.env.E2E_MAILPIT_URL = supabase.mailpitUrl;
 
 /**
  * 127.0.0.1, not "localhost": on Windows "localhost" resolves to ::1 first, and on the dev
@@ -63,5 +74,11 @@ export default defineConfig({
         reuseExistingServer: false,
         timeout: 300_000,
         stdout: "pipe",
+        // NEXT_PUBLIC_* values are inlined at build time, so the build itself must see them.
+        env: {
+          NEXT_PUBLIC_SUPABASE_URL: supabase.url,
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
+          NEXT_PUBLIC_AUTH_GOOGLE_ENABLED: "false",
+        },
       },
 });

@@ -86,3 +86,37 @@ export function SearchField({
     </label>
   );
 }
+
+interface SelectFieldProps extends Omit<ComponentProps<"select">, "id"> {
+  label: string;
+  error?: string;
+  children: ReactNode;
+}
+
+/** Native select (best picker on touch devices), styled like the text fields. */
+export function SelectField({ label, error, className, children, ...props }: SelectFieldProps) {
+  const id = useId();
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+      <Label htmlFor={id}>{label}</Label>
+      <select
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={cn(fieldClasses, "appearance-none bg-[length:16px] bg-[right_14px_center] bg-no-repeat pr-10")}
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360676B' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+        }}
+        {...props}
+      >
+        {children}
+      </select>
+      {error && (
+        <p id={`${id}-error`} className="type-caption m-0 text-danger-text">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

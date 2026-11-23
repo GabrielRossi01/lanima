@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./helpers/fixtures";
 import { describeHorizontalOverflow } from "./helpers/overflow";
 
 type Layout = "sidebar" | "rail" | "tabbar";
@@ -23,6 +24,9 @@ function mainNav(page: Page) {
 }
 
 test.describe("AppShell responsivo", () => {
+  // Every test here runs signed in, as a user who finished the onboarding.
+  test.beforeEach(async ({ account }) => void account);
+
   test("mostra a navegação certa para a largura da tela", async ({ page }) => {
     await page.goto("/inicio");
     const nav = mainNav(page);
@@ -102,6 +106,8 @@ test.describe("AppShell responsivo", () => {
   test("alvos de toque da navegação têm pelo menos 44 px", async ({ page }) => {
     await page.goto("/inicio");
     const targets = mainNav(page).locator("a, button");
+    // The app renders once the session is read on the device.
+    await expect(targets.first()).toBeVisible();
     const count = await targets.count();
     expect(count).toBeGreaterThan(3);
     for (let i = 0; i < count; i++) {
@@ -135,9 +141,11 @@ test.describe("Tema", () => {
     }, stored);
   }
 
+  // The boot script runs on every page; /entrar is public, so the theme saved on the device is
+  // the only input (signed in, the profile's theme is synced on top of it).
   test("tema escuro salvo é aplicado antes da primeira pintura (sem piscar)", async ({ page }) => {
     await captureThemeAtFirstPaint(page, "dark");
-    await page.goto("/inicio");
+    await page.goto("/entrar");
     expect(await page.evaluate(() => (window as unknown as { __themeAtBody: string }).__themeAtBody)).toBe("dark");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(18, 24, 29)");
     for (const meta of await page.locator('meta[name="theme-color"]').all()) {
@@ -148,13 +156,14 @@ test.describe("Tema", () => {
   test("automático segue o sistema", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
     await captureThemeAtFirstPaint(page, null);
-    await page.goto("/inicio");
+    await page.goto("/entrar");
     expect(await page.evaluate(() => (window as unknown as { __themeAtBody: string }).__themeAtBody)).toBe("dark");
     await page.emulateMedia({ colorScheme: "light" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
-  test("a escolha no Perfil vale na hora e depois de recarregar", async ({ page }) => {
+  test("a escolha no Perfil vale na hora e depois de recarregar", async ({ page, account }) => {
+    void account;
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/perfil");
     await page.getByRole("radio", { name: "Escuro" }).click();
@@ -195,14 +204,16 @@ test.describe("PWA", () => {
     }
   });
 
-  test("service worker registra com escopo da raiz", async ({ page, browserName }) => {
+  test("service worker registra com escopo da raiz", async ({ page, browserName, account }) => {
+    void account;
     test.skip(browserName !== "chromium", "Registro de service worker verificado no Chromium (Galaxy Tab).");
     await page.goto("/inicio");
     const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
     expect(new URL(scope).pathname).toBe("/");
   });
 
-  test("Android: botão “Instalar o Lanima” usa o prompt nativo", async ({ page, browserName }) => {
+  test("Android: botão “Instalar o Lanima” usa o prompt nativo", async ({ page, browserName, account }) => {
+    void account;
     test.skip(browserName !== "chromium", "beforeinstallprompt só existe no Chromium.");
     await page.goto("/inicio");
     test.skip(await isIOSUserAgent(page), "No iOS não existe prompt nativo.");
@@ -223,7 +234,8 @@ test.describe("PWA", () => {
     await expect(page.getByText("Lanima instalado")).toBeVisible();
   });
 
-  test("iOS: folha com o passo a passo de instalação", async ({ page }) => {
+  test("iOS: folha com o passo a passo de instalação", async ({ page, account }) => {
+    void account;
     await page.goto("/inicio");
     test.skip(!(await isIOSUserAgent(page)), "Fluxo do Safari no iPhone e no iPad.");
     const layout = currentLayout(page);
@@ -237,7 +249,8 @@ test.describe("PWA", () => {
     await expect(sheet).toHaveCount(0);
   });
 
-  test("já instalado (standalone), não oferece instalação", async ({ page }) => {
+  test("já instalado (standalone), não oferece instalação", async ({ page, account }) => {
+    void account;
     await page.addInitScript(() => {
       const original = window.matchMedia.bind(window);
       window.matchMedia = (query: string) =>

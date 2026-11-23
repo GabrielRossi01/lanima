@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <body
+    style="margin: 0; padding: 24px; background: #f5f6f5; font-family: Arial, Helvetica, sans-serif; color: #1f2a33"
+  >
+    <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 20px; padding: 32px">
+      <p style="margin: 0 0 8px; font-size: 22px; font-weight: bold">Entrar no Lanima</p>
+      <p style="margin: 0 0 24px; font-size: 15px; line-height: 22px; color: #60676b">
+        Toque no botão para entrar. No iPhone ou iPad com o app instalado, digite o código no app.
+      </p>
+      <p style="margin: 0 0 24px">
+        <a
+          href="{{ .SiteURL }}/callback?token_hash={{ .TokenHash }}&type=email"
+          style="
+            display: inline-block;
+            background: #4b6577;
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 15px;
+            padding: 13px 24px;
+            border-radius: 999px;
+          "
+          >Entrar no Lanima</a
+        >
+      </p>
+      <p style="margin: 0 0 4px; font-size: 13px; color: #60676b">Ou digite este código:</p>
+      <p style="margin: 0 0 24px; font-size: 32px; letter-spacing: 6px; font-weight: bold; color: #3e5566">
+        {{ .Token }}
+      </p>
+      <p style="margin: 0; font-size: 12px; line-height: 18px; color: #60676b">
+        O link e o código valem por 1 hora e só podem ser usados uma vez. Se você não pediu para entrar, ignore este
+        e-mail.
+      </p>
+    </div>
+  </body>
+</html>
