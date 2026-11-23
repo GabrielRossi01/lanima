@@ -68,7 +68,21 @@ jobs:
       - run: npm ci
       # Local Supabase (Auth, database, Storage, Mailpit): E2E never touches a hosted project.
       - run: npx supabase start -x "$SUPABASE_EXCLUDE"
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      # Browser binaries are cached per Playwright version (from the lockfile). System packages and
+      # the download are separate steps with their own limits: a stuck mirror or CDN fails in
+      # minutes, and the log shows which of the two hung (a run once sat 17+ min in one step).
+      - uses: actions/cache@v4
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+      - name: Install system packages for ${{ matrix.browser }}
+        run: npx playwright install-deps ${{ matrix.browser }}
+        timeout-minutes: 10
+      - name: Download ${{ matrix.browser }}
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install ${{ matrix.browser }}
+        timeout-minutes: 10
       # The Playwright webServer runs `npm run build && next start` (production, service worker active)
       # with the local Supabase URL and key, read from `supabase status`.
       - run: npx playwright test ${{ matrix.projects }}
