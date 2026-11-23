@@ -6,6 +6,7 @@ import { avatarExtension } from "@/lib/images/avatar";
 import { toProfile, type Profile } from "@/lib/profile/profile";
 import type { Database } from "@/lib/supabase/database.types";
 import { getSupabase } from "@/lib/supabase/client";
+import { DataError } from "@/lib/supabase/errors";
 import {
   forgetAvatarUrl,
   readCachedAvatarUrl,
@@ -26,8 +27,9 @@ export function useProfile() {
     queryKey: profileKey(userId),
     enabled: Boolean(userId),
     queryFn: async (): Promise<Profile> => {
-      const { data, error } = await getSupabase().from("profiles").select("*").eq("id", userId!).single();
-      if (error) throw error;
+      const { data, error, status } = await getSupabase().from("profiles").select("*").eq("id", userId!).single();
+      // Keeps the HTTP status and Supabase code ("404 · PGRST205") for the error screen.
+      if (error) throw new DataError(error.message, { status, code: error.code });
       const profile = toProfile(data);
       writeCachedProfile(profile);
       return profile;

@@ -18,7 +18,7 @@ import {
   subjectsToCreate,
   SUGGESTED_SUBJECTS,
 } from "@/lib/subjects/suggestions";
-import { friendlyError } from "@/lib/supabase/errors";
+import { DataError, errorTag, friendlyError } from "@/lib/supabase/errors";
 
 describe("decideGate: login, onboarding ou app", () => {
   const done = { onboardingDone: true };
@@ -60,10 +60,12 @@ describe("decideGate: login, onboarding ou app", () => {
     expect(decideGate("app", "offline", pending)).toEqual({ kind: "redirect", to: "/boas-vindas" });
   });
 
-  it("online, espera o perfil antes de decidir; se o perfil falhar, não prende no carregamento", () => {
+  it("online, espera o perfil antes de decidir; se o perfil falhar, mostra a tela de erro", () => {
     expect(decideGate("app", "signed-in", undefined)).toEqual({ kind: "wait" });
-    expect(decideGate("app", "signed-in", null)).toEqual({ kind: "render" });
-    expect(decideGate("onboarding", "signed-in", null)).toEqual({ kind: "wait" });
+    // Regression: a failing profile used to leave the splash on screen forever.
+    expect(decideGate("app", "signed-in", null)).toEqual({ kind: "error" });
+    expect(decideGate("onboarding", "signed-in", null)).toEqual({ kind: "error" });
+    expect(decideGate("onboarding", "offline", null)).toEqual({ kind: "error" });
   });
 });
 
@@ -205,13 +207,34 @@ describe("foto de perfil", () => {
 });
 
 describe("mensagens de erro", () => {
-  it("traduz erros comuns", () => {
+  it("traduz pelos códigos do Supabase", () => {
     expect(friendlyError({ status: 429 })).toMatch(/Muitas tentativas/);
+    expect(friendlyError({ code: "over_email_send_rate_limit", status: 429 })).toMatch(/Muitos e-mails/);
     expect(friendlyError({ code: "otp_expired", message: "Token has expired or is invalid" })).toMatch(
       /Código inválido/,
     );
+    expect(friendlyError({ message: "Token has expired or is invalid", status: 403 })).toMatch(/Código inválido/);
+    expect(friendlyError({ code: "email_address_not_authorized", status: 400 })).toMatch(/SMTP/);
     expect(friendlyError({ name: "AuthRetryableFetchError", message: "Failed to fetch" })).toMatch(/servidor/);
-    expect(friendlyError({ message: "algo estranho" }, "Padrão")).toBe("Padrão");
+    expect(friendlyError(new TypeError("Load failed"))).toMatch(/servidor/);
+  });
+
+  it("erro de configuração nunca vira “código inválido”: mostra o código técnico", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // The real bug: a wrong publishable key answered "Invalid API key" and the app said "wrong code".
+    const apiKey = friendlyError({ message: "Invalid API key", status: 401 }, "Não foi possível enviar o e-mail.");
+    expect(apiKey).toBe("Não foi possível enviar o e-mail. (401)");
+    expect(friendlyError({ message: "Invalid path specified in request URL", status: 404 })).not.toMatch(/Código/);
+    expect(friendlyError({ message: "algo estranho" }, "Padrão")).toBe("Padrão (erro desconhecido)");
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("etiqueta técnica da tela de erro", () => {
+    expect(errorTag(new DataError("relation not found", { status: 404, code: "PGRST205" }))).toBe("404 · PGRST205");
+    expect(errorTag({ code: "otp_expired" })).toBe("otp_expired");
+    expect(errorTag(new TypeError("Failed to fetch"))).toBe("sem resposta do servidor");
+    expect(errorTag(null)).toBe("erro desconhecido");
   });
 
   it("offline avisa que está sem conexão", () => {
@@ -235,5 +258,13 @@ describe("código do e-mail", () => {
     expect(cleanOtpInput("1234 5678")).toBe("12345678");
     expect(cleanOtpInput(" 123-456 ")).toBe("123456");
     expect(cleanOtpInput("12345678901234")).toBe("1234567890");
+  });
+});
+
+describe("erros de programação não viram erro de rede", () => {
+  it("um TypeError qualquer aparece com a etiqueta técnica", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(friendlyError(new TypeError("x is undefined"))).toBe("Não deu certo. Tente de novo. (TypeError)");
+    spy.mockRestore();
   });
 });

@@ -102,7 +102,7 @@ npx supabase migration list --remote        # confira: as migrações aparecem n
 
 O `seed.sql` (dados de exemplo) **não** vai para o projeto real. A cada fase nova, rode `npx supabase db push --remote` de novo.
 
-Se alguém criou conta **antes** das migrações chegarem ao projeto, rode uma vez no **SQL Editor** para criar os perfis que faltaram:
+Contas criadas **antes** das migrações chegarem ao projeto ficam sem perfil (o app mostra "Não foi possível carregar seu perfil" com o código `406 · PGRST116`). A migração `…_backfill_profiles.sql` cria esses perfis no próximo `db push --remote`. Se precisar resolver na hora, pelo **SQL Editor**:
 
 ```sql
 insert into public.profiles (id)

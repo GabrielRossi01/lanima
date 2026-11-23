@@ -1,12 +1,13 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useProfile } from "@/features/profile/queries";
 import { useThemeSync } from "@/features/profile/theme-sync";
 import { decideGate, type GateArea, type GateProfile } from "@/lib/auth/gate";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { useAuth } from "./auth-provider";
+import { ProfileErrorScreen } from "./profile-error-screen";
 import { Splash } from "./splash";
 
 /**
@@ -19,10 +20,16 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
   const pathname = usePathname();
   const router = useRouter();
   useThemeSync(profile.data);
+  // Last error seen: a retry clears `profile.error`, but the screen keeps showing the cause.
+  const [lastError, setLastError] = useState<unknown>(null);
+  if (profile.error && profile.error !== lastError) setLastError(profile.error);
 
+  // `errorUpdateCount`, not `isError`: when the query retries (e.g. a component that reads the
+  // profile mounts), TanStack Query v5 sets a query without data back to "pending". Using isError
+  // made the gate flip between the app and the splash in a loop while the profile kept failing.
   const gateProfile: GateProfile = profile.data
     ? { onboardingDone: Boolean(profile.data.onboarding_completed_at) }
-    : profile.isError
+    : profile.errorUpdateCount > 0
       ? null
       : undefined;
   // ?proxima= on the sign-in page. Read only after the session is known, i.e. in the browser.
@@ -37,5 +44,19 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
     if (target) router.replace(target);
   }, [router, target]);
 
-  return decision.kind === "render" ? children : <Splash />;
+  if (decision.kind === "render") return children;
+  if (decision.kind === "error") {
+    return (
+      <ProfileErrorScreen
+        error={profile.error ?? lastError}
+        retrying={profile.isFetching}
+        onRetry={() => void profile.refetch()}
+        onSignOut={async () => {
+          await auth.signOut();
+          router.replace("/entrar");
+        }}
+      />
+    );
+  }
+  return <Splash />;
 }
