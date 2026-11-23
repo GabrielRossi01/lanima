@@ -94,10 +94,21 @@ No computador, na pasta do projeto:
 ```bash
 npx supabase login                          # abre o navegador para autorizar o CLI
 npx supabase link --project-ref <ref>       # <ref> é o código em https://supabase.com/dashboard/project/<ref>
-npx supabase db push                        # cria tabelas, RLS e o bucket "avatars"
+npx supabase db push --remote               # cria tabelas, RLS e o bucket "avatars" NO PROJETO HOSPEDADO
+npx supabase migration list --remote        # confira: as migrações aparecem na coluna Remote
 ```
 
-O `seed.sql` (dados de exemplo) **não** vai para o projeto real. A cada fase nova, rode `npx supabase db push` de novo.
+> **Atenção ao `--remote`:** no CLI 3.x, `db push`, `migration list` e outros comandos de banco falam com o Supabase **local** por padrão (a primeira linha da saída mostra o alvo: `Target: local stack…`). Sem `--remote`, as tabelas são criadas só no seu computador e o app publicado recebe `404` ao buscar o perfil.
+
+O `seed.sql` (dados de exemplo) **não** vai para o projeto real. A cada fase nova, rode `npx supabase db push --remote` de novo.
+
+Se alguém criou conta **antes** das migrações chegarem ao projeto, rode uma vez no **SQL Editor** para criar os perfis que faltaram:
+
+```sql
+insert into public.profiles (id)
+select id from auth.users
+on conflict (id) do nothing;
+```
 
 ### 3. Configurar o login
 
