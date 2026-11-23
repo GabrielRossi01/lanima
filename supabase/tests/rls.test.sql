@@ -3,7 +3,16 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(32);
+
+-- Exact privileges per role, independent of the project's default privileges (hosted projects may
+-- not grant new tables to the API roles; relying on that gave "403 · 42501" in production).
+select table_privs_are('public', 'profiles', 'authenticated', array['SELECT'], 'authenticated: profiles is SELECT only (plus column UPDATE)');
+select table_privs_are('public', 'profiles', 'anon', array[]::text[], 'anon: no access to profiles');
+select table_privs_are('public', 'subjects', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: CRUD on subjects');
+select table_privs_are('public', 'subjects', 'anon', array[]::text[], 'anon: no access to subjects');
+select column_privs_are('public', 'profiles', 'name', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may read and update the name column');
+select column_privs_are('public', 'profiles', 'created_at', 'authenticated', array['SELECT'], 'authenticated may read but not update created_at');
 
 -- Two users. The sign-up trigger creates their profiles.
 insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data, created_at, updated_at)
