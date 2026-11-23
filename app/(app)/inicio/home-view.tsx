@@ -1,36 +1,225 @@
 "use client";
 
-import { BookOpen, Check, Flame, Play, Target, Timer } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, Check, ChevronRight, Flame, Play, Target, Timer } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { IconTile } from "@/components/ui/icon-tile";
 import { MetricCard } from "@/components/ui/metric-card";
-import { SearchField } from "@/components/ui/input";
-import { greetingFor, longDate } from "@/lib/dates/greeting";
-import { useNow } from "@/lib/hooks/use-now";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { GoalsCard } from "@/features/goals/goals-card";
+import { useGoals } from "@/features/goals/queries";
 import { useProfile } from "@/features/profile/queries";
+import { GlobalSearch } from "@/features/search/global-search";
+import { useAssessments, useSubjects, useTopics } from "@/features/subjects/queries";
+import { cn } from "@/lib/cn";
+import {
+  addDays,
+  dayMonth,
+  daysBetween,
+  todayIn,
+  weekdayOf,
+  weekOf,
+  WEEKDAY_SHORT,
+  type IsoDate,
+} from "@/lib/dates/calendar";
+import { greetingFor, longDate } from "@/lib/dates/greeting";
+import { weekProgress } from "@/lib/goals/goals";
+import { useNow } from "@/lib/hooks/use-now";
 import { firstNameOf, formatFocusGoal } from "@/lib/profile/profile";
+import { SUBJECT_BG } from "@/lib/subjects/colors";
+import { subjectIcon } from "@/lib/subjects/icons";
+import { formatTimeShort } from "@/lib/subjects/schedule";
+import {
+  ASSESSMENT_KIND_LABEL,
+  isAssessmentKind,
+  nextAssessment,
+  recentSubjects,
+  summarize,
+  type AssessmentRow,
+  type Subject,
+  type SubjectSummary,
+} from "@/lib/subjects/subjects";
 
-/**
- * Phase 1 home: real greeting and layout, empty states instead of data.
- * Metrics, goals and ranking are wired to Supabase in phase 3.
- */
+function ContinueStudying({ recent }: { recent: SubjectSummary[] }) {
+  return (
+    <Card>
+      <CardHeader
+        title="Continuar estudando"
+        action={
+          <Link href="/materias" className="text-sm font-semibold">
+            Todas as matérias
+          </Link>
+        }
+      />
+      {recent.length === 0 ? (
+        <p className="type-body m-0 text-fg-2">
+          Crie suas matérias em <Link href="/materias">Matérias</Link> para acompanhar o progresso aqui.
+        </p>
+      ) : (
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {recent.map(({ subject, topics, progress }) => {
+            const nextTopic = topics.find((t) => !t.done);
+            return (
+              <li key={subject.id}>
+                <Link
+                  href={`/materias/${subject.id}`}
+                  className="flex min-w-0 items-center gap-3.5 rounded-lg bg-surface-alt p-3 text-fg no-underline hover:bg-active"
+                >
+                  <IconTile icon={subjectIcon(subject.icon)} color={subject.color} size={40} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-semibold">{subject.name}</span>
+                      <span className="truncate text-xs text-fg-2">
+                        {nextTopic
+                          ? nextTopic.title
+                          : topics.length > 0
+                            ? "Conteúdo todo revisado"
+                            : "Sem conteúdo cadastrado"}
+                      </span>
+                    </span>
+                    <ProgressBar value={progress} label={`Progresso em ${subject.name}`} showValue />
+                  </span>
+                  <ChevronRight aria-hidden size={18} strokeWidth={1.75} className="shrink-0 text-fg-2" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function NextExamCard({ exam, subject, today }: { exam?: AssessmentRow; subject?: Subject; today: IsoDate }) {
+  if (!exam || !subject) {
+    return (
+      <Card tone="deep" className="gap-2.5">
+        <span className="type-overline text-on-deep-2">Próxima prova</span>
+        <span className="font-serif text-[28px] leading-9 font-semibold">Nenhuma marcada</span>
+        <span className="type-body text-on-deep-2">Marque as avaliações na página de cada matéria.</span>
+      </Card>
+    );
+  }
+  const n = daysBetween(today, exam.date);
+  const when = n === 0 ? "hoje" : n === 1 ? "amanhã" : `em ${n} dias`;
+  const kind = isAssessmentKind(exam.kind) ? ASSESSMENT_KIND_LABEL[exam.kind] : "Avaliação";
+  return (
+    <Card tone="deep" className="gap-2.5">
+      <span className="font-serif text-[28px] leading-9 font-semibold wrap-break-word">
+        {exam.kind === "prova" ? "Próxima prova" : kind} {when}
+      </span>
+      <span className="type-body wrap-break-word text-on-deep-2">
+        {[subject.name, exam.title, exam.description].filter(Boolean).join(" · ")} · {dayMonth(exam.date)}
+      </span>
+      <Button variant="inverse" disabled className="mt-1 self-start">
+        Criar teste para a prova
+      </Button>
+      <span className="type-caption text-on-deep-2">Os testes chegam na fase 6.</span>
+    </Card>
+  );
+}
+
+/** Desktop.html "Semana": classes of the active subjects and this week's assessments, Mon–Sun. */
+function WeekAgenda({
+  subjects,
+  assessments,
+  today,
+}: {
+  subjects: Subject[];
+  assessments: AssessmentRow[];
+  today: IsoDate;
+}) {
+  const { start } = weekOf(today);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const items = (day: IsoDate) => {
+    const wd = weekdayOf(day);
+    const classes = subjects.flatMap((s) =>
+      s.schedule_slots
+        .filter((slot) => slot.day === wd)
+        .map((slot) => ({
+          key: `${s.id}-${slot.start}`,
+          sort: slot.start,
+          label: `${s.name}${slot.lab ? " · lab" : ""}`,
+          time: formatTimeShort(slot.start),
+          color: s.color,
+        })),
+    );
+    const exams = assessments
+      .filter((a) => a.date === day)
+      .map((a) => {
+        const s = subjects.find((x) => x.id === a.subject_id);
+        return {
+          key: a.id,
+          sort: "00:00",
+          label: `${a.title}${s ? ` · ${s.name}` : ""}`,
+          time: "prova",
+          color: s?.color,
+        };
+      });
+    return [...exams, ...classes.sort((a, b) => a.sort.localeCompare(b.sort))];
+  };
+  const hasAny = days.some((d) => items(d).length > 0);
+  if (!hasAny) return null;
+  return (
+    <Card className="hidden xl:flex">
+      <CardHeader title="Semana" />
+      <ol className="m-0 flex list-none flex-col gap-3 p-0">
+        {days.map((day, i) => {
+          const list = items(day);
+          if (list.length === 0) return null;
+          return (
+            <li key={day} className="flex gap-3">
+              <span className={cn("w-12 shrink-0 text-xs font-semibold", day === today ? "text-accent" : "text-fg-2")}>
+                {WEEKDAY_SHORT[i]} {Number(day.slice(8))}
+              </span>
+              <ul className="m-0 flex min-w-0 flex-1 list-none flex-col gap-1 p-0">
+                {list.map((item) => (
+                  <li key={item.key} className="flex min-w-0 items-center gap-2 text-xs">
+                    <span
+                      aria-hidden
+                      className={cn("size-2 shrink-0 rounded-full", item.color ? SUBJECT_BG[item.color] : "bg-subtle")}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="shrink-0 text-fg-2 tabular-nums">{item.time}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
+  );
+}
+
+/** Início (Inicio.html, iPhoneInicio.html, Desktop.html). Focus and streak arrive in phase 4. */
 export function HomeView() {
   const now = useNow();
+  const today = now ? todayIn(now) : null;
   const { data: profile } = useProfile();
+  const subjects = useSubjects();
+  const topics = useTopics();
+  const assessments = useAssessments();
+  const goals = useGoals(today);
   const firstName = firstNameOf(profile?.name);
-  const [query, setQuery] = useState("");
+
+  const active = (subjects.data ?? []).filter((s) => !s.archived);
+  const activeIds = new Set(active.map((s) => s.id));
+  const activeAssessments = (assessments.data ?? []).filter((a) => activeIds.has(a.subject_id));
+  const summaries = today && topics.data ? summarize(active, topics.data, activeAssessments, today) : [];
+  const exam = today ? nextAssessment(activeAssessments, today) : undefined;
+  const week = today && goals.data ? weekProgress(goals.data, today) : null;
 
   return (
     <>
       <PageHeader
-        title={now ? (firstName ? `${greetingFor(now)}, ${firstName}` : `${greetingFor(now)}!`) : " "}
-        subtitle={now ? longDate(now) : " "}
+        title={now ? (firstName ? `${greetingFor(now)}, ${firstName}` : `${greetingFor(now)}!`) : " "}
+        subtitle={now ? longDate(now) : " "}
         actions={
           <>
-            <SearchField value={query} onValueChange={setQuery} className="w-full md:w-60" />
+            <GlobalSearch today={today} className="w-full md:w-72" />
             <ButtonLink href="/foco" icon={Play}>
               Iniciar foco
             </ButtonLink>
@@ -45,32 +234,44 @@ export function HomeView() {
           label={`Foco hoje · meta ${formatFocusGoal(profile?.daily_focus_goal_min ?? 120)}`}
         />
         <MetricCard icon={Flame} color="amarelo" value="0 dias" label="Sequência de estudo" />
-        <MetricCard icon={Check} color="verde" value="0 de 0" label="Metas da semana" />
+        <MetricCard
+          icon={Check}
+          color="verde"
+          value={week ? `${week.done} de ${week.total}` : "–"}
+          label="Metas da semana"
+        />
         <MetricCard icon={Target} color="rosa" value="–" label="Acerto médio nos testes" />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_290px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_290px] xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-5">
-          <Card>
-            <CardHeader title="Metas de hoje" />
-            <p className="type-body m-0 text-fg-2">Nenhuma meta para hoje. As metas chegam na fase 3.</p>
-          </Card>
-          <EmptyState
-            icon={BookOpen}
-            title="Nenhuma matéria ainda"
-            description="Suas matérias aparecem aqui com o progresso de cada uma."
-          />
+          {today && goals.data ? (
+            <GoalsCard goals={goals.data} subjects={subjects.data ?? []} today={today} />
+          ) : (
+            <div aria-busy className="h-48 animate-pulse rounded-card bg-surface-alt motion-reduce:animate-none" />
+          )}
+          {topics.data && subjects.data ? (
+            <ContinueStudying recent={recentSubjects(summaries)} />
+          ) : (
+            <div aria-busy className="h-48 animate-pulse rounded-card bg-surface-alt motion-reduce:animate-none" />
+          )}
         </div>
-        <div className="flex flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-5">
           <Card>
             <CardHeader title="Ranking da semana" />
             <p className="type-body m-0 text-fg-2">Entre num grupo para ver o ranking da turma.</p>
           </Card>
-          <Card tone="deep" className="gap-2.5">
-            <span className="type-overline text-on-deep-2">Próxima prova</span>
-            <span className="font-serif text-[28px] leading-9 font-semibold">Nenhuma marcada</span>
-            <span className="type-body text-on-deep-2">Cadastre as avaliações em cada matéria.</span>
-          </Card>
+          {today && <NextExamCard exam={exam} subject={active.find((s) => s.id === exam?.subject_id)} today={today} />}
+          {today && <WeekAgenda subjects={active} assessments={activeAssessments} today={today} />}
+          {subjects.data && active.length === 0 && (
+            <Card tone="alt">
+              <CardHeader title="Comece pelas matérias" />
+              <p className="type-body m-0 text-fg-2">Cadastre as matérias e as aulas da semana.</p>
+              <ButtonLink href="/materias" icon={BookOpen} variant="secondary" className="self-start">
+                Abrir Matérias
+              </ButtonLink>
+            </Card>
+          )}
         </div>
       </div>
     </>

@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 2 (login, perfil e onboarding).** Entrada por e-mail (link e código) ou Google, onboarding em 3 passos com foto e matérias, Perfil editável, tema salvo na conta, RLS testado. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 3 (matérias, metas e Início).** Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -163,30 +163,33 @@ O PWA só instala por HTTPS, então use o endereço da Vercel.
 
 Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão difere da “mais nova” do npm, o motivo está anotado.
 
-| Pacote                               | Versão          | Nota                                                                                                                            |
-| ------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| next                                 | 16.4.6          | App Router, Turbopack. `cacheComponents` e `partialPrefetching` **desligados** (ver “Por que o cacheComponents está desligado”) |
-| react / react-dom                    | 19.3.0          | Fixado pelo `create-next-app` 16.4.6                                                                                            |
-| tailwindcss / @tailwindcss/turbopack | 4.3.3           | Fixado pelo template do Next                                                                                                    |
-| typescript                           | 5.9.3           | O npm já tem a 7.x, mas o template do Next 16.4 fixa a 5.x                                                                      |
-| eslint / eslint-config-next          | 9.39.5 / 16.4.6 | O npm já tem o ESLint 10, mas o template do Next fixa o 9                                                                       |
-| @serwist/turbopack / serwist         | 9.5.15          | Service worker com Turbopack                                                                                                    |
-| esbuild                              | 0.28.2          | Usado pelo Serwist para empacotar o service worker                                                                              |
-| lucide-react                         | 1.77.0          | Ícones, traço 1.75                                                                                                              |
-| prettier                             | 3.10.1          |                                                                                                                                 |
-| vitest                               | 5.1.1           | Exige `@types/node` 22+                                                                                                         |
-| @testing-library/react               | 16.3.3          |                                                                                                                                 |
-| @playwright/test                     | 1.65.1          |                                                                                                                                 |
-| sharp                                | 0.35.5          | Só para gerar os ícones                                                                                                         |
-| @types/node                          | 22.20.5         | Alinhado com o Node 22                                                                                                          |
-| @supabase/supabase-js                | 2.119.2         | Banco, login e arquivos                                                                                                         |
-| @supabase/ssr                        | 0.12.7          | Sessão em cookies (proxy, `/callback`)                                                                                          |
-| supabase (CLI)                       | 3.2.0           | Supabase local, migrações, tipos e testes de RLS                                                                                |
-| @tanstack/react-query                | 5.108.3         | Dados remotos com cache                                                                                                         |
-| zod                                  | 4.6.7           | Validação de formulários                                                                                                        |
-| browser-image-compression            | 2.0.2           | Reduz a foto antes do corte (sem o modo worker, que baixa código de um CDN)                                                     |
-| react-easy-crop                      | 6.2.5           | Corte quadrado da foto com toque e pinça                                                                                        |
-| server-only                          | 0.0.1           | Garante que `lib/supabase/server.ts` nunca vá para o navegador                                                                  |
+| Pacote                                  | Versão          | Nota                                                                                                                            |
+| --------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| next                                    | 16.4.6          | App Router, Turbopack. `cacheComponents` e `partialPrefetching` **desligados** (ver “Por que o cacheComponents está desligado”) |
+| react / react-dom                       | 19.3.0          | Fixado pelo `create-next-app` 16.4.6                                                                                            |
+| tailwindcss / @tailwindcss/turbopack    | 4.3.3           | Fixado pelo template do Next                                                                                                    |
+| typescript                              | 5.9.3           | O npm já tem a 7.x, mas o template do Next 16.4 fixa a 5.x                                                                      |
+| eslint / eslint-config-next             | 9.39.5 / 16.4.6 | O npm já tem o ESLint 10, mas o template do Next fixa o 9                                                                       |
+| @serwist/turbopack / serwist            | 9.5.15          | Service worker com Turbopack                                                                                                    |
+| esbuild                                 | 0.28.2          | Usado pelo Serwist para empacotar o service worker                                                                              |
+| lucide-react                            | 1.77.0          | Ícones, traço 1.75                                                                                                              |
+| prettier                                | 3.10.1          |                                                                                                                                 |
+| vitest                                  | 5.1.1           | Exige `@types/node` 22+                                                                                                         |
+| @testing-library/react                  | 16.3.3          |                                                                                                                                 |
+| @playwright/test                        | 1.65.1          |                                                                                                                                 |
+| sharp                                   | 0.35.5          | Só para gerar os ícones                                                                                                         |
+| @types/node                             | 22.20.5         | Alinhado com o Node 22                                                                                                          |
+| @supabase/supabase-js                   | 2.119.2         | Banco, login e arquivos                                                                                                         |
+| @supabase/ssr                           | 0.12.7          | Sessão em cookies (proxy, `/callback`)                                                                                          |
+| supabase (CLI)                          | 3.2.0           | Supabase local, migrações, tipos e testes de RLS                                                                                |
+| @tanstack/react-query                   | 5.108.3         | Dados remotos com cache                                                                                                         |
+| zod                                     | 4.6.7           | Validação de formulários                                                                                                        |
+| browser-image-compression               | 2.0.2           | Reduz a foto antes do corte (sem o modo worker, que baixa código de um CDN)                                                     |
+| react-easy-crop                         | 6.2.5           | Corte quadrado da foto com toque e pinça                                                                                        |
+| server-only                             | 0.0.1           | Garante que `lib/supabase/server.ts` nunca vá para o navegador                                                                  |
+| @dnd-kit/core / @dnd-kit/sortable       | 6.3.1 / 10.0.0  | Reordenar o conteúdo da matéria com dedo, caneta ou teclado (e o kanban da fase 8)                                              |
+| @tanstack/react-query-persist-client    | 5.108.4         | Guarda matérias, conteúdo, avaliações e metas no aparelho (abre offline)                                                        |
+| @tanstack/query-async-storage-persister | 5.108.4         | Persistência no `localStorage` (o persister síncrono está descontinuado)                                                        |
 
 ## Decisões técnicas da Fase 1
 
@@ -206,6 +209,16 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **O service worker nunca guarda respostas da API do Supabase** (`app/sw.ts`). A regra padrão do Serwist para outras origens guardaria perfil e matérias num cache que a próxima pessoa num tablet compartilhado poderia ver offline. Exceção: as fotos de perfil (cada envio tem um nome novo).
 - **Foto de perfil:** recorte quadrado no aparelho, 512 px, WebP (ou JPEG quando o navegador não codifica WebP), em `avatars/<id da usuária>/avatar-<data>.webp`, bucket privado com URL assinada.
 - **Tema na conta:** a escolha vale em todos os aparelhos (`profiles.theme`). O `localStorage` continua aplicando o tema antes da primeira pintura; uma troca feita offline é enviada quando a conexão volta.
+
+## Decisões técnicas da Fase 3
+
+- **Horário estruturado, não texto livre.** A spec pede "horário (texto livre)", mas os mockups ordenam por próxima aula, marcam laboratório ("· lab") e mostram a agenda da semana no desktop. Cada matéria guarda suas aulas em `subjects.schedule_slots` (dia da semana, hora, sala, laboratório); o app escreve "Seg e Qua · 08h00" a partir disso. Decidido na aprovação do plano da fase 3.
+- **Dono garantido pelo banco:** `subject_topics`, `assessments` e `goals` têm `user_id` e uma chave estrangeira composta `(subject_id, user_id)` para `subjects (id, user_id)`. Uma linha nunca aponta para a matéria de outra pessoa, mesmo que o RLS falhe. Excluir uma matéria apaga o conteúdo e as avaliações; as metas ficam, sem matéria.
+- **Permissões explícitas em toda tabela nova** (`grant`), testadas no pgTAP: o projeto hospedado não dá permissões automáticas às tabelas novas.
+- **Datas no fuso de São Paulo**, sempre como dia de calendário (`YYYY-MM-DD`), com a semana de segunda a domingo (`lib/dates/calendar.ts`).
+- **Metas atrasadas** (até 14 dias) aparecem no topo de "Metas de hoje" com "Mover para hoje". Os pontos de meta (fase 9) saem de `completed_at`: desmarcar desfaz.
+- **Reordenar** escreve só a posição do tópico movido (ponto médio entre os vizinhos).
+- **Offline:** matérias e metas são "online-first" (seção 6). A última cópia fica no aparelho (TanStack Query persistido), então as telas abrem sem internet com o aviso "Offline · mostrando dados salvos no aparelho". Alterações offline são recusadas com aviso; a fila de sincronização chega na fase 4, com o modo foco.
 
 ### Por que o cacheComponents está desligado
 

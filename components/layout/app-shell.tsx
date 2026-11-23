@@ -9,6 +9,7 @@ import { NavItem, TabBarItem } from "@/components/ui/nav-item";
 import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
 import { InstallEntry } from "./install-entry";
+import { OfflineBanner } from "./offline-banner";
 import { isActivePath, MORE_ICON, MORE_NAV, PRIMARY_NAV, TAB_BAR_NAV } from "./nav-config";
 import { ProfileCard } from "./profile-card";
 
@@ -108,6 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           "pb-[calc(96px+env(safe-area-inset-bottom))] md:px-7 md:pt-7 md:pb-8 lg:px-8",
         )}
       >
+        <OfflineBanner />
         {children}
       </main>
 

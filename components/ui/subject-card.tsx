@@ -35,9 +35,9 @@ export function SubjectCard({ href, name, color, icon, schedule, nextAssessment,
         {schedule && <span className="text-[13px] wrap-break-word text-fg-2">{schedule}</span>}
       </div>
       {nextAssessment && (
-        <span className="inline-flex h-[26px] items-center gap-1.5 self-start rounded-full bg-surface-alt px-2.5 text-xs font-semibold text-accent">
-          <CalendarClock aria-hidden size={14} strokeWidth={1.75} />
-          {nextAssessment}
+        <span className="inline-flex h-[26px] max-w-full items-center gap-1.5 self-start rounded-full bg-surface-alt px-2.5 text-xs font-semibold text-accent">
+          <CalendarClock aria-hidden size={14} strokeWidth={1.75} className="shrink-0" />
+          <span className="min-w-0 truncate">{nextAssessment}</span>
         </span>
       )}
       <ProgressBar value={progress} label={`Progresso em ${name}`} showValue />

@@ -3,6 +3,99 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      assessments: {
+        Row: {
+          created_at: string;
+          date: string;
+          description: string | null;
+          id: string;
+          kind: string;
+          subject_id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          date: string;
+          description?: string | null;
+          id?: string;
+          kind: string;
+          subject_id: string;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          date?: string;
+          description?: string | null;
+          id?: string;
+          kind?: string;
+          subject_id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "assessments_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      goals: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          date: string;
+          duration_min: number | null;
+          id: string;
+          subject_id: string | null;
+          time_of_day: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          date: string;
+          duration_min?: number | null;
+          id?: string;
+          subject_id?: string | null;
+          time_of_day?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          date?: string;
+          duration_min?: number | null;
+          id?: string;
+          subject_id?: string | null;
+          time_of_day?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goals_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_path: string | null;
@@ -49,6 +142,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      subject_topics: {
+        Row: {
+          created_at: string;
+          done: boolean;
+          id: string;
+          position: number;
+          subject_id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          done?: boolean;
+          id?: string;
+          position?: number;
+          subject_id: string;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          done?: boolean;
+          id?: string;
+          position?: number;
+          subject_id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "subject_topics_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
       subjects: {
         Row: {
           archived: boolean;
@@ -58,7 +193,7 @@ export type Database = {
           id: string;
           name: string;
           professor: string | null;
-          schedule: string | null;
+          schedule_slots: NonNullable<Json>;
           updated_at: string;
           user_id: string;
         };
@@ -71,7 +206,7 @@ export type Database = {
           id?: string;
           name: string;
           professor?: string | null;
-          schedule?: string | null;
+          schedule_slots?: NonNullable<Json>;
           updated_at?: string;
           user_id?: string;
         };
@@ -83,7 +218,7 @@ export type Database = {
           id?: string;
           name?: string;
           professor?: string | null;
-          schedule?: string | null;
+          schedule_slots?: NonNullable<Json>;
           updated_at?: string;
           user_id?: string;
         };

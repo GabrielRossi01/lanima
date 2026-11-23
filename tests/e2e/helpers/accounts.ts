@@ -56,3 +56,32 @@ export async function signIn(page: Page, account: TestAccount, next = "/inicio")
   await page.goto(`/callback?token_hash=${hash}&type=email&proxima=${encodeURIComponent(next)}`);
   await page.waitForURL((url) => url.pathname === next);
 }
+
+type Tables = Database["public"]["Tables"];
+
+/** Inserts rows owned by `account` (service role: the test sets user_id explicitly). */
+export async function seedSubject(
+  account: TestAccount,
+  row: Omit<Tables["subjects"]["Insert"], "user_id">,
+): Promise<Tables["subjects"]["Row"]> {
+  const { data, error } = await adminClient()
+    .from("subjects")
+    .insert({ ...row, user_id: account.id })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function seedTopics(account: TestAccount, subjectId: string, titles: string[]) {
+  const rows = titles.map((title, i) => ({ user_id: account.id, subject_id: subjectId, title, position: i + 1 }));
+  const { error } = await adminClient().from("subject_topics").insert(rows);
+  if (error) throw error;
+}
+
+export async function seedGoal(account: TestAccount, row: Omit<Tables["goals"]["Insert"], "user_id">) {
+  const { error } = await adminClient()
+    .from("goals")
+    .insert({ ...row, user_id: account.id });
+  if (error) throw error;
+}
