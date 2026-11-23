@@ -31,7 +31,8 @@ export async function latestEmailTo(to: string, after = 0): Promise<MailpitMessa
 }
 
 export function codeFrom(message: MailpitMessage): string {
-  const code = /\b(\d{6})\b/.exec(message.Text)?.[1];
+  // 6 to 10 digits: Supabase's "Email OTP Length" is configurable per project.
+  const code = /\b(\d{6,10})\b/.exec(message.Text)?.[1];
   if (!code) throw new Error(`Código não encontrado no e-mail: ${message.Text}`);
   return code;
 }

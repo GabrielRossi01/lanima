@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 2 (login, perfil e onboarding).** Entrada por e-mail (link e código de 6 números) ou Google, onboarding em 3 passos com foto e matérias, Perfil editável, tema salvo na conta, RLS testado. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 2 (login, perfil e onboarding).** Entrada por e-mail (link e código) ou Google, onboarding em 3 passos com foto e matérias, Perfil editável, tema salvo na conta, RLS testado. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -109,9 +109,9 @@ Em **Authentication → URL Configuration**:
 Em **Authentication → Emails → Templates**, nos modelos **Magic Link** e **Confirm signup**:
 
 - **Assunto:** `Seu acesso ao Lanima`
-- **Corpo:** cole o conteúdo de `supabase/templates/magic-link.html`. Ele traz o link **e** o código de 6 números. O código é o que funciona no iPhone e no iPad com o app instalado, porque o app instalado não compartilha o login com o Safari.
+- **Corpo:** cole o conteúdo de `supabase/templates/magic-link.html`. Ele traz o link **e** o código numérico. O código é o que funciona no iPhone e no iPad com o app instalado, porque o app instalado não compartilha o login com o Safari.
 
-Em **Authentication → Providers → Email**, confira que o código tem **6** dígitos (Email OTP Length).
+Em **Authentication → Providers → Email**, use **6** dígitos em Email OTP Length (o app aceita de 6 a 10, mas 6 é o mais fácil de digitar).
 
 ### 4. E-mail de verdade (SMTP gratuito)
 

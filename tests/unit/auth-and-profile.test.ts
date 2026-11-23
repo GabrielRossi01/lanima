@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { decideGate } from "@/lib/auth/gate";
+import { cleanOtpInput, isValidOtp } from "@/lib/auth/otp";
 import { DEFAULT_AFTER_SIGN_IN, safeNextPath } from "@/lib/auth/redirect";
 import { avatarExtension, encodeAvatar, squareCropWithin } from "@/lib/images/avatar";
 import {
@@ -217,5 +218,22 @@ describe("mensagens de erro", () => {
     const spy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     expect(friendlyError(new Error("x"))).toMatch(/Sem conexão/);
     spy.mockRestore();
+  });
+});
+
+describe("código do e-mail", () => {
+  it("aceita de 6 a 10 dígitos, como o Supabase permite configurar", () => {
+    expect(isValidOtp("123456")).toBe(true);
+    expect(isValidOtp("12345678")).toBe(true);
+    expect(isValidOtp("1234567890")).toBe(true);
+    expect(isValidOtp("12345")).toBe(false);
+    expect(isValidOtp("12345678901")).toBe(false);
+    expect(isValidOtp("12a456")).toBe(false);
+  });
+
+  it("limpa espaços e traços de um código colado", () => {
+    expect(cleanOtpInput("1234 5678")).toBe("12345678");
+    expect(cleanOtpInput(" 123-456 ")).toBe("123456");
+    expect(cleanOtpInput("12345678901234")).toBe("1234567890");
   });
 });

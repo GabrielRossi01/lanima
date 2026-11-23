@@ -29,7 +29,7 @@ base.describe("Entrar", () => {
 
     const account = await createAccount({ prefix: "next" });
     const message = await requestEmail(page, account.email);
-    await page.getByLabel("Código de 6 números").fill(codeFrom(message));
+    await page.getByLabel("Código do e-mail").fill(codeFrom(message));
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await expect(page).toHaveURL(/\/perfil$/);
     await expect(page.getByRole("heading", { level: 1, name: "Perfil e configurações" })).toBeVisible();
@@ -40,7 +40,7 @@ base.describe("Entrar", () => {
     await page.goto("/entrar");
     const message = await requestEmail(page, account.email);
     expect(message.Subject).toBe("Seu acesso ao Lanima");
-    expect(codeFrom(message)).toMatch(/^\d{6}$/);
+    expect(codeFrom(message)).toMatch(/^\d{6,10}$/);
 
     // The link points at the configured site URL; open the same path on the test server.
     const link = magicLinkFrom(message);
@@ -55,7 +55,7 @@ base.describe("Entrar", () => {
     const email = uniqueEmail("wrong");
     await page.goto("/entrar");
     await requestEmail(page, email);
-    await page.getByLabel("Código de 6 números").fill("000000");
+    await page.getByLabel("Código do e-mail").fill("000000");
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await expect(page.getByText("Código inválido ou expirado")).toBeVisible();
     await expect(page).toHaveURL(/\/entrar/);
@@ -80,7 +80,7 @@ base.describe("Onboarding", () => {
     await page.goto("/inicio");
     await expect(page).toHaveURL(/\/entrar$/);
     const message = await requestEmail(page, email);
-    await page.getByLabel("Código de 6 números").fill(codeFrom(message));
+    await page.getByLabel("Código do e-mail").fill(codeFrom(message));
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
     // Step 1: welcome.

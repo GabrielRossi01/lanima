@@ -6,12 +6,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/input";
+import { cleanOtpInput, isValidOtp } from "@/lib/auth/otp";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { getSupabase } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
 
 const emailSchema = z.email({ error: "Confira o e-mail digitado." });
-const codeSchema = z.string().regex(/^\d{6}$/, { error: "O código tem 6 números." });
 
 const RESEND_SECONDS = 60;
 
@@ -66,14 +66,14 @@ export function SignInView() {
 
   async function verifyCode(event: FormEvent) {
     event.preventDefault();
-    const parsed = codeSchema.safeParse(code.replace(/\s/g, ""));
-    if (!parsed.success) {
-      setError(parsed.error.issues[0].message);
+    const token = cleanOtpInput(code);
+    if (!isValidOtp(token)) {
+      setError("Digite todos os números do código que chegou no e-mail.");
       return;
     }
     setBusy(true);
     setError(undefined);
-    const { error: verifyError } = await getSupabase().auth.verifyOtp({ email, token: parsed.data, type: "email" });
+    const { error: verifyError } = await getSupabase().auth.verifyOtp({ email, token, type: "email" });
     if (verifyError) {
       setBusy(false);
       setError(friendlyError(verifyError));
@@ -109,14 +109,13 @@ export function SignInView() {
           Abra o link neste aparelho ou digite o código abaixo. No iPhone e no iPad com o app instalado, use o código.
         </p>
         <Field
-          label="Código de 6 números"
+          label="Código do e-mail"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={7}
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ""))}
+          onChange={(e) => setCode(cleanOtpInput(e.target.value))}
           error={error}
-          className="[&_input]:h-12 [&_input]:text-lg [&_input]:tracking-[6px]"
+          className="[&_input]:h-12 [&_input]:text-lg [&_input]:tracking-[4px]"
           autoFocus
         />
         <Button type="submit" disabled={busy}>
