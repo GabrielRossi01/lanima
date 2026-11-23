@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Perfil" };
 export default function Page() {
   return (
     <>
-      <PageHeader title="Perfil e configurações" subtitle="Sua foto e seu nome aparecem para as amigas do grupo" />
+      <PageHeader title="Perfil e configurações" subtitle="Sua foto e seu nome aparecem para o seu grupo de estudos" />
       <ProfileView />
     </>
   );

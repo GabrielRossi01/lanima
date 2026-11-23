@@ -10,7 +10,7 @@ export default function Page() {
       title="Grupo e ranking"
       icon={Trophy}
       phase={9}
-      description="Estude com as amigas: convite por código, pontos e sequência de dias."
+      description="Estude em grupo: convite por código, pontos e sequência de dias."
     />
   );
 }

@@ -48,7 +48,7 @@ export function AuthFrame({ children, heroOnPhone = false }: AuthFrameProps) {
           Seus estudos de Biomedicina, num lugar só.
         </p>
         <p className="m-0 text-base leading-6 text-[#C2CFD8]">
-          Organize matérias, anote à mão, resuma seus arquivos, faça testes e estude junto com as amigas.
+          Organize matérias, anote à mão, resuma seus arquivos, faça testes e estude em grupo.
         </p>
         <div className="relative hidden min-h-[340px] flex-1 md:block">
           <FloatingCard className="top-10 left-6 -rotate-4">

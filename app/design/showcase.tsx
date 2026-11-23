@@ -237,10 +237,10 @@ export function Showcase({ theme }: { theme: "light" | "dark" }) {
           checked={switchOn}
           onChange={setSwitchOn}
           label="Aparecer no ranking"
-          description="Suas amigas veem só pontos e horas."
+          description="Seu grupo vê só pontos e horas."
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Nome" placeholder="Como quer ser chamada" />
+          <Field label="Nome" placeholder="Seu nome ou apelido" />
           <Field label="Instituição" defaultValue="x" error="Escreva o nome completo da instituição." />
         </div>
         <SearchField value={query} onValueChange={setQuery} />

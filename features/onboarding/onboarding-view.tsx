@@ -70,7 +70,7 @@ const FEATURES = [
   { icon: BookOpen, text: "Matérias, metas do dia e provas num lugar só" },
   { icon: PenLine, text: "Caderno para escrever à mão com a S Pen ou o Apple Pencil" },
   { icon: ListChecks, text: "Resumos em tópicos e testes feitos a partir dos seus arquivos" },
-  { icon: Timer, text: "Modo foco e ranking com as amigas do grupo" },
+  { icon: Timer, text: "Modo foco e ranking com o seu grupo de estudos" },
 ];
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
@@ -172,7 +172,7 @@ function ProfileStep({ onBack, onNext }: ProfileStepProps) {
 
   return (
     <form onSubmit={submit} aria-label="Criar perfil" className="flex flex-1 flex-col gap-[22px]" noValidate>
-      <StepTitle title="Monte seu perfil" subtitle="Isso aparece para as amigas do seu grupo de estudos." />
+      <StepTitle title="Monte seu perfil" subtitle="Isso aparece para o seu grupo de estudos." />
 
       <AvatarPicker>
         {({ open, busy }) => (
@@ -199,7 +199,7 @@ function ProfileStep({ onBack, onNext }: ProfileStepProps) {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
         <Field
-          label="Como quer ser chamada?"
+          label="Como prefere que te chamem?"
           autoComplete="given-name"
           value={name}
           onChange={(e) => setName(e.target.value)}

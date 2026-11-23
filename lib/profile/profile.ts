@@ -26,6 +26,11 @@ export function semesterLabel(semester: number): string {
   return `${semester}º semestre`;
 }
 
+/** First name for greetings: "Gabriel Rossi" → "Gabriel". Splits on whitespace; empty → undefined. */
+export function firstNameOf(name: string | null | undefined): string | undefined {
+  return name?.trim().split(/\s+/)[0] || undefined;
+}
+
 /** "Biomedicina · 3º semestre" (sidebar card, profile header). */
 export function profileSubtitle(profile: Pick<Profile, "course" | "semester">): string {
   return [profile.course || "Biomedicina", profile.semester ? semesterLabel(profile.semester) : null]
@@ -37,7 +42,7 @@ export const profileDetailsSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, { error: "Conte como quer ser chamada." })
+    .min(1, { error: "Escreva seu nome ou apelido." })
     .max(60, { error: "Use até 60 caracteres." }),
   semester: z.coerce
     .number({ error: "Escolha o semestre." })

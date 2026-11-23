@@ -11,7 +11,7 @@ import { SearchField } from "@/components/ui/input";
 import { greetingFor, longDate } from "@/lib/dates/greeting";
 import { useNow } from "@/lib/hooks/use-now";
 import { useProfile } from "@/features/profile/queries";
-import { formatFocusGoal } from "@/lib/profile/profile";
+import { firstNameOf, formatFocusGoal } from "@/lib/profile/profile";
 
 /**
  * Phase 1 home: real greeting and layout, empty states instead of data.
@@ -20,7 +20,7 @@ import { formatFocusGoal } from "@/lib/profile/profile";
 export function HomeView() {
   const now = useNow();
   const { data: profile } = useProfile();
-  const firstName = profile?.name.trim().split(/s+/)[0];
+  const firstName = firstNameOf(profile?.name);
   const [query, setQuery] = useState("");
 
   return (
@@ -64,7 +64,7 @@ export function HomeView() {
         <div className="flex flex-col gap-5">
           <Card>
             <CardHeader title="Ranking da semana" />
-            <p className="type-body m-0 text-fg-2">Entre num grupo para ver o ranking com as amigas.</p>
+            <p className="type-body m-0 text-fg-2">Entre num grupo para ver o ranking da turma.</p>
           </Card>
           <Card tone="deep" className="gap-2.5">
             <span className="type-overline text-on-deep-2">Próxima prova</span>

@@ -4,6 +4,7 @@ import { cleanOtpInput, isValidOtp } from "@/lib/auth/otp";
 import { DEFAULT_AFTER_SIGN_IN, safeNextPath } from "@/lib/auth/redirect";
 import { avatarExtension, encodeAvatar, squareCropWithin } from "@/lib/images/avatar";
 import {
+  firstNameOf,
   focusGoalSchema,
   formatFocusGoal,
   parseProfileDetails,
@@ -96,6 +97,17 @@ describe("perfil", () => {
     expect(formatFocusGoal(360)).toBe("6h");
   });
 
+  it("saudação usa só o primeiro nome, separado por espaço", () => {
+    // Regression: the regex had lost its backslash and split on the letter "s".
+    expect(firstNameOf("Gabriel Rossi")).toBe("Gabriel");
+    expect(firstNameOf("Sophia Souza")).toBe("Sophia");
+    expect(firstNameOf("  Maria   Clara  ")).toBe("Maria");
+    expect(firstNameOf("Ana\tLuísa")).toBe("Ana");
+    expect(firstNameOf("Jéssica")).toBe("Jéssica");
+    expect(firstNameOf("   ")).toBeUndefined();
+    expect(firstNameOf(null)).toBeUndefined();
+  });
+
   it("meta vai de 30 min a 6 h, de 15 em 15", () => {
     expect(focusGoalSchema.safeParse(30).success).toBe(true);
     expect(focusGoalSchema.safeParse(135).success).toBe(true);
@@ -112,7 +124,7 @@ describe("perfil", () => {
     expect(bad).toEqual({
       ok: false,
       errors: {
-        name: "Conte como quer ser chamada.",
+        name: "Escreva seu nome ou apelido.",
         semester: "Escolha o semestre.",
         course: "Informe o curso.",
         institution: "Use até 120 caracteres.",
@@ -147,7 +159,7 @@ describe("matérias do onboarding", () => {
     ]);
   });
 
-  it("não recria matérias que ela já tem e ignora repetidas", () => {
+  it("não recria matérias que a pessoa já tem e ignora repetidas", () => {
     const drafts = [
       { name: "Bioquímica", color: "rosa", icon: "flask-conical" },
       { name: "  farmacologia  ", color: "verde", icon: "book-open" },

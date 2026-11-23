@@ -126,7 +126,7 @@ Em **Authentication → Providers → Email**, use **6** dígitos em Email OTP L
 
 ### 4. E-mail de verdade (SMTP gratuito)
 
-O envio de e-mail que vem com o Supabase é só para testes: manda pouquíssimos e-mails por hora e só para os endereços da equipe do projeto. Para as amigas conseguirem entrar, configure um SMTP gratuito em **Project Settings → Authentication → SMTP Settings** (confira os limites atuais na documentação de cada serviço):
+O envio de e-mail que vem com o Supabase é só para testes: manda pouquíssimos e-mails por hora e só para os endereços da equipe do projeto. Para outras pessoas conseguirem entrar, configure um SMTP gratuito em **Project Settings → Authentication → SMTP Settings** (confira os limites atuais na documentação de cada serviço):
 
 - **Gmail** (mais simples): numa conta Google com verificação em duas etapas, crie uma [senha de app](https://myaccount.google.com/apppasswords). Host `smtp.gmail.com`, porta `465`, usuário = o e-mail, senha = a senha de app, remetente = o mesmo e-mail.
 - **Brevo** (plano grátis): crie a conta, verifique o e-mail remetente e use as credenciais SMTP do painel (host `smtp-relay.brevo.com`, porta `587`).

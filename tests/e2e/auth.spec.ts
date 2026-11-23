@@ -96,7 +96,7 @@ base.describe("Onboarding", () => {
 
     // Validation first.
     await page.getByRole("button", { name: "Continuar" }).click();
-    await expect(page.getByText("Conte como quer ser chamada.")).toBeVisible();
+    await expect(page.getByText("Escreva seu nome ou apelido.")).toBeVisible();
     await expect(page.getByText("Escolha o semestre.")).toBeVisible();
 
     await page.locator('input[type="file"]').setInputFiles(await photo());
@@ -107,7 +107,8 @@ base.describe("Onboarding", () => {
     await expect(crop).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Trocar foto" })).toBeVisible();
 
-    await page.getByLabel("Como quer ser chamada?").fill("Ana");
+    // A full name with an "s": a broken regex once cut "Gabriel Rossi" to "Gabriel Ro".
+    await page.getByLabel("Como prefere que te chamem?").fill("Ana Souza");
     await page.getByLabel("Semestre").selectOption("4");
     await expect(page.getByLabel("Curso")).toHaveValue("Biomedicina");
     await page.getByLabel("Instituição").fill("Universidade Federal Exemplo");
@@ -133,7 +134,8 @@ base.describe("Onboarding", () => {
     await expect(install.or(page.getByRole("heading", { level: 1, name: /, Ana$/ }))).toBeVisible();
     if (await install.isVisible()) await install.getByRole("button", { name: "Entendi" }).click();
     await expect(page).toHaveURL(/\/inicio$/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(", Ana");
+    // Only the first name in the greeting.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^(Bom dia|Boa tarde|Boa noite), Ana$/);
     await expect(page.getByText("Foco hoje · meta 3h")).toBeVisible();
 
     // Everything landed in the database.
@@ -143,7 +145,7 @@ base.describe("Onboarding", () => {
     );
     const { data: profile } = await admin.from("profiles").select("*").eq("id", userId).single();
     expect(profile).toMatchObject({
-      name: "Ana",
+      name: "Ana Souza",
       semester: 4,
       course: "Biomedicina",
       institution: "Universidade Federal Exemplo",
