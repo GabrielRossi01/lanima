@@ -67,7 +67,8 @@ test.describe("Matérias", () => {
     await sheet.getByLabel("Data").fill(addDays(today(), 6));
     await sheet.getByLabel("Conteúdo (opcional)").fill("enzimas e metabolismo");
     await sheet.getByRole("button", { name: "Salvar" }).click();
-    await expect(page.getByText("Avaliação marcada")).toBeVisible();
+    // Exact: "Nenhuma avaliação marcada." is still on screen for a few ms when the toast appears.
+    await expect(page.getByText("Avaliação marcada", { exact: true })).toBeVisible();
 
     await page.goto("/materias");
     await expect(page.getByRole("link", { name: /Bioquímica/ })).toContainText("P1 em 6 dias");
