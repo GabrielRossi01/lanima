@@ -17,6 +17,8 @@ export interface AuthUser {
 interface AuthContextValue {
   status: AuthStatus;
   user: AuthUser | null;
+  /** Signed out with the button, in this tab (not expired or ended elsewhere). */
+  left: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -57,10 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const isRestoring = useIsRestoring();
   const endedRef = useRef(false);
+  const leavingRef = useRef(false);
   // Without Supabase settings (misconfigured deploy) nobody can be signed in; the sign-in page says so.
-  const [state, setState] = useState<{ status: AuthStatus; user: AuthUser | null }>(() => ({
+  const [state, setState] = useState<{ status: AuthStatus; user: AuthUser | null; left: boolean }>(() => ({
     status: hasSupabaseEnv() ? "loading" : "signed-out",
     user: null,
+    left: false,
   }));
 
   useEffect(() => {
@@ -73,9 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const previous = readLastUser();
         if (previous && previous.id !== session.user.id) forgetLastUser();
         endedRef.current = false;
+        leavingRef.current = false;
         const user = { id: session.user.id, email: session.user.email ?? null };
         writeLastUser(user);
-        setState({ status: "signed-in", user });
+        setState({ status: "signed-in", user, left: false });
         return;
       }
       // No session could be confirmed. Offline, that usually means the token expired and couldn't be
@@ -87,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         queryClient.clear();
       }
       const last = readLastUser();
-      if (last && !navigator.onLine) setState({ status: "offline", user: last });
-      else setState({ status: "signed-out", user: null });
+      if (last && !navigator.onLine) setState({ status: "offline", user: last, left: false });
+      else setState({ status: "signed-out", user: null, left: leavingRef.current });
     }
 
     // Fires INITIAL_SESSION right away, then every sign-in, sign-out and token refresh.
@@ -118,14 +123,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isRestoring, queryClient, status, userId]);
 
   const signOut = useCallback(async () => {
+    leavingRef.current = true;
     // Before the request: leaving must not depend on how fast (or whether) the network answers.
     forgetLastUser();
     // "local": only this device (the default, "global", ends the session on every device), and the
-    // stored session is removed before the request, so it works without network too.
+    // stored session is removed before the request, so it works without network too. Removing it
+    // fires SIGNED_OUT, which finishes the job: apply() erases what is left and the gate goes to
+    // /entrar. Nothing may run after the answer, which can be late: by then someone else may have
+    // signed in, and it used to pull them back to /entrar and erase their data.
     await getSupabase().auth.signOut({ scope: "local" });
-    forgetLastUser();
-    queryClient.clear();
-  }, [queryClient]);
+  }, []);
 
   const value = useMemo(() => ({ ...state, signOut }), [state, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

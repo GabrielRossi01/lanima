@@ -2,7 +2,6 @@
 
 import { Camera, LogOut } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ThemePicker } from "@/components/layout/theme-picker";
 import { Avatar } from "@/components/ui/avatar";
@@ -156,17 +155,16 @@ function ProfileForm({ profile }: { profile: Profile }) {
 function PrivacyCard({ profile }: { profile: Profile }) {
   const update = useUpdateProfile();
   const { signOut } = useAuth();
-  const router = useRouter();
   const [leaving, setLeaving] = useState(false);
 
   async function onSignOut() {
     setLeaving(true);
     try {
-      await signOut();
-      router.replace("/entrar");
+      await signOut(); // The gate goes to /entrar as soon as the session is gone.
     } catch (error) {
-      setLeaving(false);
       toast({ title: "Não foi possível sair", description: friendlyError(error), tone: "danger" });
+    } finally {
+      setLeaving(false);
     }
   }
 

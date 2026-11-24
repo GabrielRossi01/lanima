@@ -37,7 +37,8 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
     area === "sign-in" && auth.status !== "loading" && typeof window !== "undefined"
       ? safeNextPath(new URLSearchParams(window.location.search).get("proxima"))
       : undefined;
-  const decision = decideGate(area, auth.status, gateProfile, pathname, next);
+  // Who chose to leave starts over from Início: no ?proxima= back to the screen with the button.
+  const decision = decideGate(area, auth.status, gateProfile, auth.left ? "/inicio" : pathname, next);
   const target = decision.kind === "redirect" ? decision.to : null;
 
   useEffect(() => {
@@ -51,10 +52,7 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
         error={profile.error ?? lastError}
         retrying={profile.isFetching}
         onRetry={() => void profile.refetch()}
-        onSignOut={async () => {
-          await auth.signOut();
-          router.replace("/entrar");
-        }}
+        onSignOut={auth.signOut}
       />
     );
   }
