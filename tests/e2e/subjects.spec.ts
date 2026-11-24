@@ -107,9 +107,15 @@ test.describe("Matérias", () => {
     await expect.poll(order).toEqual(["Ossos", "Músculos", "Nervos"]);
 
     await page.getByRole("button", { name: "Mover “Nervos”" }).focus();
+    // Wait for each announcement (what a screen reader says) before the next key: with no gap, the
+    // second arrow could arrive before dnd-kit had processed the first (4 of 8 runs; 0 of 24 at 50 ms).
+    const announced = page.locator('[id^="DndLiveRegion"]');
     await page.keyboard.press("Space");
+    await expect(announced).toContainText("sobre a posição de “Nervos”");
     await page.keyboard.press("ArrowUp");
+    await expect(announced).toContainText("sobre a posição de “Músculos”");
     await page.keyboard.press("ArrowUp");
+    await expect(announced).toContainText("sobre a posição de “Ossos”");
     await page.keyboard.press("Space");
     await expect.poll(order).toEqual(["Nervos", "Ossos", "Músculos"]);
 
