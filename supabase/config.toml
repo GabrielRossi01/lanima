@@ -338,8 +338,9 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack_oidc`, `spotify`, `workos`, `zoom`.
-# Google sign-in. Locally it stays off unless you create an OAuth client (see README) and export
-# SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / _SECRET; in the hosted project it is set in the dashboard.
+# Google and Notion sign-in are set in the hosted project's dashboard (see README). Locally they stay
+# off (E2E fakes the provider's answer); for Google, create an OAuth client and export
+# SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / _SECRET.
 [auth.external.google]
 enabled = false
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"

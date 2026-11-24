@@ -44,7 +44,7 @@ export function AuthFrame({ children, heroOnPhone = false }: AuthFrameProps) {
           </span>
           <span className="font-serif text-2xl font-semibold tracking-[-0.5px]">Lanima</span>
         </div>
-        <p className="m-0 mt-2 font-serif text-[34px] leading-[40px] font-semibold tracking-[-1px] wrap-break-word md:mt-6 md:text-[44px] md:leading-[50px]">
+        <p className="m-0 mt-2 font-serif text-[34px] leading-[40px] font-semibold tracking-[-1px] wrap-break-word md:mt-6 md:text-[36px] md:leading-[42px] lg:text-[44px] lg:leading-[50px]">
           Seus estudos de Biomedicina, num lugar só.
         </p>
         <p className="m-0 text-base leading-6 text-[#C2CFD8]">
@@ -55,7 +55,7 @@ export function AuthFrame({ children, heroOnPhone = false }: AuthFrameProps) {
             <span className="type-overline text-[#9FB3C0]">Modo foco</span>
             <span className="font-serif text-[40px] leading-10 font-light">25:00</span>
           </FloatingCard>
-          <FloatingCard className="top-[150px] left-[min(196px,40%)] rotate-5">
+          <FloatingCard className="top-[150px] left-[clamp(28px,calc(100%-220px),196px)] rotate-5">
             <span className="type-overline text-[#9FB3C0]">Teste · Difícil</span>
             <span className="w-[170px] text-[15px] font-semibold">Caso clínico: o que explica a osteoporose?</span>
           </FloatingCard>

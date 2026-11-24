@@ -13,10 +13,10 @@ async function photo() {
   return { name: "foto.jpg", mimeType: "image/jpeg", buffer };
 }
 
-async function requestEmail(page: import("@playwright/test").Page, email: string) {
+async function requestEmail(page: import("@playwright/test").Page, email: string, button = "Receber link e código") {
   await page.getByLabel("E-mail").fill(email);
   const sentAfter = Date.now() - 1000;
-  await page.getByRole("button", { name: "Receber link e código" }).click();
+  await page.getByRole("button", { name: button }).click();
   await expect(page.getByRole("heading", { name: "Confira seu e-mail" })).toBeVisible();
   return latestEmailTo(email, sentAfter);
 }
@@ -52,7 +52,7 @@ base.describe("Entrar", () => {
   });
 
   base("código errado mostra o erro e não entra", async ({ page }) => {
-    const email = uniqueEmail("wrong");
+    const { email } = await createAccount({ prefix: "wrong" });
     await page.goto("/entrar");
     await requestEmail(page, email);
     await page.getByLabel("Código do e-mail").fill("000000");
@@ -79,9 +79,11 @@ base.describe("Onboarding", () => {
     const email = uniqueEmail("onboarding");
     await page.goto("/inicio");
     await expect(page).toHaveURL(/\/entrar$/);
-    const message = await requestEmail(page, email);
+    await page.getByRole("link", { name: "Criar conta", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Criar conta no Lanima" })).toBeVisible();
+    const message = await requestEmail(page, email, "Criar conta com e-mail");
     await page.getByLabel("Código do e-mail").fill(codeFrom(message));
-    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await page.getByRole("button", { name: "Criar conta", exact: true }).click();
 
     // Step 1: welcome.
     await expect(page).toHaveURL(/\/boas-vindas$/);

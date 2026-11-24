@@ -78,7 +78,7 @@ export default defineConfig({
         env: {
           NEXT_PUBLIC_SUPABASE_URL: supabase.url,
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
-          NEXT_PUBLIC_AUTH_GOOGLE_ENABLED: "false",
+          NEXT_PUBLIC_AUTH_PROVIDERS: "google,notion",
         },
       },
 });

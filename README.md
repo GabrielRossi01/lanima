@@ -75,7 +75,7 @@ Antes do primeiro deploy da Fase 2, crie o projeto no Supabase (próxima seção
 | -------------------------------------- | ----------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_SUPABASE_URL`             | Supabase → Project Settings → Data API → Project URL                          |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys → Publishable key (`sb_publishable_…`) |
-| `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED`      | `true` depois de configurar o Google (seção abaixo); antes disso, `false`     |
+| `NEXT_PUBLIC_AUTH_PROVIDERS`           | Botões sociais ativos (`google,notion`; seção abaixo); vazio, só e-mail       |
 
 Depois de mudar variáveis, faça **Deployments → ⋯ → Redeploy**: as `NEXT_PUBLIC_*` entram no código no momento do build.
 
@@ -133,14 +133,26 @@ O envio de e-mail que vem com o Supabase é só para testes: manda pouquíssimos
 
 Em **Authentication → Rate Limits**, ajuste o limite de e-mails por hora ao que o SMTP escolhido permite.
 
-### 5. Entrar com o Google (opcional, grátis)
+### 5. Entrar com Google e Notion (opcional, grátis)
 
-1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e configure a **tela de consentimento OAuth** (tipo Externo; escopos só `email`, `profile` e `openid`).
-2. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**. Em **URIs de redirecionamento autorizados**, coloque `https://<ref>.supabase.co/auth/v1/callback`.
-3. Copie o **ID do cliente** e a **chave secreta** para **Supabase → Authentication → Providers → Google** e ative.
-4. Na Vercel, mude `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` para `true` e faça o redeploy.
+Nos dois, o endereço de retorno é `https://<ref>.supabase.co/auth/v1/callback`. As chaves secretas ficam só no painel do Supabase.
 
-No iPhone e no iPad com o app instalado, o Google pode abrir uma janela do Safari e não voltar logado para o app: nesse caso, use o e-mail com código. Isso só dá para confirmar no aparelho.
+**Google**, no [Google Auth Platform](https://console.cloud.google.com/auth/overview):
+
+1. Crie o projeto, preencha **Branding** e, em **Audience**, escolha **External** e publique (**In production**).
+2. Em **Data Access**, deixe só `openid`, `userinfo.email` e `userinfo.profile`.
+3. **Clients → Create client → Web application**: em **Authorized JavaScript origins**, o endereço da Vercel; em **Authorized redirect URIs**, o endereço de retorno.
+4. Copie o Client ID e o Client Secret para **Supabase → Authentication → Sign In / Providers → Google** e ative.
+
+**Notion**, no [portal de conexões](https://app.notion.com/developers/connections):
+
+1. **New connection**: método **OAuth**, o endereço de retorno em **Redirect URI** e **Installable in: Any workspace** (não dá para mudar depois).
+2. Em **Capabilities**, **User information with email addresses** (sem o e-mail, a entrada falha).
+3. Copie o OAuth client ID e o OAuth client secret para **Supabase → Authentication → Sign In / Providers → Notion** e ative.
+
+Na **Vercel**, crie a variável `NEXT_PUBLIC_AUTH_PROVIDERS` com `google,notion` e faça o redeploy. Só liste os que já estão ativos: um provedor desligado responde com uma página de erro crua. Para conferir sem entrar, abra `https://<ref>.supabase.co/auth/v1/authorize?provider=notion`: ativo, leva à tela do provedor.
+
+A Apple ficou de fora: exige o Apple Developer Program (pago) e uma chave nova a cada 6 meses. No iPhone e no iPad com o app instalado, o provedor pode abrir no Safari e não voltar logado para o app: nesse caso, use o e-mail com código. Isso só dá para confirmar no aparelho.
 
 ### 6. Se o Supabase pausar
 
@@ -204,6 +216,7 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Colunas do banco em inglês** (`name`, `daily_focus_goal_min`, `show_in_ranking`…), interface em português. As cores das matérias continuam com as chaves da spec (`amarelo`, `rosa`…).
 - **Quem decide "login, onboarding ou app" é o aparelho**, não o servidor (`features/auth/auth-gate.tsx`, regra pura em `lib/auth/gate.ts`). As páginas são cascas estáticas e os dados vêm do Supabase no navegador, protegidos pelo RLS. Um redirecionamento no servidor quebraria o uso offline e poderia fazer o service worker guardar a tela de login no lugar do `/inicio`. O `proxy.ts` só renova o cookie da sessão.
 - **Offline:** a última conta e o último perfil ficam no aparelho; sem internet, o app abre com eles em vez de mandar para o login.
+- **Entrar e Criar conta são telas separadas** (`/entrar` e `/criar-conta`), com o mesmo formulário (`features/auth/auth-form.tsx`). Em Entrar, um e-mail sem conta não cria conta: o app avisa e leva para Criar conta com o e-mail preenchido. Isso permite descobrir se um e-mail tem conta. Com Google e Notion, o Supabase cria a conta nas duas telas, e junta os logins do mesmo e-mail.
 - **E-mail com link e código:** o link entra direto em qualquer navegador (`/callback?token_hash=…`, sem depender do navegador que pediu); o código resolve o iPhone e o iPad com o app instalado.
 - **`/callback` redireciona com endereço relativo** (`Location: /inicio`). O `next start` informa `localhost` como origem mesmo atendendo `127.0.0.1`; um redirecionamento absoluto levava a pessoa para outro host, sem o cookie da sessão.
 - **O service worker nunca guarda respostas da API do Supabase** (`app/sw.ts`). A regra padrão do Serwist para outras origens guardaria perfil e matérias num cache que a próxima pessoa num tablet compartilhado poderia ver offline. Exceção: as fotos de perfil (cada envio tem um nome novo).

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { authErrorPath } from "@/lib/auth/pages";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -14,8 +15,9 @@ function redirectTo(path: string) {
 /**
  * Finishes sign-in and sets the session cookies:
  * - magic link from the e-mail: ?token_hash=…&type=email (works in any browser, no PKCE verifier);
- * - Google OAuth: ?code=… (PKCE, same browser that started it).
- * Then goes to ?proxima= (same-origin only) or /inicio; the device decides about onboarding.
+ * - Google and Notion: ?code=… (PKCE, same browser that started it) plus ?provedor= and ?origem=.
+ * Then goes to ?proxima= (same-origin only) or /inicio; the device decides about onboarding. When it
+ * fails, back to the screen she came from, with the reason.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
 
-  if (searchParams.get("error")) return redirectTo("/entrar?erro=google");
+  if (searchParams.get("error")) return redirectTo(authErrorPath(searchParams));
 
   const supabase = await createSupabaseServer();
   let ok = false;
@@ -36,5 +38,5 @@ export async function GET(request: NextRequest) {
     ok = !error && Boolean(data.session);
   }
 
-  return redirectTo(ok ? next : `/entrar?erro=${code ? "google" : "link"}`);
+  return redirectTo(ok ? next : authErrorPath(searchParams));
 }
