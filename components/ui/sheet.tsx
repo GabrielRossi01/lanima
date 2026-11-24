@@ -24,15 +24,20 @@ interface SheetProps {
 
 const panelBySide: Record<SheetSide, string> = {
   auto: cn(
-    "mt-auto mb-0 w-full max-w-none rounded-t-xl pb-[max(20px,env(safe-area-inset-bottom))]",
-    "md:m-auto md:w-[calc(100%-48px)] md:rounded-xl md:pb-6",
+    "mt-auto mb-0 w-full max-w-none rounded-t-xl",
+    "md:m-auto md:w-[calc(100%-48px)] md:rounded-xl",
     "translate-y-0 starting:translate-y-8 md:starting:translate-y-2",
   ),
-  bottom:
-    "mt-auto mb-0 w-full max-w-none rounded-t-xl pb-[max(20px,env(safe-area-inset-bottom))] starting:translate-y-8",
+  bottom: "mt-auto mb-0 w-full max-w-none rounded-t-xl starting:translate-y-8",
   center: "m-auto w-[calc(100%-32px)] rounded-xl starting:translate-y-2",
   left: "mr-auto ml-0 h-dvh max-h-none w-[280px] max-w-[85vw] rounded-r-card starting:-translate-x-6",
   right: "ml-auto mr-0 h-dvh max-h-none w-[380px] max-w-[90vw] rounded-l-card starting:translate-x-6",
+};
+
+/** Inside the box limited by max-height: on the dialog itself, it pushed the buttons of tall sheets out. */
+const bottomPadding: Partial<Record<SheetSide, string>> = {
+  auto: "pb-[max(20px,env(safe-area-inset-bottom))] md:pb-6",
+  bottom: "pb-[max(20px,env(safe-area-inset-bottom))]",
 };
 
 const maxWidth = { s: "md:max-w-[420px]", m: "md:max-w-[560px]", l: "md:max-w-[880px]" } as const;
@@ -126,7 +131,7 @@ export function Sheet({
     >
       {/* Only render content while open, so hidden sheets cost nothing. */}
       {open && (
-        <div className="flex max-h-[inherit] flex-col">
+        <div className={cn("flex max-h-[inherit] flex-col", bottomPadding[side])}>
           <header className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
             <div className="flex min-w-0 flex-col gap-1">
               <h2 id={titleId} className={cn("type-h1 m-0 wrap-break-word", hideTitle && "sr-only")}>
