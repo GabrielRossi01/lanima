@@ -37,10 +37,10 @@ test.describe("Dados guardados no aparelho", () => {
     });
     await page.goto("/perfil");
     await page.getByRole("button", { name: "Sair" }).click();
-    await expect(page.getByRole("button", { name: "Saindo…" })).toBeVisible();
+    // The server hasn't answered yet: the app already left and the copy is already gone.
+    await expect(page).toHaveURL(/\/entrar/);
     await expectGoneForGood(page);
     release();
-    await expect(page).toHaveURL(/\/entrar/);
     await expectGoneForGood(page);
   });
 

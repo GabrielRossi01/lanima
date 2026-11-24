@@ -219,6 +219,7 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Metas atrasadas** (até 14 dias) aparecem no topo de "Metas de hoje" com "Mover para hoje". Os pontos de meta (fase 9) saem de `completed_at`: desmarcar desfaz.
 - **Reordenar** escreve só a posição do tópico movido (ponto médio entre os vizinhos).
 - **Offline:** matérias e metas são "online-first" (seção 6). A última cópia fica no aparelho (TanStack Query persistido), então as telas abrem sem internet com o aviso "Offline · mostrando dados salvos no aparelho". Alterações offline são recusadas com aviso; a fila de sincronização chega na fase 4, com o modo foco.
+- **Sair vale só para este aparelho** (`scope: "local"`): os outros continuam logados, e funciona sem internet (a sessão é removida antes do pedido ao servidor). A cópia das listas é apagada na hora; também quando a sessão termina sozinha ou outra conta entra no aparelho (`lib/query/device-cache.ts`). As fotos de perfil já abertas continuam no cache do service worker por até 7 dias.
 
 ### Por que o cacheComponents está desligado
 

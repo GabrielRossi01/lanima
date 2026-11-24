@@ -120,7 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     // Before the request: leaving must not depend on how fast (or whether) the network answers.
     forgetLastUser();
-    await getSupabase().auth.signOut();
+    // "local": only this device (the default, "global", ends the session on every device), and the
+    // stored session is removed before the request, so it works without network too.
+    await getSupabase().auth.signOut({ scope: "local" });
     forgetLastUser();
     queryClient.clear();
   }, [queryClient]);
