@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addDays, dayMonthShort, daysBetween, weekOf, type IsoDate } from "@/lib/dates/calendar";
+import { addDays, daysBetween, formatDate, isIsoDate, weekOf, type IsoDate } from "@/lib/dates/calendar";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
@@ -10,7 +10,7 @@ export const OVERDUE_WINDOW_DAYS = 14;
 export const goalFormSchema = z.object({
   title: z.string().trim().min(1, { error: "Escreva a meta." }).max(120, { error: "Use até 120 caracteres." }),
   subject_id: z.uuid().nullable(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Escolha o dia." }),
+  date: z.string().refine(isIsoDate, { error: "Escolha o dia." }),
   duration_min: z.number().int().min(5).max(600).nullable(),
   time_of_day: z
     .string()
@@ -19,7 +19,12 @@ export const goalFormSchema = z.object({
 });
 export type GoalForm = z.infer<typeof goalFormSchema>;
 
-export const DURATION_PRESETS = [15, 30, 45, 60, 90] as const;
+export const DURATION_PRESETS: readonly number[] = [15, 30, 45, 60, 90];
+
+/** The presets, plus the goal's own duration when it is another one, so editing doesn't lose it. */
+export function durationOptions(current?: number | null): number[] {
+  return [...new Set([...DURATION_PRESETS, ...(current ? [current] : [])])].sort((a, b) => a - b);
+}
 
 /** "30 min", "1h", "1h30". */
 export function formatDuration(minutes: number): string {
@@ -63,9 +68,9 @@ export function todayList(goals: readonly GoalRow[], today: IsoDate): { overdue:
   return { overdue, today: todays };
 }
 
-/** "de ontem", "de 20 nov". */
+/** "de ontem", "de 20/11/2026". */
 export function overdueLabel(goal: Pick<GoalRow, "date">, today: IsoDate): string {
-  return daysBetween(goal.date, today) === 1 ? "de ontem" : `de ${dayMonthShort(goal.date)}`;
+  return daysBetween(goal.date, today) === 1 ? "de ontem" : `de ${formatDate(goal.date)}`;
 }
 
 /** "Metas da semana": goals dated in this Monday–Sunday week, done vs. total. */

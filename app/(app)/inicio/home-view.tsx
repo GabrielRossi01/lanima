@@ -13,11 +13,12 @@ import { useGoals } from "@/features/goals/queries";
 import { useProfile } from "@/features/profile/queries";
 import { GlobalSearch } from "@/features/search/global-search";
 import { useAssessments, useSubjects, useTopics } from "@/features/subjects/queries";
+import { UpcomingTestsBoard } from "@/features/subjects/upcoming-tests-board";
 import { cn } from "@/lib/cn";
 import {
   addDays,
-  dayMonth,
   daysBetween,
+  formatDate,
   todayIn,
   weekdayOf,
   weekOf,
@@ -32,8 +33,9 @@ import { SUBJECT_BG } from "@/lib/subjects/colors";
 import { subjectIcon } from "@/lib/subjects/icons";
 import { formatTimeShort } from "@/lib/subjects/schedule";
 import {
-  ASSESSMENT_KIND_LABEL,
-  isAssessmentKind,
+  assessmentKindLabel,
+  isCompleted,
+  isExam,
   nextAssessment,
   recentSubjects,
   summarize,
@@ -104,14 +106,14 @@ function NextExamCard({ exam, subject, today }: { exam?: AssessmentRow; subject?
   }
   const n = daysBetween(today, exam.date);
   const when = n === 0 ? "hoje" : n === 1 ? "amanhã" : `em ${n} dias`;
-  const kind = isAssessmentKind(exam.kind) ? ASSESSMENT_KIND_LABEL[exam.kind] : "Avaliação";
+  const kind = assessmentKindLabel(exam.kind);
   return (
-    <Card tone="deep" className="gap-2.5">
+    <Card tone={isExam(exam) ? "exam" : "deep"} className="gap-2.5">
       <span className="font-serif text-[28px] leading-9 font-semibold wrap-break-word">
         {exam.kind === "prova" ? "Próxima prova" : kind} {when}
       </span>
       <span className="type-body wrap-break-word text-on-deep-2">
-        {[subject.name, exam.title, exam.description].filter(Boolean).join(" · ")} · {dayMonth(exam.date)}
+        {[subject.name, exam.title, exam.description].filter(Boolean).join(" · ")} · {formatDate(exam.date)}
       </span>
       <Button variant="inverse" disabled className="mt-1 self-start">
         Criar teste para a prova
@@ -144,6 +146,8 @@ function WeekAgenda({
           label: `${s.name}${slot.lab ? " · lab" : ""}`,
           time: formatTimeShort(slot.start),
           color: s.color,
+          exam: false,
+          done: false,
         })),
     );
     const exams = assessments
@@ -154,8 +158,10 @@ function WeekAgenda({
           key: a.id,
           sort: "00:00",
           label: `${a.title}${s ? ` · ${s.name}` : ""}`,
-          time: "prova",
+          time: assessmentKindLabel(a.kind).toLocaleLowerCase("pt-BR"),
           color: s?.color,
+          exam: isExam(a) && !isCompleted(a),
+          done: isCompleted(a),
         };
       });
     return [...exams, ...classes.sort((a, b) => a.sort.localeCompare(b.sort))];
@@ -181,8 +187,17 @@ function WeekAgenda({
                       aria-hidden
                       className={cn("size-2 shrink-0 rounded-full", item.color ? SUBJECT_BG[item.color] : "bg-subtle")}
                     />
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    <span className="shrink-0 text-fg-2 tabular-nums">{item.time}</span>
+                    <span className={cn("min-w-0 flex-1 truncate", item.done && "text-fg-2 line-through")}>
+                      {item.label}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 tabular-nums",
+                        item.exam ? "font-semibold text-danger-text" : "text-fg-2",
+                      )}
+                    >
+                      {item.time}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -247,6 +262,11 @@ export function HomeView() {
         <div className="flex min-w-0 flex-col gap-5">
           {today && goals.data ? (
             <GoalsCard goals={goals.data} subjects={subjects.data ?? []} today={today} />
+          ) : (
+            <div aria-busy className="h-48 animate-pulse rounded-card bg-surface-alt motion-reduce:animate-none" />
+          )}
+          {today && assessments.data && subjects.data ? (
+            <UpcomingTestsBoard assessments={activeAssessments} subjects={active} today={today} />
           ) : (
             <div aria-busy className="h-48 animate-pulse rounded-card bg-surface-alt motion-reduce:animate-none" />
           )}

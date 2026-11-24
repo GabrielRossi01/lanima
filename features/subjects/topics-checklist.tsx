@@ -11,9 +11,10 @@ import {
 } from "@dnd-kit/core";
 import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, FileUp, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileUp, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckButton } from "@/components/ui/check-button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
@@ -68,29 +69,16 @@ function TopicItem({ topic }: { topic: TopicRow }) {
       >
         <GripVertical aria-hidden size={18} strokeWidth={1.75} />
       </button>
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={topic.done}
-        aria-label={topic.title}
-        onClick={() =>
+      <CheckButton
+        checked={topic.done}
+        label={topic.title}
+        onToggle={() =>
           update.mutate(
             { id: topic.id, patch: { done: !topic.done } },
             { onError: notifyError("Não foi possível salvar") },
           )
         }
-        className="flex size-11 shrink-0 items-center justify-center"
-      >
-        <span
-          aria-hidden
-          className={cn(
-            "flex size-[26px] items-center justify-center rounded-sm border-[1.5px] transition-colors duration-150",
-            topic.done ? "border-btn bg-btn text-white" : "border-checkbox bg-surface",
-          )}
-        >
-          {topic.done && <Check size={16} strokeWidth={2.5} />}
-        </span>
-      </button>
+      />
       {editing ? (
         <form onSubmit={saveTitle} className="min-w-0 flex-1">
           <Input

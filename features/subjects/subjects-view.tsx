@@ -15,6 +15,7 @@ import { subjectIcon } from "@/lib/subjects/icons";
 import { formatSchedule } from "@/lib/subjects/schedule";
 import {
   assessmentPill,
+  isExam,
   matchesFilter,
   sortSummaries,
   summarize,
@@ -165,6 +166,7 @@ export function SubjectsView() {
                 icon={subjectIcon(subject.icon)}
                 schedule={formatSchedule(subject.schedule_slots) || undefined}
                 nextAssessment={next ? assessmentPill(next, today!) : "Sem provas marcadas"}
+                exam={next !== undefined && isExam(next)}
                 progress={progress}
                 counts={{ notes: 0, summaries: 0, files: 0 }}
               />

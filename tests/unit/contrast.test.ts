@@ -36,11 +36,28 @@ const TEXT_PAIRS: Pair[] = [
   ["danger-text", "surface"],
   ["danger-text", "surface-alt"],
   ["warning-text", "surface"],
+  // Make-up exams.
+  ["white", "exam"],
+  ["on-deep-2", "exam"],
+  ["text", "exam-tint"],
+  ["text-2", "exam-tint"],
+  ["danger-text", "exam-tint"],
   // Selected filter chip: inverted colors.
   ["bg", "text"],
 ];
 
-const PASTELS = ["hl-yellow", "hl-pink", "hl-green", "hl-sky", "hl-lilac"];
+const PASTELS = [
+  "hl-yellow",
+  "hl-pink",
+  "hl-green",
+  "hl-sky",
+  "hl-lilac",
+  "hl-peach",
+  "hl-lime",
+  "hl-teal",
+  "hl-indigo",
+  "hl-orchid",
+];
 
 function color(tokens: Record<string, string>, name: string): string {
   if (name === "white") return WHITE;

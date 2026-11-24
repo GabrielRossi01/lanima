@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dayMonth, daysBetween, relativeDays, todayIn, weekdayOf, weekOf } from "@/lib/dates/calendar";
-import { formatDuration, goalWhen, overdueLabel, todayList, weekProgress, type GoalRow } from "@/lib/goals/goals";
+import {
+  addDays,
+  addMonths,
+  daysBetween,
+  formatDate,
+  isIsoDate,
+  maskDate,
+  monthGrid,
+  monthTitle,
+  parseDate,
+  relativeDays,
+  todayIn,
+  weekdayOf,
+  weekOf,
+} from "@/lib/dates/calendar";
+import {
+  durationOptions,
+  formatDuration,
+  goalWhen,
+  overdueLabel,
+  todayList,
+  weekProgress,
+  type GoalRow,
+} from "@/lib/goals/goals";
 import { normalizeText, searchItems, type SearchItem } from "@/lib/search/search";
 import {
   formatSchedule,
@@ -11,8 +33,14 @@ import {
   parseSlots,
   type ScheduleSlot,
 } from "@/lib/subjects/schedule";
+import { SUBJECT_BG, SUBJECT_COLOR_LABEL, SUBJECT_COLORS } from "@/lib/subjects/colors";
 import {
+  ASSESSMENT_KINDS,
+  assessmentKindLabel,
   assessmentPill,
+  isCompleted,
+  isExam,
+  isTest,
   matchesFilter,
   nextAssessment,
   parseSyllabus,
@@ -22,6 +50,7 @@ import {
   sortSummaries,
   summarize,
   toSubject,
+  upcomingAssessments,
   type AssessmentRow,
   type SubjectRow,
   type TopicRow,
@@ -47,7 +76,8 @@ describe("datas no fuso de São Paulo", () => {
     expect(daysBetween("2026-11-23", "2026-11-20")).toBe(-3);
     expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
     expect(addDays("2027-03-01", -1)).toBe("2027-02-28");
-    expect(dayMonth("2026-12-05")).toBe("5 de dezembro");
+    expect(formatDate("2026-12-05")).toBe("05/12/2026");
+    expect(monthTitle("2026-12-05")).toBe("dezembro de 2026");
     expect(["hoje", "amanhã", "em 6 dias", "ontem", "há 3 dias"]).toEqual([
       relativeDays("2026-11-23", "2026-11-23"),
       relativeDays("2026-11-23", "2026-11-24"),
@@ -55,6 +85,49 @@ describe("datas no fuso de São Paulo", () => {
       relativeDays("2026-11-23", "2026-11-22"),
       relativeDays("2026-11-23", "2026-11-20"),
     ]);
+  });
+});
+
+describe("campo de data dd/mm/aaaa", () => {
+  it("põe as barras sozinho e aceita barras digitadas", () => {
+    let text = "";
+    for (const char of "05122026") text = maskDate(text + char);
+    expect(text).toBe("05/12/2026");
+    text = "";
+    for (const char of "5/1/2027") text = maskDate(text + char);
+    expect(text).toBe("5/1/2027");
+    expect(maskDate("051220269")).toBe("05/12/2026");
+    expect(maskDate("a5b")).toBe("5");
+    expect(maskDate("/")).toBe("");
+  });
+
+  it("corrigir uma parte não embaralha as outras", () => {
+    expect(maskDate("5/12/2026")).toBe("5/12/2026"); // first digit of "15" erased
+    expect(maskDate("15//2026")).toBe("15//2026"); // month erased
+    expect(maskDate("15/1")).toBe("15/1");
+    expect(maskDate("15/")).toBe("15/");
+  });
+
+  it("lê dia/mês (nunca mês/dia) e recusa dias que não existem", () => {
+    expect(parseDate("05/12/2026")).toBe("2026-12-05");
+    expect(parseDate("5/1/2027")).toBe("2027-01-05");
+    expect(parseDate("29/02/2028")).toBe("2028-02-29");
+    for (const bad of ["", "05/12", "05/12/26", "12/25/2026", "31/02/2026", "29/02/2027", "00/01/2026", "05/12/0202"]) {
+      expect(parseDate(bad), bad).toBeNull();
+    }
+    expect(isIsoDate("2026-02-31")).toBe(false);
+    expect(isIsoDate("2026-13-01")).toBe(false);
+  });
+
+  it("calendário de segunda a domingo, cobrindo o mês inteiro", () => {
+    const weeks = monthGrid("2026-11-24");
+    expect(weeks[0][0]).toBe("2026-10-26");
+    expect(weeks.at(-1)!.at(-1)).toBe("2026-12-06");
+    expect(weeks.every((week) => week.length === 7 && weekdayOf(week[0]) === 1)).toBe(true);
+    expect(monthGrid("2027-02-10")).toHaveLength(4); // Feb 2027 starts on a Monday
+    expect(addMonths("2027-01-31", 1)).toBe("2027-02-28");
+    expect(addMonths("2026-12-05", 1)).toBe("2027-01-05");
+    expect(addMonths("2027-01-05", -1)).toBe("2026-12-05");
   });
 });
 
@@ -129,6 +202,7 @@ function assessment(subject_id: string, title: string, date: string): Assessment
     kind: "prova",
     date,
     description: null,
+    completed_at: null,
     created_at: now,
     updated_at: now,
   };
@@ -151,6 +225,31 @@ describe("matérias", () => {
     expect(assessmentPill(nextAssessment(list, "2026-11-23")!, "2026-11-23")).toBe("P1 em 6 dias");
     expect(assessmentPill(assessment("s", "Prova", "2026-11-23"), "2026-11-23")).toBe("Prova hoje");
     expect(nextAssessment([assessment("s", "Antiga", "2026-11-01")], "2026-11-23")).toBeUndefined();
+  });
+
+  it("avaliação concluída deixa de ser a próxima", () => {
+    const done = { ...assessment("s", "P1", "2026-11-29"), completed_at: "2026-11-23T12:00:00Z" };
+    const list = [done, assessment("s", "P2", "2026-12-10")];
+    expect(nextAssessment(list, "2026-11-23")?.title).toBe("P2");
+    expect(upcomingAssessments(list, "2026-11-23").map((a) => a.title)).toEqual(["P2"]);
+    expect(isCompleted(done)).toBe(true);
+    // Lists saved on the device before the column existed.
+    expect(isCompleted({} as AssessmentRow)).toBe(false);
+  });
+
+  it("exame é uma prova; seminário e entrega não são", () => {
+    const kinds = ASSESSMENT_KINDS.filter((kind) => isTest({ kind }));
+    expect(kinds).toEqual(["prova", "pratica", "exame"]);
+    expect(ASSESSMENT_KINDS.filter((kind) => isExam({ kind }))).toEqual(["exame"]);
+    expect(assessmentKindLabel("exame")).toBe("Exame");
+    expect(assessmentKindLabel("desconhecido")).toBe("desconhecido");
+  });
+
+  it("10 cores de matéria, todas com classe e nome", () => {
+    expect(new Set(SUBJECT_COLORS).size).toBe(10);
+    expect(new Set(SUBJECT_COLORS.map((c) => SUBJECT_BG[c])).size).toBe(10);
+    expect(SUBJECT_COLORS.every((c) => SUBJECT_COLOR_LABEL[c])).toBe(true);
+    expect(toSubject(subjectRow("s", "S", { color: "orquidea" })).color).toBe("orquidea");
   });
 
   it("filtros e ordenação", () => {
@@ -241,6 +340,9 @@ function goal(id: string, date: string, extra: Partial<GoalRow> = {}): GoalRow {
 
 describe("metas", () => {
   it("duração ou horário", () => {
+    expect(durationOptions(30)).toEqual([15, 30, 45, 60, 90]);
+    expect(durationOptions(40)).toEqual([15, 30, 40, 45, 60, 90]);
+    expect(durationOptions(null)).toEqual([15, 30, 45, 60, 90]);
     expect(formatDuration(30)).toBe("30 min");
     expect(formatDuration(60)).toBe("1h");
     expect(formatDuration(90)).toBe("1h30");
@@ -263,7 +365,7 @@ describe("metas", () => {
     expect(list.overdue.map((g) => g.id)).toEqual(["ontem"]);
     expect(list.today.map((g) => g.id)).toEqual(["hoje-16h", "hoje-sem-hora"]);
     expect(overdueLabel(goal("x", "2026-11-22"), "2026-11-23")).toBe("de ontem");
-    expect(overdueLabel(goal("x", "2026-11-20"), "2026-11-23")).toBe("de 20 nov");
+    expect(overdueLabel(goal("x", "2026-11-20"), "2026-11-23")).toBe("de 20/11/2026");
   });
 
   it("metas da semana contam de segunda a domingo", () => {

@@ -79,6 +79,13 @@ export async function seedTopics(account: TestAccount, subjectId: string, titles
   if (error) throw error;
 }
 
+export async function seedAssessment(account: TestAccount, row: Omit<Tables["assessments"]["Insert"], "user_id">) {
+  const { error } = await adminClient()
+    .from("assessments")
+    .insert({ ...row, user_id: account.id });
+  if (error) throw error;
+}
+
 export async function seedGoal(account: TestAccount, row: Omit<Tables["goals"]["Insert"], "user_id">) {
   const { error } = await adminClient()
     .from("goals")

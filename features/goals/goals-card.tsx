@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowDownToLine, Check, Pencil, Plus } from "lucide-react";
+import { ArrowDownToLine, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { CheckButton } from "@/components/ui/check-button";
 import { SubjectChip } from "@/components/ui/chip";
 import { IconButton } from "@/components/ui/icon-button";
 import { toast } from "@/components/ui/toast";
@@ -35,26 +36,13 @@ function GoalItem({
     toast({ title: "Não foi possível salvar", description: friendlyError(error), tone: "danger" });
   return (
     <li className="flex min-w-0 flex-wrap items-center gap-x-2 border-b border-subtle py-1.5 last:border-b-0">
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={done}
-        aria-label={goal.title}
-        onClick={() =>
+      <CheckButton
+        checked={done}
+        label={goal.title}
+        onToggle={() =>
           update.mutate({ id: goal.id, patch: { completed_at: done ? null : new Date().toISOString() } }, { onError })
         }
-        className="flex size-11 shrink-0 items-center justify-center"
-      >
-        <span
-          aria-hidden
-          className={cn(
-            "flex size-[26px] items-center justify-center rounded-sm border-[1.5px] transition-colors duration-150",
-            done ? "border-btn bg-btn text-white" : "border-checkbox bg-surface",
-          )}
-        >
-          {done && <Check size={16} strokeWidth={2.5} />}
-        </span>
-      </button>
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
         <span className={cn("text-sm wrap-break-word", done ? "text-fg-2 line-through" : "text-fg")}>{goal.title}</span>
         <span className="flex flex-wrap items-center gap-2">

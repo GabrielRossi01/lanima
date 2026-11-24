@@ -13,6 +13,8 @@ interface SubjectCardProps {
   schedule?: string;
   /** e.g. "Prova em 14 dias" */
   nextAssessment?: string;
+  /** The next assessment is a make-up exam: red pill. */
+  exam?: boolean;
   /** % of syllabus topics done */
   progress: number;
   counts: { notes: number; summaries: number; files: number };
@@ -22,7 +24,17 @@ function plural(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-export function SubjectCard({ href, name, color, icon, schedule, nextAssessment, progress, counts }: SubjectCardProps) {
+export function SubjectCard({
+  href,
+  name,
+  color,
+  icon,
+  schedule,
+  nextAssessment,
+  exam = false,
+  progress,
+  counts,
+}: SubjectCardProps) {
   return (
     <Link
       href={href}
@@ -35,7 +47,12 @@ export function SubjectCard({ href, name, color, icon, schedule, nextAssessment,
         {schedule && <span className="text-[13px] wrap-break-word text-fg-2">{schedule}</span>}
       </div>
       {nextAssessment && (
-        <span className="inline-flex h-[26px] max-w-full items-center gap-1.5 self-start rounded-full bg-surface-alt px-2.5 text-xs font-semibold text-accent">
+        <span
+          className={cn(
+            "inline-flex h-[26px] max-w-full items-center gap-1.5 self-start rounded-full px-2.5 text-xs font-semibold",
+            exam ? "bg-exam text-white" : "bg-surface-alt text-accent",
+          )}
+        >
           <CalendarClock aria-hidden size={14} strokeWidth={1.75} className="shrink-0" />
           <span className="min-w-0 truncate">{nextAssessment}</span>
         </span>

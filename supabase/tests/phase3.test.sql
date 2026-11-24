@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(23);
+select plan(28);
 
 -- Exact privileges (independent of the project's default privileges).
 select table_privs_are('public', 'subject_topics', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: CRUD on subject_topics');
@@ -62,7 +62,21 @@ select lives_ok(
 );
 select throws_ok(
   $$ insert into public.assessments (subject_id, title, kind, date) values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'P1', 'quiz', current_date) $$,
-  '23514', null, 'assessment kind is one of prova, pratica, seminario, entrega'
+  '23514', null, 'assessment kind is one of prova, pratica, exame, seminario, entrega'
+);
+select lives_ok(
+  $$ insert into public.assessments (id, subject_id, title, kind, date) values ('d2000000-0000-4000-8000-000000000001', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'Exame final', 'exame', current_date) $$,
+  'a make-up exam is saved'
+);
+update public.assessments set completed_at = now();
+select isnt((select completed_at from public.assessments where id = 'd2000000-0000-4000-8000-000000000001'), null, 'Ana checks her assessment');
+select lives_ok(
+  $$ update public.subjects set color = 'orquidea' where id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' $$,
+  'the new colors are accepted'
+);
+select throws_ok(
+  $$ update public.subjects set color = 'preto' where id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' $$,
+  '23514', null, 'other colors are refused'
 );
 select throws_ok(
   $$ update public.subjects set schedule_slots = '[{"day": 9, "start": "08:00", "lab": false}]' where id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' $$,
@@ -91,6 +105,7 @@ reset role;
 select is((select done from public.subject_topics where id = 'c1000000-0000-4000-8000-000000000001'), false, 'Bia''s topic was not changed');
 select is((select completed_at from public.goals where id = 'c3000000-0000-4000-8000-000000000001'), null, 'Bia''s goal was not changed');
 select is((select count(*)::int from public.assessments where id = 'c2000000-0000-4000-8000-000000000001'), 1, 'Bia''s assessment was not deleted');
+select is((select completed_at from public.assessments where id = 'c2000000-0000-4000-8000-000000000001'), null, 'Bia''s assessment was not checked');
 
 select * from finish();
 rollback;

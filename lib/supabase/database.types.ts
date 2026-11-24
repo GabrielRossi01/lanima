@@ -5,6 +5,7 @@ export type Database = {
     Tables: {
       assessments: {
         Row: {
+          completed_at: string | null;
           created_at: string;
           date: string;
           description: string | null;
@@ -17,6 +18,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          completed_at?: string | null;
           created_at?: string;
           date: string;
           description?: string | null;
@@ -28,6 +30,7 @@ export type Database = {
           user_id?: string;
         };
         Update: {
+          completed_at?: string | null;
           created_at?: string;
           date?: string;
           description?: string | null;

@@ -71,7 +71,8 @@ insert into public.assessments (user_id, subject_id, title, kind, date, descript
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'Prova teórica 1', 'prova', current_date + 14, null),
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'Prova prática (lab)', 'pratica', current_date + 21, null),
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002', 'P1', 'prova', current_date + 6, 'enzimas e metabolismo'),
-  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000004', 'Seminário', 'seminario', current_date + 9, null);
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000004', 'Seminário', 'seminario', current_date + 9, null),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000006', 'Exame final', 'exame', current_date + 3, 'todo o conteúdo');
 
 insert into public.goals (user_id, subject_id, title, duration_min, time_of_day, date, completed_at) values
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'Revisar sistema esquelético', 30, null, current_date, now()),

@@ -7,7 +7,7 @@ import { SearchField } from "@/components/ui/input";
 import { useGoals } from "@/features/goals/queries";
 import { useAssessments, useSubjects, useTopics } from "@/features/subjects/queries";
 import { cn } from "@/lib/cn";
-import { dayMonthShort, type IsoDate } from "@/lib/dates/calendar";
+import { formatDate, type IsoDate } from "@/lib/dates/calendar";
 import { SEARCH_KIND_LABEL, searchItems, type SearchItem, type SearchKind } from "@/lib/search/search";
 
 const KIND_ICON: Record<SearchKind, LucideIcon> = {
@@ -49,14 +49,14 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
       kind: "avaliacao" as const,
       id: a.id,
       title: a.title,
-      detail: `${nameOf.get(a.subject_id) ?? ""} · ${dayMonthShort(a.date)}${a.description ? ` · ${a.description}` : ""}`,
+      detail: `${nameOf.get(a.subject_id) ?? ""} · ${formatDate(a.date)}${a.description ? ` · ${a.description}` : ""}`,
       href: `/materias/${a.subject_id}`,
     })),
     ...goals.map((g) => ({
       kind: "meta" as const,
       id: g.id,
       title: g.title,
-      detail: `${g.subject_id ? `${nameOf.get(g.subject_id) ?? ""} · ` : ""}${dayMonthShort(g.date)}`,
+      detail: `${g.subject_id ? `${nameOf.get(g.subject_id) ?? ""} · ` : ""}${formatDate(g.date)}`,
       href: "/inicio",
     })),
   ];
@@ -69,7 +69,7 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
       <SearchField
         value={query}
         onValueChange={setQuery}
-        placeholder="Buscar matérias, conteúdo, provas, metas…"
+        placeholder="Buscar matérias, provas…"
         aria-controls={open ? resultsId : undefined}
         aria-expanded={open}
         className="w-full"

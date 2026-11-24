@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
-import { addDays, todayIn } from "../../lib/dates/calendar";
-import { adminClient, seedGoal, seedSubject, seedTopics } from "./helpers/accounts";
+import { addDays, formatDate, spokenDate, todayIn } from "../../lib/dates/calendar";
+import { adminClient, seedAssessment, seedGoal, seedSubject, seedTopics } from "./helpers/accounts";
 import { expect, test } from "./helpers/fixtures";
 import { describeHorizontalOverflow } from "./helpers/overflow";
 
@@ -64,7 +64,7 @@ test.describe("Matérias", () => {
     await page.getByRole("button", { name: "Nova avaliação" }).click();
     const sheet = page.getByRole("dialog", { name: "Nova avaliação" });
     await sheet.getByLabel("Nome").fill("P1");
-    await sheet.getByLabel("Data").fill(addDays(today(), 6));
+    await sheet.getByLabel("Data").fill(formatDate(addDays(today(), 6)));
     await sheet.getByLabel("Conteúdo (opcional)").fill("enzimas e metabolismo");
     await sheet.getByRole("button", { name: "Salvar" }).click();
     // Exact: "Nenhuma avaliação marcada." is still on screen for a few ms when the toast appears.
@@ -75,6 +75,57 @@ test.describe("Matérias", () => {
     await page.goto("/inicio");
     await expect(page.getByText("Próxima prova em 6 dias")).toBeVisible();
     await expect(page.getByText(/Bioquímica · P1 · enzimas e metabolismo/)).toBeVisible();
+  });
+
+  test("exame em destaque e avaliação concluída", async ({ page, account }) => {
+    const subject = await seedSubject(account, { name: "Fisiologia", color: "pessego" });
+    await seedAssessment(account, { subject_id: subject.id, title: "P1", kind: "prova", date: addDays(today(), 2) });
+    await page.goto(`/materias/${subject.id}`);
+    await page.getByRole("tab", { name: "Avaliações" }).click();
+    await page.getByRole("button", { name: "Nova avaliação" }).click();
+    const sheet = page.getByRole("dialog", { name: "Nova avaliação" });
+    await sheet.getByLabel("Nome").fill("Exame final");
+    await sheet.getByLabel("Tipo").selectOption({ label: "Exame (recuperação)" });
+    // Impossible day, then the calendar.
+    await sheet.getByLabel("Data").fill("31022027");
+    await sheet.getByRole("button", { name: "Salvar" }).click();
+    await expect(sheet.getByText("Essa data não existe", { exact: false })).toBeVisible();
+    await sheet.getByLabel("Data").fill(formatDate(today()));
+    await sheet.getByRole("button", { name: "Abrir calendário" }).click();
+    const examDay = addDays(today(), 5);
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await expect(sheet.getByRole("button", { name: spokenDate(examDay) })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(sheet.getByLabel("Data")).toHaveValue(formatDate(examDay));
+    await expectNoHorizontalScroll(page, "nova avaliação");
+    await sheet.getByRole("button", { name: "Salvar" }).click();
+    await expect(page.getByText("Avaliação marcada", { exact: true })).toBeVisible();
+
+    const exam = page.getByRole("listitem").filter({ hasText: "Exame final" });
+    await expect(exam).toContainText(`Exame · ${formatDate(examDay)}`);
+    await expect(exam).toHaveClass(/bg-exam-tint/);
+
+    await page.getByRole("checkbox", { name: "P1 concluída" }).click();
+    const completed = page.getByRole("region", { name: "Avaliações concluídas" });
+    await expect(completed.getByRole("checkbox", { name: "P1 concluída" })).toBeChecked();
+    await expect
+      .poll(async () => {
+        const { data } = await adminClient().from("assessments").select("completed_at").eq("user_id", account.id);
+        return data?.filter((a) => a.completed_at !== null).length;
+      })
+      .toBe(1);
+    await page.reload();
+    await page.getByRole("tab", { name: "Avaliações" }).click();
+    await expect(completed.getByText("Concluída", { exact: true })).toBeVisible();
+    await expectNoHorizontalScroll(page, "aba Avaliações");
+
+    // The checked test is no longer the next one.
+    await page.goto("/materias");
+    await expect(page.getByRole("link", { name: /Fisiologia/ })).toContainText("Exame final em 5 dias");
+    await page.goto("/inicio");
+    await expect(page.getByText("Exame em 5 dias")).toBeVisible();
   });
 
   test("filtros e arquivar", async ({ page, account }) => {
@@ -161,6 +212,15 @@ test.describe("Início", () => {
     await expect(card.getByRole("checkbox", { name: "Revisar imunidade inata" })).toBeVisible();
     await expect(card.getByText("45 min")).toBeVisible();
 
+    // A duration saved before that isn't one of the choices (40 min) isn't lost on editing.
+    await card.getByRole("button", { name: "Editar “Ler artigo de ontem”" }).click();
+    const edit = page.getByRole("dialog", { name: "Editar meta" });
+    await expect(edit.getByRole("button", { name: "40 min" })).toHaveAttribute("aria-pressed", "true");
+    await expect(edit.getByLabel("Dia")).toHaveValue(formatDate(today()));
+    await expect(edit.getByRole("spinbutton")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(edit).toHaveCount(0);
+
     const weekMetric = page.getByText("Metas da semana").locator("..");
     await expect(weekMetric).toContainText("0 de 2");
     await card.getByRole("checkbox", { name: "Revisar imunidade inata" }).click();
@@ -168,6 +228,48 @@ test.describe("Início", () => {
     await card.getByRole("checkbox", { name: "Revisar imunidade inata" }).click();
     await expect(weekMetric).toContainText("0 de 2");
     await expectNoHorizontalScroll(page, "/inicio");
+  });
+
+  test("quadro de próximas provas: em ordem, sem seminários, concluídas nem arquivadas", async ({ page, account }) => {
+    const bio = await seedSubject(account, { name: "Bioquímica", color: "turquesa" });
+    const old = await seedSubject(account, { name: "Antiga", color: "lima", archived: true });
+    const at = (days: number) => addDays(today(), days);
+    await seedAssessment(account, { subject_id: bio.id, title: "P2", kind: "pratica", date: at(9) });
+    await seedAssessment(account, { subject_id: bio.id, title: "Exame final", kind: "exame", date: at(1) });
+    await seedAssessment(account, { subject_id: bio.id, title: "Seminário", kind: "seminario", date: at(2) });
+    await seedAssessment(account, { subject_id: bio.id, title: "Passou", kind: "prova", date: at(-1) });
+    await seedAssessment(account, { subject_id: old.id, title: "Arquivada", kind: "prova", date: at(3) });
+    await seedAssessment(account, {
+      subject_id: bio.id,
+      title: "Feita",
+      kind: "prova",
+      date: at(4),
+      completed_at: new Date().toISOString(),
+    });
+    await page.goto("/inicio");
+    const board = page.getByRole("region", { name: "Próximas provas" });
+    await expect(board.getByRole("listitem")).toHaveCount(2);
+    await expect(board.getByRole("listitem").nth(0)).toContainText("Exame final");
+    await expect(board.getByRole("listitem").nth(0)).toContainText("amanhã");
+    await expect(board.getByRole("listitem").nth(1)).toContainText("P2");
+    await expect(board.getByRole("listitem").nth(1)).toContainText(formatDate(at(9)));
+    await expectNoHorizontalScroll(page, "/inicio com o quadro");
+    await board.getByRole("link", { name: /Exame final/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/materias/${bio.id}$`));
+  });
+
+  test("o texto da busca cabe no campo", async ({ page, account }) => {
+    void account;
+    await page.goto("/inicio");
+    const search = page.getByRole("searchbox");
+    await expect(search).toBeVisible();
+    const { text, room } = await search.evaluate((el: HTMLInputElement) => {
+      const style = getComputedStyle(el);
+      const context = document.createElement("canvas").getContext("2d")!;
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      return { text: context.measureText(el.placeholder).width, room: el.clientWidth };
+    });
+    expect(text, `placeholder de ${Math.round(text)}px num campo de ${room}px`).toBeLessThanOrEqual(room);
   });
 
   test("continuar estudando e busca sem acento", async ({ page, account }) => {

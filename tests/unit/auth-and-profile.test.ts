@@ -173,7 +173,14 @@ describe("matérias do onboarding", () => {
 
   it("normaliza espaços e gira as cores das matérias novas", () => {
     expect(normalizeSubjectName("  Saúde   Coletiva ")).toBe("Saúde Coletiva");
-    expect([0, 1, 4, 5].map(colorForCustomSubject)).toEqual(["amarelo", "rosa", "lilas", "amarelo"]);
+    expect([0, 1, 4, 5, 9, 10].map(colorForCustomSubject)).toEqual([
+      "amarelo",
+      "rosa",
+      "lilas",
+      "pessego",
+      "orquidea",
+      "amarelo",
+    ]);
   });
 });
 

@@ -1,12 +1,13 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-type CardTone = "surface" | "alt" | "deep";
+type CardTone = "surface" | "alt" | "deep" | "exam";
 
 const tones: Record<CardTone, string> = {
   surface: "border border-line bg-surface shadow-card",
   alt: "border border-transparent bg-surface-alt",
   deep: "border border-transparent bg-deep text-white",
+  exam: "border border-transparent bg-exam text-white",
 };
 
 interface CardProps extends ComponentProps<"section"> {

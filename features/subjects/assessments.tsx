@@ -1,30 +1,32 @@
 "use client";
 
-import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Pencil, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { CheckButton } from "@/components/ui/check-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DateField } from "@/components/ui/date-field";
 import { IconButton } from "@/components/ui/icon-button";
-import { Field, Input, Label, SelectField } from "@/components/ui/input";
+import { Field, SelectField } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
-import { dayMonth, daysBetween, relativeDays, type IsoDate } from "@/lib/dates/calendar";
+import { daysBetween, formatDate, relativeDays, type IsoDate } from "@/lib/dates/calendar";
 import {
   ASSESSMENT_KIND_LABEL,
   ASSESSMENT_KINDS,
   assessmentFormSchema,
+  assessmentKindLabel,
   fieldErrors,
   isAssessmentKind,
+  isCompleted,
+  isExam,
+  upcomingAssessments,
   type AssessmentForm,
   type AssessmentRow,
 } from "@/lib/subjects/subjects";
 import { friendlyError } from "@/lib/supabase/errors";
-import { useDeleteAssessment, useSaveAssessment } from "./queries";
-
-function kindLabel(kind: string) {
-  return isAssessmentKind(kind) ? ASSESSMENT_KIND_LABEL[kind] : kind;
-}
+import { useCompleteAssessment, useDeleteAssessment, useSaveAssessment } from "./queries";
 
 interface AssessmentFormSheetProps {
   open: boolean;
@@ -59,7 +61,6 @@ export function AssessmentFormSheet({ open, onClose, subjectId, today, assessmen
   }
   const set = <K extends keyof AssessmentForm>(k: K, v: AssessmentForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const formId = useId();
-  const dateId = useId();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -111,21 +112,17 @@ export function AssessmentFormSheet({ open, onClose, subjectId, today, assessmen
         >
           {ASSESSMENT_KINDS.map((k) => (
             <option key={k} value={k}>
-              {ASSESSMENT_KIND_LABEL[k]}
+              {k === "exame" ? "Exame (recuperação)" : ASSESSMENT_KIND_LABEL[k]}
             </option>
           ))}
         </SelectField>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={dateId}>Data</Label>
-          <Input
-            id={dateId}
-            type="date"
-            value={form.date}
-            onChange={(e) => set("date", e.target.value)}
-            aria-invalid={errors.date ? true : undefined}
-          />
-          {errors.date && <p className="type-caption m-0 text-danger-text">{errors.date}</p>}
-        </div>
+        <DateField
+          label="Data"
+          value={form.date}
+          onValueChange={(date) => set("date", date)}
+          today={today}
+          error={errors.date}
+        />
         <Field
           label="Conteúdo (opcional)"
           placeholder="enzimas e metabolismo"
@@ -139,15 +136,21 @@ export function AssessmentFormSheet({ open, onClose, subjectId, today, assessmen
   );
 }
 
-/** Countdown pill: "14 dias", "amanhã", "hoje", or the past in muted style. */
-export function Countdown({ date, today }: { date: IsoDate; today: IsoDate }) {
+/** Countdown pill: "14 dias", "amanhã", "hoje", or the past in muted style. Red for make-up exams. */
+export function Countdown({ date, today, exam = false }: { date: IsoDate; today: IsoDate; exam?: boolean }) {
   const n = daysBetween(today, date);
   const text = n === 0 ? "hoje" : n === 1 ? "amanhã" : n > 0 ? `${n} dias` : relativeDays(today, date);
   return (
     <span
       className={cn(
         "inline-flex h-[26px] shrink-0 items-center rounded-full px-2.5 text-xs font-semibold whitespace-nowrap",
-        n < 0 ? "bg-subtle text-fg-2" : n <= 7 ? "bg-hl-pink text-ink" : "bg-surface-alt text-accent",
+        n < 0
+          ? "bg-subtle text-fg-2"
+          : exam
+            ? "bg-exam text-white"
+            : n <= 7
+              ? "bg-hl-pink text-ink"
+              : "bg-surface-alt text-accent",
       )}
     >
       {text}
@@ -159,46 +162,89 @@ interface AssessmentListProps {
   subjectId: string;
   assessments: readonly AssessmentRow[];
   today: IsoDate;
-  /** Compact: upcoming only, no actions (overview card). */
+  /** Compact: still to do only, no actions (overview card). */
   compact?: boolean;
 }
 
-/** Upcoming assessments first (soonest first), then the past ones. */
+/** To do first (soonest first), then the ones whose day passed unchecked, then the checked ones. */
 export function AssessmentList({ subjectId, assessments, today, compact = false }: AssessmentListProps) {
   const remove = useDeleteAssessment();
+  const complete = useCompleteAssessment();
   const [editing, setEditing] = useState<AssessmentRow | undefined>();
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<AssessmentRow | undefined>();
 
-  const upcoming = assessments
-    .filter((a) => daysBetween(today, a.date) >= 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const past = assessments.filter((a) => daysBetween(today, a.date) < 0).sort((a, b) => b.date.localeCompare(a.date));
+  const upcoming = upcomingAssessments(assessments, today);
+  const newestFirst = (a: AssessmentRow, b: AssessmentRow) => b.date.localeCompare(a.date);
+  const past = assessments.filter((a) => !isCompleted(a) && daysBetween(today, a.date) < 0).sort(newestFirst);
+  const completed = assessments.filter(isCompleted).sort(newestFirst);
   const shown = compact ? upcoming.slice(0, 3) : upcoming;
 
-  const row = (a: AssessmentRow) => (
-    <li key={a.id} className="flex min-w-0 items-center gap-3 rounded-lg bg-surface-alt px-3.5 py-2.5">
-      <CalendarClock aria-hidden size={18} strokeWidth={1.75} className="shrink-0 text-accent" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-sm font-semibold wrap-break-word">{a.title}</span>
-        <span className="text-xs wrap-break-word text-fg-2">
-          {kindLabel(a.kind)} · {dayMonth(a.date)}
-          {a.description ? ` · ${a.description}` : ""}
-        </span>
-      </div>
-      <Countdown date={a.date} today={today} />
-      {!compact && (
-        <>
-          <IconButton icon={Pencil} label={`Editar ${a.title}`} variant="ghost" onClick={() => setEditing(a)} />
-          <IconButton icon={Trash2} label={`Excluir ${a.title}`} variant="ghost" onClick={() => setDeleting(a)} />
-        </>
-      )}
-    </li>
-  );
+  const row = (a: AssessmentRow) => {
+    const done = isCompleted(a);
+    const exam = isExam(a) && !done;
+    const Icon = exam ? TriangleAlert : CalendarClock;
+    return (
+      <li
+        key={a.id}
+        className={cn(
+          "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border-l-4 py-2 pr-2",
+          compact ? "pl-2.5" : "pl-1",
+          exam ? "border-danger bg-exam-tint" : "border-transparent bg-surface-alt",
+        )}
+      >
+        {compact ? (
+          <Icon
+            aria-hidden
+            size={18}
+            strokeWidth={1.75}
+            className={cn("mr-1 shrink-0", exam ? "text-danger-text" : "text-accent")}
+          />
+        ) : (
+          <CheckButton
+            checked={done}
+            label={`${a.title} concluída`}
+            onToggle={() =>
+              complete.mutate(
+                { id: a.id, completed_at: done ? null : new Date().toISOString() },
+                {
+                  onError: (error) =>
+                    toast({ title: "Não foi possível salvar", description: friendlyError(error), tone: "danger" }),
+                },
+              )
+            }
+          />
+        )}
+        <div className="flex min-w-0 flex-1 basis-32 flex-col py-0.5">
+          <span className={cn("text-sm font-semibold wrap-break-word", done && "text-fg-2 line-through")}>
+            {a.title}
+          </span>
+          <span className="text-xs wrap-break-word text-fg-2">
+            <span className={cn(exam && "font-semibold text-danger-text")}>{assessmentKindLabel(a.kind)}</span> ·{" "}
+            {formatDate(a.date)}
+            {a.description ? ` · ${a.description}` : ""}
+          </span>
+        </div>
+        {done ? (
+          <span className="inline-flex h-[26px] shrink-0 items-center text-xs font-semibold text-success-text">
+            Concluída
+          </span>
+        ) : (
+          <Countdown date={a.date} today={today} exam={exam} />
+        )}
+        {!compact && (
+          <span className="ml-auto flex shrink-0">
+            <IconButton icon={Pencil} label={`Editar ${a.title}`} variant="ghost" onClick={() => setEditing(a)} />
+            <IconButton icon={Trash2} label={`Excluir ${a.title}`} variant="ghost" onClick={() => setDeleting(a)} />
+          </span>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      {shown.length === 0 && (compact || past.length === 0) ? (
+      {shown.length === 0 && (compact || assessments.length === 0) ? (
         <p className="type-body m-0 text-fg-2">Nenhuma avaliação marcada.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">{shown.map(row)}</ul>
@@ -207,6 +253,12 @@ export function AssessmentList({ subjectId, assessments, today, compact = false 
         <section aria-label="Avaliações que já passaram" className="flex flex-col gap-2">
           <h3 className="type-overline m-0 text-fg-2">Já passaram</h3>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">{past.map(row)}</ul>
+        </section>
+      )}
+      {!compact && completed.length > 0 && (
+        <section aria-label="Avaliações concluídas" className="flex flex-col gap-2">
+          <h3 className="type-overline m-0 text-fg-2">Concluídas</h3>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">{completed.map(row)}</ul>
         </section>
       )}
       {!compact && (
@@ -227,7 +279,7 @@ export function AssessmentList({ subjectId, assessments, today, compact = false 
       <ConfirmDialog
         open={deleting !== undefined}
         title="Excluir avaliação?"
-        description={deleting ? `“${deleting.title}” de ${dayMonth(deleting.date)} será excluída.` : ""}
+        description={deleting ? `“${deleting.title}” de ${formatDate(deleting.date)} será excluída.` : ""}
         confirmLabel="Excluir"
         danger
         busy={remove.isPending}

@@ -32,12 +32,20 @@
   --danger-text: #95504e;
   --warning-text: #746139;
   --on-deep-2: #c2cfd8;
+  /* Make-up exams ("exame"): strong fill with white text, and its tint for list rows. */
+  --exam: #8f3a37;
+  --exam-tint: #fbe8e6;
 
   --hl-yellow: #f7e38a;
   --hl-pink: #f6bacb;
   --hl-green: #bfe5cb;
   --hl-sky: #b3d8f2;
   --hl-lilac: #d6c8f0;
+  --hl-peach: #f9c49c;
+  --hl-lime: #cddf9b;
+  --hl-teal: #92dcd6;
+  --hl-indigo: #b1c3fc;
+  --hl-orchid: #e9b4e8;
 
   /* Notebook highlighter (pastel + multiply in light theme). */
   --marker-yellow: #f7e38a;
@@ -76,12 +84,19 @@
   --danger-text: #da9490;
   --warning-text: #d4a03f;
   --on-deep-2: #dce4ea;
+  --exam: #8f3a37;
+  --exam-tint: #3b2629;
 
   --hl-yellow: #f7e38a;
   --hl-pink: #f6bacb;
   --hl-green: #bfe5cb;
   --hl-sky: #b3d8f2;
   --hl-lilac: #d6c8f0;
+  --hl-peach: #f9c49c;
+  --hl-lime: #cddf9b;
+  --hl-teal: #92dcd6;
+  --hl-indigo: #b1c3fc;
+  --hl-orchid: #e9b4e8;
 
   --marker-yellow: #6e6230;
   --marker-pink: #6e3f50;
@@ -125,6 +140,8 @@
   --color-danger-text: var(--danger-text);
   --color-warning-text: var(--warning-text);
   --color-on-deep-2: var(--on-deep-2);
+  --color-exam: var(--exam);
+  --color-exam-tint: var(--exam-tint);
   --color-scrim: var(--scrim);
 
   --color-hl-yellow: var(--hl-yellow);
@@ -132,6 +149,11 @@
   --color-hl-green: var(--hl-green);
   --color-hl-sky: var(--hl-sky);
   --color-hl-lilac: var(--hl-lilac);
+  --color-hl-peach: var(--hl-peach);
+  --color-hl-lime: var(--hl-lime);
+  --color-hl-teal: var(--hl-teal);
+  --color-hl-indigo: var(--hl-indigo);
+  --color-hl-orchid: var(--hl-orchid);
 
   /* Dark immersive screens (focus, atlas, onboarding) use these in both themes. */
   --color-night-800: #2e404d;

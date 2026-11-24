@@ -3,12 +3,13 @@
 import { Trash2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Field, Input, Label, SelectField } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import type { IsoDate } from "@/lib/dates/calendar";
-import { DURATION_PRESETS, formatDuration, goalFormSchema, type GoalForm, type GoalRow } from "@/lib/goals/goals";
+import { durationOptions, formatDuration, goalFormSchema, type GoalForm, type GoalRow } from "@/lib/goals/goals";
 import { fieldErrors, type Subject } from "@/lib/subjects/subjects";
 import { friendlyError } from "@/lib/supabase/errors";
 import { useDeleteGoal, useSaveGoal } from "./queries";
@@ -54,9 +55,7 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
   }
   const set = <K extends keyof GoalForm>(k: K, v: GoalForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const formId = useId();
-  const dateId = useId();
   const timeId = useId();
-  const customId = useId();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -139,11 +138,13 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
             </option>
           ))}
         </SelectField>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={dateId}>Dia</Label>
-          <Input id={dateId} type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
-          {errors.date && <p className="type-caption m-0 text-danger-text">{errors.date}</p>}
-        </div>
+        <DateField
+          label="Dia"
+          value={form.date}
+          onValueChange={(date) => set("date", date)}
+          today={today}
+          error={errors.date}
+        />
 
         <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
           <legend className="mb-2 p-0 text-[13px] font-semibold">Quanto tempo</legend>
@@ -175,7 +176,7 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
           </div>
           {when === "duracao" ? (
             <div className="flex flex-wrap items-center gap-2">
-              {DURATION_PRESETS.map((m) => (
+              {durationOptions(goal?.duration_min).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -189,23 +190,6 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
                   {formatDuration(m)}
                 </button>
               ))}
-              <label htmlFor={customId} className="sr-only">
-                Outra duração em minutos
-              </label>
-              <Input
-                id={customId}
-                type="number"
-                inputMode="numeric"
-                min={5}
-                max={600}
-                step={5}
-                placeholder="min"
-                value={
-                  form.duration_min && !DURATION_PRESETS.includes(form.duration_min as 15) ? form.duration_min : ""
-                }
-                onChange={(e) => set("duration_min", e.target.value ? Number(e.target.value) : null)}
-                className="w-24"
-              />
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
@@ -219,11 +203,7 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
               />
             </div>
           )}
-          {(errors.duration_min || errors.time_of_day) && (
-            <p className="type-caption m-0 text-danger-text">
-              {errors.time_of_day ?? "A duração vai de 5 minutos a 10 horas."}
-            </p>
-          )}
+          {errors.time_of_day && <p className="type-caption m-0 text-danger-text">{errors.time_of_day}</p>}
         </fieldset>
       </form>
     </Sheet>

@@ -9,8 +9,11 @@ export type IsoDate = string;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** A day that exists: "2026-02-31" has the right shape, but Date would roll it into March. */
 export function isIsoDate(value: string): value is IsoDate {
-  return ISO_DATE.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`));
+  if (!ISO_DATE.test(value)) return false;
+  const date = toUtcNoon(value);
+  return !Number.isNaN(date.getTime()) && fromUtc(date) === value;
 }
 
 const partsFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -74,16 +77,67 @@ const MONTHS = [
   "dezembro",
 ];
 
-/** "5 de dezembro" */
-export function dayMonth(day: IsoDate): string {
-  const [, m, d] = day.split("-").map(Number);
-  return `${d} de ${MONTHS[m - 1]}`;
+/** "05/12/2026": how calendar days are written in the app. */
+export function formatDate(day: IsoDate): string {
+  const [y, m, d] = day.split("-");
+  return `${d}/${m}/${y}`;
 }
 
-/** "5 dez" */
-export function dayMonthShort(day: IsoDate): string {
-  const [, m, d] = day.split("-").map(Number);
-  return `${d} ${MONTHS[m - 1].slice(0, 3)}`;
+/** "5 de dezembro de 2026" (for screen readers). */
+export function spokenDate(day: IsoDate): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return `${d} de ${MONTHS[m - 1]} de ${y}`;
+}
+
+/** "dezembro de 2026" */
+export function monthTitle(day: IsoDate): string {
+  const [y, m] = day.split("-").map(Number);
+  return `${MONTHS[m - 1]} de ${y}`;
+}
+
+/** Same day `n` months away, or the last day when that month is shorter (31 Jan → 28 Feb). */
+export function addMonths(day: IsoDate, n: number): IsoDate {
+  const [y, m, d] = day.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m + n, 0, 12)).getUTCDate();
+  return fromUtc(new Date(Date.UTC(y, m - 1 + n, Math.min(d, last), 12)));
+}
+
+/** Weeks (Monday–Sunday) that cover the month of `day`, with the days of the months around it. */
+export function monthGrid(day: IsoDate): IsoDate[][] {
+  const first = `${day.slice(0, 8)}01`;
+  const last = addDays(addMonths(first, 1), -1);
+  const weeks: IsoDate[][] = [];
+  for (let start = weekOf(first).start; start <= last; start = addDays(start, 7)) {
+    weeks.push(Array.from({ length: 7 }, (_, i) => addDays(start, i)));
+  }
+  return weeks;
+}
+
+/**
+ * What the person typed, shaped as dd/mm/aaaa: slashes appear on their own, and typing them
+ * ("5/12/") works too. Parts already typed stay in place while another one is being fixed.
+ */
+export function maskDate(raw: string): string {
+  const sizes = [2, 2, 4];
+  const parts = [""];
+  for (const char of raw) {
+    const i = parts.length - 1;
+    if (char === "/") {
+      if (i < 2 && (i > 0 || parts[0] !== "")) parts.push("");
+    } else if (char >= "0" && char <= "9") {
+      if (parts[i].length < sizes[i]) parts[i] += char;
+      else if (i < 2) parts.push(char);
+    }
+  }
+  return parts.join("/");
+}
+
+/** "05/12/2026" or "5/12/2026" → "2026-12-05"; null while incomplete or if the day doesn't exist. */
+export function parseDate(text: string): IsoDate | null {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(20\d{2})$/.exec(text.trim());
+  if (!match) return null;
+  const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  return isIsoDate(iso) ? iso : null;
 }
 
 /** "hoje", "amanhã", "em 6 dias", "ontem", "há 3 dias". */

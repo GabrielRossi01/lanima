@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { daysBetween, relativeDays, type IsoDate } from "@/lib/dates/calendar";
+import { daysBetween, isIsoDate, relativeDays, type IsoDate } from "@/lib/dates/calendar";
 import type { Database } from "@/lib/supabase/database.types";
 import { SUBJECT_COLORS, type SubjectColor } from "./colors";
 import { hasLab, minutesToNextClass, parseSlots, scheduleSchema, type ScheduleSlot } from "./schedule";
@@ -19,18 +19,38 @@ export function toSubject(row: SubjectRow): Subject {
   return { ...row, color, schedule_slots: parseSlots(row.schedule_slots) };
 }
 
-export const ASSESSMENT_KINDS = ["prova", "pratica", "seminario", "entrega"] as const;
+export const ASSESSMENT_KINDS = ["prova", "pratica", "exame", "seminario", "entrega"] as const;
 export type AssessmentKind = (typeof ASSESSMENT_KINDS)[number];
 
 export const ASSESSMENT_KIND_LABEL: Record<AssessmentKind, string> = {
   prova: "Prova",
   pratica: "Prova prática",
+  exame: "Exame",
   seminario: "Seminário",
   entrega: "Entrega",
 };
 
 export function isAssessmentKind(value: string): value is AssessmentKind {
   return (ASSESSMENT_KINDS as readonly string[]).includes(value);
+}
+
+export function assessmentKindLabel(kind: string): string {
+  return isAssessmentKind(kind) ? ASSESSMENT_KIND_LABEL[kind] : kind;
+}
+
+/** Make-up exam ("prova de recuperação"): shown in red wherever it appears. */
+export function isExam(assessment: Pick<AssessmentRow, "kind">): boolean {
+  return assessment.kind === "exame";
+}
+
+/** Tests, as opposed to seminars and hand-ins. */
+export function isTest(assessment: Pick<AssessmentRow, "kind">): boolean {
+  return assessment.kind === "prova" || assessment.kind === "pratica" || isExam(assessment);
+}
+
+/** Checked by the student. Lists saved on the device before this column existed don't have it. */
+export function isCompleted(assessment: { completed_at?: string | null }): boolean {
+  return Boolean(assessment.completed_at);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -53,7 +73,7 @@ export const assessmentFormSchema = z.object({
     .min(1, { error: "Dê um nome, como “P1” ou “Prova prática”." })
     .max(120, { error: "Use até 120 caracteres." }),
   kind: z.enum(ASSESSMENT_KINDS),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Escolha a data." }),
+  date: z.string().refine(isIsoDate, { error: "Escolha a data." }),
   description: z.string().trim().max(160, { error: "Use até 160 caracteres." }),
 });
 export type AssessmentForm = z.infer<typeof assessmentFormSchema>;
@@ -78,12 +98,21 @@ export function progressOf(topics: readonly Pick<TopicRow, "done">[]): number {
   return Math.round((topics.filter((t) => t.done).length / topics.length) * 100);
 }
 
-/** The next assessment from today on (today included), earliest first. */
-export function nextAssessment<T extends Pick<AssessmentRow, "date">>(
+/** Assessments still to do from today on (today included), earliest first. */
+export function upcomingAssessments<T extends Pick<AssessmentRow, "date" | "completed_at">>(
+  assessments: readonly T[],
+  today: IsoDate,
+): T[] {
+  return assessments
+    .filter((a) => !isCompleted(a) && daysBetween(today, a.date) >= 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function nextAssessment<T extends Pick<AssessmentRow, "date" | "completed_at">>(
   assessments: readonly T[],
   today: IsoDate,
 ): T | undefined {
-  return assessments.filter((a) => daysBetween(today, a.date) >= 0).sort((a, b) => a.date.localeCompare(b.date))[0];
+  return upcomingAssessments(assessments, today)[0];
 }
 
 /** "P1 em 6 dias", "Prova teórica 1 hoje", "Seminário amanhã". */

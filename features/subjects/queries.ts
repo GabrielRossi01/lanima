@@ -258,6 +258,17 @@ export function useSaveAssessment() {
   });
 }
 
+/** Checks an assessment as done, or unchecks it. */
+export function useCompleteAssessment() {
+  const userId = useUserId();
+  return useOptimistic<{ id: string; completed_at: string | null }, AssessmentRow>(
+    assessmentsKey(userId),
+    (list, { id, completed_at }) => list.map((a) => (a.id === id ? { ...a, completed_at } : a)),
+    async ({ id, completed_at }) =>
+      check(await getSupabase().from("assessments").update({ completed_at }).eq("id", id)),
+  );
+}
+
 export function useDeleteAssessment() {
   const userId = useUserId();
   return useOptimistic<string, AssessmentRow>(
