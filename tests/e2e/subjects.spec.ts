@@ -28,7 +28,15 @@ test.describe("Matérias", () => {
     await sheet.getByRole("radio", { name: "Frasco" }).click();
     await sheet.getByRole("button", { name: "Adicionar aula" }).click();
     await sheet.getByLabel("Dia").selectOption("2");
-    await sheet.getByLabel("Início").fill("10:00");
+    // 24 hours in any language: a text field, never the browser's own time input.
+    await sheet.getByLabel("Início").fill("25:00");
+    await sheet.getByRole("button", { name: "Salvar" }).click();
+    await expect(sheet.getByText("Use o formato 08:00.")).toBeVisible();
+    await sheet.getByLabel("Início").fill("");
+    await sheet.getByLabel("Início").pressSequentially("10");
+    await sheet.getByLabel("Sala (opcional)").focus();
+    await expect(sheet.getByLabel("Início")).toHaveValue("10:00");
+    await expect(sheet.locator('input[type="time"], input[type="date"]')).toHaveCount(0);
     await sheet.getByLabel("Sala (opcional)").fill("Sala 12");
     await sheet.getByRole("button", { name: "Salvar" }).click();
 
@@ -221,12 +229,23 @@ test.describe("Início", () => {
     await page.keyboard.press("Escape");
     await expect(edit).toHaveCount(0);
 
+    // Fixed time, typed in 24 hours.
+    await card.getByRole("button", { name: "Nova meta" }).click();
+    await sheet.getByLabel("Meta").fill("Reunião da extensão");
+    await sheet.getByRole("radio", { name: "Horário marcado" }).click();
+    await sheet.getByRole("button", { name: "Salvar" }).click();
+    await expect(sheet.getByText("Use o formato 16:00.")).toBeVisible();
+    await sheet.getByLabel("Horário", { exact: true }).pressSequentially("1630");
+    await expect(sheet.getByLabel("Horário", { exact: true })).toHaveValue("16:30");
+    await sheet.getByRole("button", { name: "Salvar" }).click();
+    await expect(card.getByText("16h30")).toBeVisible();
+
     const weekMetric = page.getByText("Metas da semana").locator("..");
-    await expect(weekMetric).toContainText("0 de 2");
+    await expect(weekMetric).toContainText("0 de 3");
     await card.getByRole("checkbox", { name: "Revisar imunidade inata" }).click();
-    await expect(weekMetric).toContainText("1 de 2");
+    await expect(weekMetric).toContainText("1 de 3");
     await card.getByRole("checkbox", { name: "Revisar imunidade inata" }).click();
-    await expect(weekMetric).toContainText("0 de 2");
+    await expect(weekMetric).toContainText("0 de 3");
     await expectNoHorizontalScroll(page, "/inicio");
   });
 

@@ -23,6 +23,7 @@ import {
   weekProgress,
   type GoalRow,
 } from "@/lib/goals/goals";
+import { completeTime, maskTime, parseTime } from "@/lib/dates/time";
 import { normalizeText, searchItems, type SearchItem } from "@/lib/search/search";
 import {
   formatSchedule,
@@ -84,6 +85,37 @@ describe("datas no fuso de São Paulo", () => {
       relativeDays("2026-11-23", "2026-11-29"),
       relativeDays("2026-11-23", "2026-11-22"),
       relativeDays("2026-11-23", "2026-11-20"),
+    ]);
+  });
+});
+
+describe("campo de hora em 24 horas", () => {
+  const typed = (keys: string) => [...keys].reduce((text, key) => maskTime(text + key), "");
+
+  it("põe os dois-pontos sozinho e aceita digitados", () => {
+    expect(["1430", "14:30", "14h30", "830", "8:30", "0800", "08", "235959"].map(typed)).toEqual([
+      "14:30",
+      "14:30",
+      "14:30",
+      "8:30",
+      "8:30",
+      "08:00",
+      "08",
+      "23:59",
+    ]);
+    expect(["3", "9", "30", "945", "a", ":"].map(typed)).toEqual(["3", "9", "3:0", "9:45", "", ""]);
+  });
+
+  it("lê de 00:00 a 23:59 e completa a hora cheia", () => {
+    expect(["08:30", "8:30", "00:00", "23:59"].map(parseTime)).toEqual(["08:30", "08:30", "00:00", "23:59"]);
+    expect(["24:00", "12:60", "8", "8:3", "", "08:30 PM"].map(parseTime)).toEqual(Array(6).fill(null));
+    expect(["14", "8:", "8:30", "24", "8:3", ""].map(completeTime)).toEqual([
+      "14:00",
+      "08:00",
+      "08:30",
+      null,
+      null,
+      null,
     ]);
   });
 });

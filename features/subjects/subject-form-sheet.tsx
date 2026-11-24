@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Field, Input, Label } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
+import { TimeField } from "@/components/ui/time-field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import { WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/dates/calendar";
@@ -68,16 +69,12 @@ function SlotRow({
             ))}
           </select>
         </div>
-        <div className="flex w-28 shrink-0 flex-col gap-1.5">
-          <Label htmlFor={`${id}-start`}>Início</Label>
-          <Input
-            id={`${id}-start`}
-            type="time"
-            value={slot.start}
-            required
-            onChange={(e) => onChange({ ...slot, start: e.target.value })}
-          />
-        </div>
+        <TimeField
+          label="Início"
+          value={slot.start}
+          onValueChange={(start) => onChange({ ...slot, start })}
+          className="w-28 shrink-0"
+        />
         <IconButton icon={Trash2} label={`Remover aula ${index + 1}`} variant="ghost" onClick={onRemove} />
       </div>
       <div className="flex flex-wrap items-center gap-3">

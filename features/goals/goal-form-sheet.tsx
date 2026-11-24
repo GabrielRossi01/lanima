@@ -4,8 +4,9 @@ import { Trash2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
-import { Field, Input, Label, SelectField } from "@/components/ui/input";
+import { Field, SelectField } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
+import { TimeField } from "@/components/ui/time-field";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/cn";
 import type { IsoDate } from "@/lib/dates/calendar";
@@ -55,7 +56,6 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
   }
   const set = <K extends keyof GoalForm>(k: K, v: GoalForm[K]) => setForm((f) => ({ ...f, [k]: v }));
   const formId = useId();
-  const timeId = useId();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -192,18 +192,14 @@ export function GoalFormSheet({ open, onClose, today, subjects, goal }: GoalForm
               ))}
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={timeId}>Horário</Label>
-              <Input
-                id={timeId}
-                type="time"
-                value={form.time_of_day ?? ""}
-                onChange={(e) => set("time_of_day", e.target.value || null)}
-                className="w-36"
-              />
-            </div>
+            <TimeField
+              label="Horário"
+              value={form.time_of_day ?? ""}
+              onValueChange={(time) => set("time_of_day", time || null)}
+              error={errors.time_of_day}
+              className="w-36"
+            />
           )}
-          {errors.time_of_day && <p className="type-caption m-0 text-danger-text">{errors.time_of_day}</p>}
         </fieldset>
       </form>
     </Sheet>
