@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Mail, UserPlus } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/input";
 import { cleanOtpInput, isValidOtp } from "@/lib/auth/otp";
 import { authPath, authProblemMessage, oauthCallbackUrl, type AuthMode } from "@/lib/auth/pages";
@@ -65,7 +65,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [error, setError] = useState<string | undefined>();
   // From /callback (?erro=), until she tries again.
   const [problem, setProblem] = useState(() => authProblemMessage(params.get("erro"), params.get("provedor")));
-  const [noAccount, setNoAccount] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -88,7 +87,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setBusy(true);
     setError(undefined);
     setProblem(undefined);
-    setNoAccount(false);
   }
 
   async function sendEmail() {
@@ -101,14 +99,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     emailDraft = parsed.data;
     const { error: otpError } = await getSupabase().auth.signInWithOtp({
       email: parsed.data,
-      options: { shouldCreateUser: mode === "criar-conta" },
+      // On both screens: an e-mail without account gets one, and no answer tells whether it had one.
+      options: { shouldCreateUser: true },
     });
     setBusy(false);
-    // Supabase's answer for an e-mail without account when it isn't allowed to create one.
-    if (otpError?.code === "otp_disabled" && mode === "entrar") {
-      setNoAccount(true);
-      return;
-    }
     if (otpError) {
       setError(friendlyError(otpError, "Não foi possível enviar o e-mail. Tente de novo."));
       return;
@@ -234,20 +228,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         autoComplete="email"
         placeholder="voce@exemplo.com"
         value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-          setNoAccount(false);
-        }}
+        onChange={(e) => setEmail(e.target.value)}
         error={error}
       />
-      {noAccount && (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-lg bg-surface-alt px-4 py-3">
-          <p className="m-0 text-sm leading-5 text-fg">Não achamos uma conta com esse e-mail. Confira ou crie uma.</p>
-          <ButtonLink href={authPath("criar-conta", next)} variant="secondary" size="s" icon={UserPlus}>
-            Criar conta com esse e-mail
-          </ButtonLink>
-        </div>
-      )}
       <Button type="submit" icon={Mail} disabled={busy} className="h-12">
         {busy ? "Enviando…" : copy.submit}
       </Button>

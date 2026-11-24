@@ -52,7 +52,7 @@ base.describe("Entrar", () => {
   });
 
   base("código errado mostra o erro e não entra", async ({ page }) => {
-    const { email } = await createAccount({ prefix: "wrong" });
+    const email = uniqueEmail("wrong");
     await page.goto("/entrar");
     await requestEmail(page, email);
     await page.getByLabel("Código do e-mail").fill("000000");

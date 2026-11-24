@@ -81,28 +81,15 @@ test.describe("Entrar e Criar conta", () => {
     });
   }
 
-  test("e-mail sem conta não cria conta em Entrar; leva para Criar conta com o e-mail", async ({ page }) => {
+  test("e-mail sem conta em Entrar cria a conta na hora", async ({ page }) => {
     const email = uniqueEmail("nova");
-    await page.goto("/entrar?proxima=%2Fperfil");
+    await page.goto("/entrar");
     await page.getByLabel("E-mail").fill(email);
-    await page.getByRole("button", { name: "Receber link e código" }).click();
-    const notice = page.getByText("Não achamos uma conta com esse e-mail");
-    await expect(notice).toBeVisible();
-    // Still none: the first try didn't create it.
-    await page.getByLabel("E-mail").fill("");
-    await expect(notice).toHaveCount(0);
-    await page.getByLabel("E-mail").fill(email);
-    await page.getByRole("button", { name: "Receber link e código" }).click();
-    await expect(notice).toBeVisible();
-
-    await page.getByRole("link", { name: "Criar conta com esse e-mail" }).click();
-    await expect(page).toHaveURL(/\/criar-conta\?proxima=%2Fperfil$/);
-    await expect(page.getByLabel("E-mail")).toHaveValue(email);
     const sentAfter = Date.now() - 1000;
-    await page.getByRole("button", { name: "Criar conta com e-mail" }).click();
+    await page.getByRole("button", { name: "Receber link e código" }).click();
     await expect(page.getByRole("heading", { name: "Confira seu e-mail" })).toBeVisible();
     await page.getByLabel("Código do e-mail").fill(codeFrom(await latestEmailTo(email, sentAfter)));
-    await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await expect(page).toHaveURL(/\/boas-vindas$/);
   });
 
