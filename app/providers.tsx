@@ -5,15 +5,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useState, type ReactNode } from "react";
 import { AuthProvider } from "@/features/auth/auth-provider";
+import { CACHE_KEY, deviceStorage, isPersistedKey } from "@/lib/query/device-cache";
 
-/** Lists kept on the device so Matérias, Início and metas open offline (section 6). */
-const PERSISTED = new Set(["subjects", "topics", "assessments", "goals"]);
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 function createPersister() {
   // localStorage behind the async interface; without a window (prerender) it does nothing.
-  const storage = typeof window === "undefined" ? undefined : window.localStorage;
-  return createAsyncStoragePersister({ storage, key: "lanima:cache" });
+  const storage = typeof window === "undefined" ? undefined : deviceStorage(window.localStorage);
+  return createAsyncStoragePersister({ storage, key: CACHE_KEY });
 }
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -37,7 +36,7 @@ export function Providers({ children }: { children: ReactNode }) {
         // Bump when the shape of cached data changes, so old copies are discarded.
         buster: "phase-3",
         dehydrateOptions: {
-          shouldDehydrateQuery: (query) => query.state.status === "success" && PERSISTED.has(String(query.queryKey[0])),
+          shouldDehydrateQuery: (query) => query.state.status === "success" && isPersistedKey(query.queryKey),
         },
       }}
     >
