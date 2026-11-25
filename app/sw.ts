@@ -42,6 +42,18 @@ const supabaseRules: RuntimeCaching[] = [
   ...METHODS.map((method) => ({ matcher: isSupabaseApi, method, handler: new NetworkOnly() })),
 ];
 
+/** Focus sounds: downloaded when they first play, then offline. */
+const soundRules: RuntimeCaching[] = [
+  {
+    matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/sounds/"),
+    method: "GET",
+    handler: new CacheFirst({
+      cacheName: "focus-sounds",
+      plugins: [new ExpirationPlugin({ maxEntries: 8 })],
+    }),
+  },
+];
+
 /*
  * App shell (precached build assets + /inicio), self-hosted fonts and pages via Serwist's default
  * runtime caching, with an offline fallback page. Later phases add caches for 3D models, ambient
@@ -52,7 +64,7 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: [...supabaseRules, ...defaultCache],
+  runtimeCaching: [...supabaseRules, ...soundRules, ...defaultCache],
   fallbacks: {
     entries: [
       {

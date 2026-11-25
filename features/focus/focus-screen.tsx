@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, RotateCcw, Settings, SkipForward, X } from "lucide-react";
+import { Pause, Play, RotateCcw, Settings, SkipForward, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
@@ -18,6 +18,7 @@ import { ThemeLabel } from "./theme-label";
 import { FOCUS_THEMES, themeStyle } from "./themes/registry";
 import { TimerDial } from "./timer-dial";
 import { useTimerStore } from "./timer-store";
+import { useAmbientAudio } from "./use-ambient-audio";
 import { useAnimation } from "./use-animation";
 import { useFocusPrefs } from "./use-focus-prefs";
 
@@ -124,6 +125,9 @@ export function FocusScreen() {
   const { animation, setAnimation } = useAnimation(prefs.animation, saveAnimation);
   const { awake, wake } = useAwake();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // For this visit only: the saved volume stays as it is.
+  const [muted, setMuted] = useState(false);
+  useAmbientAudio({ sound: prefs.sound, volume: prefs.volume, muted, ready: ready && prefsReady });
   const theme = FOCUS_THEMES[prefs.sound];
   const screen = useRef<HTMLDivElement>(null);
   useRingCenter(screen);
@@ -173,13 +177,23 @@ export function FocusScreen() {
         <span className="order-last col-span-2 flex items-center justify-center gap-2 text-sm font-semibold text-(--focus-muted) empty:hidden md:order-none md:col-span-1 md:empty:flex">
           <ThemeLabel sound={prefs.sound} animation={animation} />
         </span>
-        <IconButton
-          icon={Settings}
-          label="Ajustes do modo foco"
-          variant="on-dark"
-          className="justify-self-end"
-          onClick={() => setSettingsOpen(true)}
-        />
+        <div className="flex gap-2 justify-self-end">
+          {prefs.sound !== "silencio" && (
+            <IconButton
+              icon={muted ? VolumeX : Volume2}
+              label={muted ? "Ativar o som" : "Silenciar o som"}
+              aria-pressed={muted}
+              variant="on-dark"
+              onClick={() => setMuted((m) => !m)}
+            />
+          )}
+          <IconButton
+            icon={Settings}
+            label="Ajustes do modo foco"
+            variant="on-dark"
+            onClick={() => setSettingsOpen(true)}
+          />
+        </div>
       </header>
 
       <main

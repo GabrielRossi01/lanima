@@ -22,6 +22,8 @@ export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } =
   ],
   // Serwist's default glob, plus self-hosted fonts (.woff2) so they work offline from the first launch.
   globPatterns: [".next/static/**/*.{js,css,html,ico,png,svg,webp,json,webmanifest,woff2}", "public/**/*"],
+  // Sounds are kept after the first time they play (app/sw.ts): only the ones she uses are downloaded.
+  globIgnores: ["public/sounds/**"],
   swSrc: "app/sw.ts",
   useNativeEsbuild: true,
 });
