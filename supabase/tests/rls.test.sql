@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(32);
+select plan(38);
 
 -- Exact privileges per role, independent of the project's default privileges (hosted projects may
 -- not grant new tables to the API roles; relying on that gave "403 · 42501" in production).
@@ -13,6 +13,10 @@ select table_privs_are('public', 'subjects', 'authenticated', array['SELECT', 'I
 select table_privs_are('public', 'subjects', 'anon', array[]::text[], 'anon: no access to subjects');
 select column_privs_are('public', 'profiles', 'name', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may read and update the name column');
 select column_privs_are('public', 'profiles', 'created_at', 'authenticated', array['SELECT'], 'authenticated may read but not update created_at');
+select column_privs_are('public', 'profiles', 'focus_sound', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may update focus_sound');
+select column_privs_are('public', 'profiles', 'focus_volume', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may update focus_volume');
+select column_privs_are('public', 'profiles', 'focus_animation', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may update focus_animation');
+select column_privs_are('public', 'profiles', 'focus_breath_text', 'authenticated', array['SELECT', 'UPDATE'], 'authenticated may update focus_breath_text');
 
 -- Two users. The sign-up trigger creates their profiles.
 insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data, created_at, updated_at)
@@ -21,6 +25,8 @@ values
    'ana@rls.test', '{"full_name": "Ana Souza"}', now(), now()),
   ('00000000-0000-0000-0000-000000000000', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'authenticated', 'authenticated',
    'bia@rls.test', '{}', now(), now());
+select throws_ok('update public.profiles set focus_sound = ''marrom''', '23514', null, 'the focus sound is one of the four');
+select throws_ok('update public.profiles set focus_volume = 101', '23514', null, 'the volume goes from 0 to 100');
 
 select is(
   (select name from public.profiles where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),

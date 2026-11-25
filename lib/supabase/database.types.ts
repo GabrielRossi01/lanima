@@ -105,6 +105,10 @@ export type Database = {
           course: string;
           created_at: string;
           daily_focus_goal_min: number;
+          focus_animation: boolean;
+          focus_breath_text: boolean;
+          focus_sound: string;
+          focus_volume: number;
           id: string;
           institution: string;
           name: string;
@@ -120,6 +124,10 @@ export type Database = {
           course?: string;
           created_at?: string;
           daily_focus_goal_min?: number;
+          focus_animation?: boolean;
+          focus_breath_text?: boolean;
+          focus_sound?: string;
+          focus_volume?: number;
           id: string;
           institution?: string;
           name?: string;
@@ -134,6 +142,10 @@ export type Database = {
           course?: string;
           created_at?: string;
           daily_focus_goal_min?: number;
+          focus_animation?: boolean;
+          focus_breath_text?: boolean;
+          focus_sound?: string;
+          focus_volume?: number;
           id?: string;
           institution?: string;
           name?: string;

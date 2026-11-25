@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { useIsRestoring, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AuthStatus } from "@/lib/auth/gate";
+import { clearLocalDb } from "@/lib/db/local";
 import { clearDeviceCache, isPersistedKey, LAST_USER_KEY, sessionEnded } from "@/lib/query/device-cache";
 import { getSupabase } from "@/lib/supabase/client";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
@@ -48,6 +49,7 @@ function forgetLastUser() {
   const last = readLastUser();
   writeLastUser(null); // First: from here on, late cache writes are dropped (deviceStorage).
   clearDeviceCache();
+  void clearLocalDb();
   if (last) clearProfileCache(last.id);
 }
 
