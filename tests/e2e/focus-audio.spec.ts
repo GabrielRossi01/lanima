@@ -141,12 +141,46 @@ function workerState(page: Page): Promise<string> {
   });
 }
 
+/** Files already in the precache, and those of the manifest (inside sw.js) still missing. */
+function precacheProgress(page: Page): Promise<{ stored: number; missing: string[] }> {
+  return page.evaluate(async () => {
+    const source = await (await fetch("/serwist/sw.js")).text();
+    const manifest = new Set<string>();
+    for (const match of source.matchAll(/(?:"url"|url):\s*"([^"]+)"/g)) {
+      manifest.add(new URL(match[1], location.origin).pathname);
+    }
+    const stored = new Set<string>();
+    for (const name of await caches.keys()) {
+      if (!name.includes("precache")) continue;
+      for (const request of await (await caches.open(name)).keys()) stored.add(new URL(request.url).pathname);
+    }
+    return { stored: stored.size, missing: [...manifest].filter((path) => !stored.has(path)) };
+  });
+}
+
 async function waitForWorker(page: Page, notes: string[]) {
+  const progress: string[] = [];
+  const startedAt = Date.now();
   try {
-    await expect.poll(() => workerState(page), { timeout: 20_000 }).toBe("activated");
+    await expect
+      .poll(
+        async () => {
+          const { stored } = await precacheProgress(page);
+          progress.push(`${Math.round((Date.now() - startedAt) / 1000)}s=${stored}`);
+          return workerState(page);
+        },
+        { timeout: 20_000, intervals: [2000] },
+      )
+      .toBe("activated");
   } catch (cause) {
-    const seen = notes.length > 0 ? notes.join(" | ") : "nenhum erro visto";
-    throw new Error(`service worker: ${await workerState(page)} · ${seen}`, { cause });
+    const { missing } = await precacheProgress(page);
+    const details = [
+      await workerState(page),
+      `guardados: ${progress.join(" ")}`,
+      `faltam ${missing.length}: ${missing.slice(0, 8).join(", ")}`,
+      notes.length > 0 ? notes.join(" | ") : "nenhum erro visto",
+    ];
+    throw new Error(`service worker: ${details.join(" · ")}`, { cause });
   }
 }
 
