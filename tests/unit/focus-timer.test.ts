@@ -18,14 +18,17 @@ import {
   advance,
   choosePreset,
   elapsedMs,
+  endSession,
   formatClock,
   initialTimer,
   isOver,
   msToNextSecond,
   pause,
+  PENDING_BREAK_MS,
   PRESETS,
   remainingMs,
   reset,
+  showsIndicator,
   start,
   statusOf,
   timerSchema,
@@ -35,6 +38,27 @@ import { contrastRatio } from "@/lib/theme/contrast";
 
 const MIN = 60_000;
 const t0 = 1_800_000_000_000;
+
+describe("fora da tela do Modo foco", () => {
+  it("encerrar volta ao começo do foco, e na pausa vai para o próximo foco", () => {
+    const running = start(initialTimer(), t0);
+    expect(endSession(running)).toMatchObject({ phase: "focus", session: 1, startedAt: null });
+    const breaking = start(advance(running), t0);
+    expect(endSession(breaking)).toMatchObject({ phase: "focus", session: 2, startedAt: null });
+  });
+
+  it("aparece com sessão em andamento ou parada, e com uma pausa recente a iniciar", () => {
+    const idle = initialTimer();
+    const running = start(idle, t0);
+    expect(showsIndicator(idle, t0)).toBe(false);
+    expect(showsIndicator(running, t0)).toBe(true);
+    expect(showsIndicator(pause(running, t0 + MIN), t0 + 600 * MIN)).toBe(true);
+    const waiting = { ...advance(running), updatedAt: t0 };
+    expect(showsIndicator(waiting, t0 + PENDING_BREAK_MS - 1)).toBe(true);
+    expect(showsIndicator(waiting, t0 + PENDING_BREAK_MS)).toBe(false);
+    expect(showsIndicator(start(waiting, t0), t0 + 2 * PENDING_BREAK_MS)).toBe(true);
+  });
+});
 
 describe("cronômetro por horários", () => {
   it("conta pelo relógio, esteja o app aberto ou não", () => {

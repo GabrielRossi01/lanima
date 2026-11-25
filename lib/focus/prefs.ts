@@ -4,6 +4,13 @@ import { z } from "zod";
 export const SOUND_IDS = ["chuva", "lofi", "deep", "silencio"] as const;
 export type SoundId = (typeof SOUND_IDS)[number];
 
+export const SOUND_LABELS: Record<SoundId, string> = {
+  chuva: "Chuva",
+  lofi: "Lo-fi",
+  deep: "Deep Focus",
+  silencio: "Silêncio",
+};
+
 export const focusPrefsSchema = z.object({
   sound: z.enum(SOUND_IDS),
   /** 0 to 100. */

@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { useState, type ReactNode } from "react";
 import { AuthProvider } from "@/features/auth/auth-provider";
+import { FocusAudio } from "@/features/focus/focus-audio";
 import { CACHE_KEY, deviceStorage, isPersistedKey } from "@/lib/query/device-cache";
 
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -40,7 +41,10 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <FocusAudio />
+        {children}
+      </AuthProvider>
     </PersistQueryClientProvider>
   );
 }

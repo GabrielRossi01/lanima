@@ -17,6 +17,7 @@ import { remainingMs, statusOf } from "@/lib/focus/timer";
 import { FOCUS_GOAL, formatFocusGoal } from "@/lib/profile/profile";
 import { sendSessions, useSessionStore } from "./session-store";
 import { useTimerStore } from "./timer-store";
+import { useFocusPrefsSync } from "./use-focus-prefs";
 import { focusKey, useFocusHistory } from "./use-focus-summary";
 
 /** Long waits are cut short: a device that slept may fire them late. */
@@ -37,6 +38,7 @@ export function FocusWatcher() {
   const timer = useTimerStore((s) => s.timer);
   const finish = useTimerStore((s) => s.finish);
   useFocusHistory();
+  useFocusPrefsSync();
 
   useEffect(() => {
     if (!userId) return;

@@ -298,6 +298,13 @@
   }
 }
 
+/* Room the phone's focus indicator takes above the tab bar (app-shell.tsx, toast.tsx). */
+@media (width < 768px) {
+  :root:has([data-focus-indicator="bar"]) {
+    --focus-bar: 64px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

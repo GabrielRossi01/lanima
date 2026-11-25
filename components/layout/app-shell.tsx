@@ -2,11 +2,13 @@
 
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Logo } from "@/components/ui/logo";
 import { NavItem, TabBarItem } from "@/components/ui/nav-item";
 import { Sheet } from "@/components/ui/sheet";
+import { FocusIndicator } from "@/features/focus/focus-indicator";
+import { useLastPath } from "@/features/focus/last-path";
 import { cn } from "@/lib/cn";
 import { InstallEntry } from "./install-entry";
 import { OfflineBanner } from "./offline-banner";
@@ -16,7 +18,8 @@ import { ProfileCard } from "./profile-card";
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   return (
     <>
-      <div className="px-2 pb-5">
+      {/* Short screens (tablet landscape): room for the focus indicator above the profile. */}
+      <div className="px-2 pb-5 [@media(height<700px)]:pb-2">
         <Logo />
       </div>
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
@@ -28,6 +31,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
       </ul>
       <div className="flex-1" />
       <InstallEntry className="mb-2" />
+      <FocusIndicator variant="card" onNavigate={onNavigate} className="mb-2 shrink-0" />
       <ProfileCard onNavigate={onNavigate} active={isActivePath(pathname, "/perfil")} />
     </>
   );
@@ -43,6 +47,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Where minimizing the focus mode comes back to.
+  useEffect(() => useLastPath.setState({ path: pathname }), [pathname]);
   const moreActive = MORE_NAV.some((n) => isActivePath(pathname, n.href)) || isActivePath(pathname, "/perfil");
 
   return (
@@ -57,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop and tablet landscape. */}
       <nav
         aria-label="Principal"
-        className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface py-6 pr-4 pl-[max(16px,env(safe-area-inset-left))] lg:flex"
+        className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface py-6 [@media(height<700px)]:py-3 pr-4 pl-[max(16px,env(safe-area-inset-left))] lg:flex"
       >
         <SidebarContent pathname={pathname} />
       </nav>
@@ -85,6 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
         <div className="flex-1" />
         <InstallEntry compact className="mb-2" />
+        <FocusIndicator variant="rail" className="mb-2 shrink-0" />
         <ProfileCard compact active={isActivePath(pathname, "/perfil")} />
       </nav>
       <Sheet
@@ -106,12 +113,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         className={cn(
           "min-w-0 flex-1 outline-none",
           "px-[max(16px,env(safe-area-inset-left))] pt-[max(20px,env(safe-area-inset-top))]",
-          "pb-[calc(96px+env(safe-area-inset-bottom))] md:px-7 md:pt-7 md:pb-8 lg:px-8",
+          "pb-[calc(96px+var(--focus-bar,0px)+env(safe-area-inset-bottom))] md:px-7 md:pt-7 md:pb-8 lg:px-8",
         )}
       >
         <OfflineBanner />
         {children}
       </main>
+
+      {/* Phone: above the tab bar (61 px tall, plus its bottom padding). */}
+      <FocusIndicator
+        variant="bar"
+        className="inset-x-[max(8px,env(safe-area-inset-left))] bottom-[calc(69px+max(8px,env(safe-area-inset-bottom)))] z-40 shadow-float md:hidden"
+      />
 
       {/* Phone tab bar. */}
       <nav

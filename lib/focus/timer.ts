@@ -102,6 +102,20 @@ export function advance(timer: TimerState): TimerState {
   return { ...reset(timer), phase: "focus", session: (timer.session % SESSIONS_PER_CYCLE) + 1 };
 }
 
+/** Ends what is going on, without completing it: ready for the next focus. */
+export function endSession(timer: TimerState): TimerState {
+  return timer.phase === "break" ? advance(timer) : reset(timer);
+}
+
+/** A break that was never started isn't offered forever outside the focus screen. */
+export const PENDING_BREAK_MS = 30 * 60_000;
+
+/** Whether there is something going on to show outside the focus screen. */
+export function showsIndicator(timer: TimerState, now: number): boolean {
+  if (statusOf(timer) !== "idle") return true;
+  return timer.phase === "break" && now - timer.updatedAt < PENDING_BREAK_MS;
+}
+
 /** Only before the phase starts: changing the length of a running session would falsify it. */
 export function choosePreset(timer: TimerState, preset: Preset): TimerState {
   return timer.startedAt === null ? { ...timer, preset } : timer;

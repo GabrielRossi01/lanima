@@ -19,6 +19,8 @@ interface TimerStore {
   ready: boolean;
   timer: TimerState;
   load: (userId: string) => void;
+  /** Forgets the timer (signed out). */
+  unload: () => void;
   /** Applies a pure transition (lib/focus/timer.ts) and saves the result on the device. */
   act: (transition: (timer: TimerState, now: number) => TimerState) => void;
   /** If the time is up, records the session and moves on; resolves to what ended, for the notice. */
@@ -57,6 +59,12 @@ export const useTimerStore = create<TimerStore>()((set, get) => ({
       },
       error: () => set({ ready: true }),
     });
+  },
+
+  unload() {
+    if (get().userId === null) return;
+    subscription?.unsubscribe();
+    set({ userId: null, ready: false, timer: initialTimer() });
   },
 
   act(transition) {

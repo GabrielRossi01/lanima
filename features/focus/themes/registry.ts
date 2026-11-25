@@ -1,5 +1,5 @@
 import type { ComponentType, CSSProperties } from "react";
-import { SOUND_IDS, type SoundId } from "@/lib/focus/prefs";
+import { SOUND_IDS, SOUND_LABELS, type SoundId } from "@/lib/focus/prefs";
 import { DeepLayer } from "./deep-layer";
 import { LofiLayer } from "./lofi-layer";
 import { RainLayer } from "./rain-layer";
@@ -50,7 +50,7 @@ const translucent = {
 export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   chuva: {
     id: "chuva",
-    label: "Chuva",
+    label: SOUND_LABELS.chuva,
     topLabel: "Chuva na janela",
     cssVars: {
       ...translucent,
@@ -64,7 +64,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   },
   lofi: {
     id: "lofi",
-    label: "Lo-fi",
+    label: SOUND_LABELS.lofi,
     topLabel: "Lo-fi",
     playingLabel: "Lo-fi · tocando agora",
     cssVars: {
@@ -82,7 +82,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   },
   deep: {
     id: "deep",
-    label: "Deep Focus",
+    label: SOUND_LABELS.deep,
     topLabel: "Deep Focus",
     animatedLabel: "Deep Focus · respiração 5 s",
     cssVars: {
@@ -99,7 +99,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   },
   silencio: {
     id: "silencio",
-    label: "Silêncio",
+    label: SOUND_LABELS.silencio,
     topLabel: null,
     cssVars: {
       "--focus-bg": "radial-gradient(circle at 50% 45%, #2E404D 0%, #1F2A33 55%, #141B21 100%)",

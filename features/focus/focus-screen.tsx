@@ -1,7 +1,6 @@
 "use client";
 
-import { Pause, Play, RotateCcw, Settings, SkipForward, Volume2, VolumeX, X } from "lucide-react";
-import Link from "next/link";
+import { Pause, Play, RotateCcw, Settings, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { IconButton } from "@/components/ui/icon-button";
@@ -12,7 +11,9 @@ import { todayIn } from "@/lib/dates/calendar";
 import { formatFocused } from "@/lib/focus/sessions";
 import { useNow } from "@/lib/hooks/use-now";
 import { advance, pause, reset, SESSIONS_PER_CYCLE, start, statusOf } from "@/lib/focus/timer";
+import { useAudioState } from "./audio-state";
 import { BreathText } from "./breath-text";
+import { LeaveButtons } from "./leave-buttons";
 import { PresetPicker } from "./preset-picker";
 import { SoundPicker } from "./sound-picker";
 import { SubjectPicker } from "./subject-picker";
@@ -21,7 +22,6 @@ import { ThemeLabel } from "./theme-label";
 import { FOCUS_THEMES, themeStyle } from "./themes/registry";
 import { TimerDial } from "./timer-dial";
 import { useTimerStore } from "./timer-store";
-import { useAmbientAudio } from "./use-ambient-audio";
 import { useAnimation } from "./use-animation";
 import { useFocusPrefs } from "./use-focus-prefs";
 import { useFocusSummary } from "./use-focus-summary";
@@ -149,9 +149,7 @@ export function FocusScreen() {
   const { animation, setAnimation } = useAnimation(prefs.animation, saveAnimation);
   const { awake, wake } = useAwake();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // For this visit only: the saved volume stays as it is.
-  const [muted, setMuted] = useState(false);
-  useAmbientAudio({ sound: prefs.sound, volume: prefs.volume, muted, ready: ready && prefsReady });
+  const muted = useAudioState((s) => s.muted);
   const theme = FOCUS_THEMES[prefs.sound];
   const screen = useRef<HTMLDivElement>(null);
   useRingCenter(screen);
@@ -186,13 +184,9 @@ export function FocusScreen() {
         onPointerDown={wake}
         className={`${chrome} grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 px-[max(20px,env(safe-area-inset-left))] pt-[max(16px,env(safe-area-inset-top))] pb-2 md:grid-cols-[1fr_auto_1fr] md:px-8 md:pt-[max(24px,env(safe-area-inset-top))]`}
       >
-        <Link
-          href="/inicio"
-          className="inline-flex h-11 items-center gap-2 justify-self-start rounded-full border border-(--focus-line) bg-black/15 px-4 text-sm font-semibold text-white no-underline"
-        >
-          <X aria-hidden size={18} strokeWidth={1.75} />
-          Sair do foco
-        </Link>
+        <div className="flex flex-wrap gap-2 justify-self-start">
+          <LeaveButtons />
+        </div>
         <span className="order-last col-span-2 flex items-center justify-center gap-2 text-sm font-semibold text-(--focus-muted) empty:hidden md:order-none md:col-span-1 md:empty:flex">
           <ThemeLabel sound={prefs.sound} animation={animation} />
         </span>
@@ -203,7 +197,7 @@ export function FocusScreen() {
               label={muted ? "Ativar o som" : "Silenciar o som"}
               aria-pressed={muted}
               variant="on-dark"
-              onClick={() => setMuted((m) => !m)}
+              onClick={() => useAudioState.setState({ muted: !muted })}
             />
           )}
           <IconButton

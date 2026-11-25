@@ -119,7 +119,7 @@ export function Toaster() {
     <div
       aria-live="polite"
       aria-relevant="additions"
-      className="pointer-events-none fixed inset-x-0 bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 md:bottom-6 md:justify-end md:px-6"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(88px+var(--focus-bar,0px)+env(safe-area-inset-bottom))] z-50 flex justify-center px-4 md:bottom-6 md:justify-end md:px-6"
     >
       <ol className="m-0 flex w-full max-w-[400px] list-none flex-col gap-2 p-0">
         {items.map((item) => (

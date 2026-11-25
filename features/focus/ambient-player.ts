@@ -80,7 +80,7 @@ export class AmbientPlayer {
     this.report();
   }
 
-  /** Lets go of everything (leaving the screen). */
+  /** Lets go of everything (nothing else to play). */
   close(): void {
     this.stop();
     const context = this.context;

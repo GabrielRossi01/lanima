@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "@/components/ui/toast";
-import type { SoundId } from "@/lib/focus/prefs";
+import { SOUND_LABELS, type SoundId } from "@/lib/focus/prefs";
 import { FOCUS_SOUNDS } from "@/lib/focus/sounds";
 import { pause, start, statusOf } from "@/lib/focus/timer";
 import { AmbientPlayer } from "./ambient-player";
 import { useAudioState } from "./audio-state";
 import { silentWav } from "./silent-track";
-import { FOCUS_THEMES } from "./themes/registry";
 import { useTimerStore } from "./timer-store";
 
 const ARTWORK: MediaImage[] = [
@@ -22,13 +21,15 @@ interface AmbientAudio {
   muted: boolean;
   /** False while the saved preferences are still being read. */
   ready: boolean;
+  /** Any sound may be chosen next (focus screen): a tap there already unlocks the audio. */
+  anySound: boolean;
 }
 
 /**
  * The sound follows the timer: it plays while a session runs and fades out when it pauses. The
  * controls of the lock screen act on the timer, so pausing there pauses the session.
  */
-export function useAmbientAudio({ sound, volume, muted, ready }: AmbientAudio) {
+export function useAmbientAudio({ sound, volume, muted, ready, anySound }: AmbientAudio) {
   const player = useRef<AmbientPlayer>(undefined);
   const silence = useRef<HTMLAudioElement>(undefined);
   const status = useTimerStore((s) => statusOf(s.timer));
@@ -65,7 +66,7 @@ export function useAmbientAudio({ sound, volume, muted, ready }: AmbientAudio) {
     void silence.current?.play().catch(() => {}); // Without a gesture yet: the next tap tries again.
     current.play(track).catch(() => {
       toast({
-        title: `Não foi possível tocar ${FOCUS_THEMES[sound].label}`,
+        title: `Não foi possível tocar ${SOUND_LABELS[sound]}`,
         description: navigator.onLine
           ? "O cronômetro continua normalmente."
           : "Esse som ainda não foi baixado neste aparelho.",
@@ -78,7 +79,9 @@ export function useAmbientAudio({ sound, volume, muted, ready }: AmbientAudio) {
 
   // Any tap unlocks the sound (iOS): on "Iniciar", on a sound, or after coming back to a session
   // that was already running.
+  const unlockable = anySound || track !== null;
   useEffect(() => {
+    if (!unlockable) return;
     const onGesture = () => {
       const current = player.current;
       if (!current || current.unlocked) return;
@@ -91,14 +94,16 @@ export function useAmbientAudio({ sound, volume, muted, ready }: AmbientAudio) {
       document.removeEventListener("click", onGesture, true);
       document.removeEventListener("keydown", onGesture, true);
     };
-  }, [sync]);
+  }, [sync, unlockable]);
 
-  // Lock screen and media keys.
+  // Lock screen and media keys, only while there is a session: on the other screens, the play key of
+  // a headset must not start one.
+  const controls = track !== null && status !== "idle";
   useEffect(() => {
-    if (!("mediaSession" in navigator) || track === null) return;
+    if (!("mediaSession" in navigator) || !controls) return;
     const session = navigator.mediaSession;
     session.metadata = new MediaMetadata({
-      title: `Lanima · ${FOCUS_THEMES[sound].label}`,
+      title: `Lanima · ${SOUND_LABELS[sound]}`,
       artist: "Modo foco",
       artwork: ARTWORK,
     });
@@ -114,10 +119,10 @@ export function useAmbientAudio({ sound, volume, muted, ready }: AmbientAudio) {
       session.setActionHandler("pause", null);
       session.playbackState = "none";
     };
-  }, [sound, track]);
+  }, [sound, controls]);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator) || track === null) return;
+    if (!("mediaSession" in navigator) || !controls) return;
     navigator.mediaSession.playbackState = playing ? "playing" : "paused";
-  }, [playing, track]);
+  }, [playing, controls]);
 }

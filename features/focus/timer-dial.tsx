@@ -1,35 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useState, type ReactNode } from "react";
-import { formatClock, msToNextSecond, plannedMs, remainingMs, SESSIONS_PER_CYCLE, statusOf } from "@/lib/focus/timer";
+import type { ReactNode } from "react";
+import { formatClock, plannedMs, remainingMs, SESSIONS_PER_CYCLE, statusOf } from "@/lib/focus/timer";
 import { useTimerStore } from "./timer-store";
+import { useClock } from "./use-clock";
 
 const RADIUS = 176;
 const LENGTH = 2 * Math.PI * RADIUS;
-
-/** Current time, refreshed when the shown second changes. Only this component follows the clock. */
-function useClock(running: boolean): number {
-  const timer = useTimerStore((s) => s.timer);
-  const [now, setNow] = useState(() => Date.now());
-  // Before paint: right after resuming, the last known time is from before the pause, and one frame
-  // with it would flash a wrong clock.
-  useLayoutEffect(() => {
-    let id: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      const current = Date.now();
-      setNow(current);
-      if (running) id = setTimeout(tick, Math.max(16, msToNextSecond(remainingMs(timer, current))));
-    };
-    tick();
-    // Timers are throttled in the background: catch up as soon as she is back.
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearTimeout(id);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [running, timer]);
-  return now;
-}
 
 /** Ring and time. `children` goes over the ring, positioned by itself (breathing text). */
 export function TimerDial({ children }: { children?: ReactNode }) {
