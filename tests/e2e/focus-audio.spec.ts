@@ -35,10 +35,11 @@ async function captureMediaSession(page: Page) {
     const handlers: Record<string, (() => void) | null> = {};
     (window as unknown as { __media: typeof handlers }).__media = handlers;
     if (!("mediaSession" in navigator)) return;
-    const original = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
-    navigator.mediaSession.setActionHandler = (action, handler) => {
+    // On the prototype: in WebKit, a replacement on the object itself wasn't there when the app called it.
+    const original = MediaSession.prototype.setActionHandler;
+    MediaSession.prototype.setActionHandler = function (action, handler) {
       handlers[action] = handler as (() => void) | null;
-      original(action, handler);
+      original.call(this, action, handler);
     };
   });
 }
