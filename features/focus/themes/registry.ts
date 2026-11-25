@@ -1,5 +1,6 @@
 import type { ComponentType, CSSProperties } from "react";
 import { SOUND_IDS, type SoundId } from "@/lib/focus/prefs";
+import { LofiLayer } from "./lofi-layer";
 import { RainLayer } from "./rain-layer";
 
 export interface LayerProps {
@@ -15,6 +16,8 @@ export interface ThemeVars {
   "--focus-track": string;
   "--focus-footer-bg": string;
   "--focus-chip-bg": string;
+  /** Behind the durations, where the decoration is busy. */
+  "--focus-pill-bg": string;
   "--focus-line": string;
   /** Secondary text. */
   "--focus-muted": string;
@@ -27,12 +30,15 @@ export interface FocusTheme {
   label: string;
   /** Centered at the top; null where the mockup has nothing that is true in a browser. */
   topLabel: string | null;
+  /** Replaces topLabel while the sound is really playing. */
+  playingLabel?: string;
   cssVars: ThemeVars;
   /** Decorative layer; only the silence has none. */
   Layer: ComponentType<LayerProps> | null;
 }
 
 const translucent = {
+  "--focus-pill-bg": "transparent",
   "--focus-track": "rgba(255, 255, 255, 0.12)",
   "--focus-line": "rgba(255, 255, 255, 0.22)",
   "--focus-chrome-opacity": "1",
@@ -56,17 +62,20 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   lofi: {
     id: "lofi",
     label: "Lo-fi",
-    topLabel: "Lo-fi · tocando agora",
+    topLabel: "Lo-fi",
+    playingLabel: "Lo-fi · tocando agora",
     cssVars: {
       ...translucent,
       "--focus-bg": "linear-gradient(180deg, #1F2A33 0%, #34304A 45%, #5E4A62 78%, #8A6470 100%)",
       "--focus-accent": "#F6BACB",
       "--focus-footer-bg": "rgba(27, 28, 43, 0.6)",
       "--focus-chip-bg": "rgba(246, 186, 203, 0.2)",
+      // The lit windows pass behind the durations.
+      "--focus-pill-bg": "rgba(24, 24, 38, 0.72)",
       // Brighter than the others: the sky is lighter at the bottom.
       "--focus-muted": "rgba(255, 255, 255, 0.94)",
     },
-    Layer: null,
+    Layer: LofiLayer,
   },
   deep: {
     id: "deep",
@@ -94,6 +103,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
       "--focus-track": "#2E404D",
       "--focus-footer-bg": "#2E404D",
       "--focus-chip-bg": "#3E5566",
+      "--focus-pill-bg": "transparent",
       "--focus-line": "#3E5566",
       "--focus-muted": "#C2CFD8",
       "--focus-chrome-opacity": "1",

@@ -83,3 +83,64 @@ export function ripples(reduced: boolean, seed = 3): Ripple[] {
     ...timing(between, 1.8, 2.8),
   }));
 }
+
+export interface Dust extends Timing {
+  left: number;
+  top: number;
+  size: number;
+}
+
+export function dustMotes(reduced: boolean, seed = 4): Dust[] {
+  return generate(COUNTS.dust, reduced, seed, (between) => ({
+    left: between(0, 100, 1),
+    top: between(70, 100, 1),
+    size: between(1.5, 4.5, 1),
+    ...timing(between, 14, 26),
+  }));
+}
+
+/** Skyline of the mockup: left, width and height, over a 1200 px wide strip. */
+export const BUILDINGS: readonly (readonly [left: number, width: number, height: number])[] = [
+  [0, 140, 90],
+  [70, 110, 150],
+  [160, 90, 110],
+  [230, 160, 200],
+  [360, 100, 130],
+  [440, 130, 90],
+  [560, 150, 170],
+  [690, 90, 120],
+  [760, 120, 210],
+  [870, 140, 140],
+  [990, 110, 100],
+  [1080, 120, 180],
+];
+export const SKYLINE_WIDTH = 1200;
+
+export interface LitWindow extends Timing {
+  building: number;
+  /** px from the building's left and from its base. */
+  left: number;
+  bottom: number;
+}
+
+/** 6 windows per building, about half of them lit. */
+export function litWindows(reduced: boolean, seed = 5): LitWindow[] {
+  const random = seededRandom(seed);
+  const between: Between = (min, max, digits = 2) => Number((min + random() * (max - min)).toFixed(digits));
+  const lit: LitWindow[] = [];
+  BUILDINGS.forEach(([, width, height], building) => {
+    for (let k = 0; k < 6; k++) {
+      const on = random() >= 0.45;
+      const own = timing(between, 3, 8);
+      if (!on) continue;
+      lit.push({
+        building,
+        left: Math.round(14 + (k % 3) * Math.max(16, (width - 28) / 3)),
+        bottom: height - 30 - Math.floor(k / 3) * 34,
+        ...own,
+      });
+    }
+  });
+  // Spread over the whole skyline when halved: every other one.
+  return reduced ? lit.filter((_, i) => i % 2 === 0) : lit;
+}

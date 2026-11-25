@@ -112,7 +112,10 @@ test.describe("Modo foco", () => {
 });
 
 /** Themes that have a decorative layer so far, with how many particles of each kind. */
-const LAYERS = [["Chuva", "chuva", { drop: 110, "window-drop": 14, ripple: 10 }]] as const;
+const LAYERS = [
+  ["Chuva", "chuva", { drop: 110, "window-drop": 14, ripple: 10 }],
+  ["Lo-fi", "lofi", { dust: 34 }],
+] as const;
 
 test.describe("Camada decorativa", () => {
   for (const [name, id, particles] of LAYERS) {
@@ -196,6 +199,20 @@ test.describe("Camada decorativa", () => {
       await expect.poll(() => running(page)).toBeGreaterThan(5);
     });
   }
+
+  test("Lo-fi: prédios, disco e equalizador parado enquanto nada toca", async ({ page, account }) => {
+    void account;
+    await openFocus(page);
+    await sound(page, "Lo-fi").click();
+    const layer = page.locator('[data-focus-layer="lofi"]');
+    await expect(layer.locator("[data-building]")).toHaveCount(12);
+    await expect(layer.locator('[data-particle="window"]').first()).toBeAttached();
+    await expect(layer.locator("svg")).toHaveCount(1);
+    const equalizer = page.locator("[data-equalizer]");
+    await expect(equalizer.locator("span")).toHaveCount(6);
+    expect(await equalizer.evaluate((el) => el.getAnimations({ subtree: true }).length)).toBe(0);
+    await expect(page.getByText("tocando agora")).toHaveCount(0);
+  });
 
   test("o Silêncio não tem camada", async ({ page, account }) => {
     void account;

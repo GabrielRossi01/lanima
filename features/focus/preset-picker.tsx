@@ -35,7 +35,9 @@ export function PresetPicker() {
             onClick={() => choose(p)}
             className={cn(
               pill,
-              selected ? "border-white bg-white text-night-900" : "border-(--focus-line) text-(--focus-muted)",
+              selected
+                ? "border-white bg-white text-night-900"
+                : "border-(--focus-line) bg-(--focus-pill-bg) text-(--focus-muted)",
             )}
           >
             {p.focusMin} / {p.breakMin} min
@@ -52,7 +54,9 @@ export function PresetPicker() {
         }}
         className={cn(
           pill,
-          custom ? "border-white bg-white text-night-900" : "border-dashed border-(--focus-line) text-(--focus-muted)",
+          custom
+            ? "border-white bg-white text-night-900"
+            : "border-dashed border-(--focus-line) bg-(--focus-pill-bg) text-(--focus-muted)",
         )}
       >
         {custom ? `${preset.focusMin} / ${preset.breakMin} min` : "Personalizar"}

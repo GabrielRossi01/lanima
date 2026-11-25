@@ -116,3 +116,152 @@
     opacity: 0;
   }
 }
+
+/* --- Lo-fi ----------------------------------------------------------------------------------- */
+
+.moon {
+  position: absolute;
+  top: 70px;
+  right: clamp(24px, 10%, 120px);
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #f6e3c8;
+  box-shadow: 0 0 80px 30px rgba(246, 227, 200, 0.25);
+  animation: focus-lofi-moon 8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.horizon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 360px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(232, 164, 140, 0.45) 0%, transparent 70%);
+}
+
+/* Half of it outside the screen. */
+.record {
+  position: absolute;
+  top: 27%;
+  left: -150px;
+  width: 300px;
+  height: 300px;
+  opacity: 0.85;
+  animation: focus-lofi-spin 7s linear infinite;
+  will-change: transform;
+}
+
+.dust {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(246, 227, 200, 0.9);
+  animation: focus-lofi-rise linear infinite;
+}
+
+/* Never narrower than the mockup: on a phone, the middle of the city shows. */
+.skyline {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: max(100cqw, 1200px);
+  height: 220px;
+  transform: translateX(-50%);
+}
+
+.building {
+  position: absolute;
+  bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: #1b1c2b;
+}
+
+.litWindow {
+  position: absolute;
+  width: 9px;
+  height: 12px;
+  border-radius: 2px;
+  background: #f7e38a;
+  animation: focus-lofi-twinkle ease-in-out infinite;
+}
+
+.equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+}
+
+.equalizer span {
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--focus-accent);
+  transform: scaleY(0.25);
+  transform-origin: bottom;
+}
+
+.equalizer[data-playing] span {
+  animation: focus-lofi-equalizer ease-in-out infinite;
+}
+
+.equalizer[data-paused] span {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .equalizer[data-playing] span {
+    animation: none;
+  }
+}
+
+@keyframes focus-lofi-moon {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes focus-lofi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes focus-lofi-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(40px, -700px);
+    opacity: 0;
+  }
+}
+
+@keyframes focus-lofi-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes focus-lofi-equalizer {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}

@@ -13,6 +13,7 @@ import { PresetPicker } from "./preset-picker";
 import { SoundPicker } from "./sound-picker";
 import { SubjectPicker } from "./subject-picker";
 import { ThemeBackdrop } from "./theme-backdrop";
+import { ThemeLabel } from "./theme-label";
 import { FOCUS_THEMES, themeStyle } from "./themes/registry";
 import { TimerDial } from "./timer-dial";
 import { useTimerStore } from "./timer-store";
@@ -147,7 +148,7 @@ export function FocusScreen() {
           Sair do foco
         </Link>
         <span className="order-last col-span-2 flex items-center justify-center gap-2 text-sm font-semibold text-(--focus-muted) empty:hidden md:order-none md:col-span-1 md:empty:flex">
-          {theme.topLabel}
+          <ThemeLabel sound={prefs.sound} animation={animation} />
         </span>
         <IconButton
           icon={Settings}

@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PREFS, prefsFromProfile, prefsToColumns, samePrefs, SOUND_IDS } from "@/lib/focus/prefs";
-import { countFor, COUNTS, rainDrops, ripples, seededRandom, windowDrops } from "@/lib/focus/particles";
+import {
+  BUILDINGS,
+  countFor,
+  COUNTS,
+  dustMotes,
+  litWindows,
+  rainDrops,
+  ripples,
+  seededRandom,
+  windowDrops,
+} from "@/lib/focus/particles";
 import { averageFps, isApple, isTooSlow, startsReduced } from "@/lib/focus/quality";
 import {
   advance,
@@ -115,6 +125,7 @@ describe("partículas", () => {
     ["gotas", rainDrops, COUNTS.drops],
     ["gotas na janela", windowDrops, COUNTS.windowDrops],
     ["ondas", ripples, COUNTS.ripples],
+    ["poeira", dustMotes, COUNTS.dust],
   ] as const;
 
   it.each(generators)("%s: mesma seed, mesma saída; seed diferente, outra", (_name, make) => {
@@ -142,6 +153,23 @@ describe("partículas", () => {
     for (let i = 0; i < 1000; i++) {
       const v = random();
       expect(v >= 0 && v < 1).toBe(true);
+    }
+  });
+
+  it("janelas: cerca de metade acesa, dentro dos prédios, e metade delas no aparelho fraco", () => {
+    const all = litWindows(false);
+    expect(litWindows(false)).toEqual(all);
+    expect(litWindows(false, 9)).not.toEqual(all);
+    expect(all.length).toBeGreaterThan(BUILDINGS.length * 6 * 0.35);
+    expect(all.length).toBeLessThan(BUILDINGS.length * 6 * 0.75);
+    expect(litWindows(true)).toHaveLength(Math.ceil(all.length / 2));
+    for (const w of all) {
+      const [, width, height] = BUILDINGS[w.building];
+      expect(w.left + 9).toBeLessThanOrEqual(width);
+      expect(w.bottom).toBeGreaterThanOrEqual(0);
+      expect(w.bottom + 12).toBeLessThanOrEqual(height);
+      expect(w.duration).toBeGreaterThanOrEqual(3);
+      expect(w.duration).toBeLessThanOrEqual(8);
     }
   });
 
@@ -176,6 +204,15 @@ describe("temas", () => {
   }
   const over = (top: { rgb: Rgb; a: number }, under: Rgb, opacity = 1): Rgb =>
     under.map((v, i) => v + (top.rgb[i] - v) * top.a * opacity) as Rgb;
+
+  it("Lo-fi: texto legível mesmo com uma janela acesa atrás das predefinições ou do rodapé", () => {
+    const vars = FOCUS_THEMES.lofi.cssVars;
+    const muted = parse(vars["--focus-muted"]);
+    for (const name of ["--focus-pill-bg", "--focus-footer-bg"] as const) {
+      const under = over(parse(vars[name]), hex("#F7E38A"));
+      expect(contrastRatio(toHex(over(muted, under)), toHex(under)), name).toBeGreaterThanOrEqual(4.5);
+    }
+  });
 
   it.each(FOCUS_THEME_LIST.map((t) => [t.id, t] as const))(
     "%s: texto secundário com 4,5:1 em todo o fundo e no rodapé, mesmo em repouso",
