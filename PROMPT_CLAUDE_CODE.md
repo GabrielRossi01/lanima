@@ -108,6 +108,7 @@ A pasta `design-reference/` traz os mockups aprovados em HTML. São markup com e
 - Telas de tablet, tema claro:
   - `Onboarding.html`, `Inicio.html`, `Materias.html`, `Materia.html`, `Caderno.html`
   - `Atlas3D.html`, `Foco.html`, `Extensao.html`, `Arquivos.html`, `Ranking.html`, `Perfil.html`
+- Temas do modo foco: `FocoChuva.html`, `FocoLofi.html`, `FocoDeep.html`.
 - Celular e desktop: `iPhoneInicio.html`, `iPhoneFoco.html`, `iPhoneRanking.html`, `Desktop.html`.
 - Resumos e testes (fluxo novo):
   - `Estudo.html`: central com resumos, testes e "Para revisar".
@@ -465,7 +466,34 @@ Em todos os casos dá para selecionar **um ou vários arquivos** (PDF, slides, W
   - Sessões de hoje em bolinhas.
   - Total focado hoje.
   - Pontos ganhos hoje.
-  - Som ambiente: Chuva, Lo-fi, Ruído marrom, Silêncio. Os áudios ficam em loop, são arquivos livres com licença CC0 e ficam no cache.
+  - Som ambiente: **Chuva, Lo-fi, Deep Focus e Silêncio**, com controle de volume. Os áudios ficam em loop, são arquivos livres com licença CC0 e ficam no cache. Deep Focus é um ruído marrom ou drone grave, sem melodia.
+- **Temas animados por som** (mockups `FocoChuva.html`, `FocoLofi.html` e `FocoDeep.html`; Silêncio usa o `Foco.html`, sem animação):
+  - Trocar o som troca o tema da tela inteira na hora, com transição de fundo de cerca de 600 ms. O cronômetro, os controles e o estado da sessão não mudam.
+  - **Chuva:**
+    - Gradiente azul acinzentado frio e névoa leve passando.
+    - Cerca de 110 gotas finas caindo em velocidades diferentes.
+    - Gotas maiores escorrendo devagar, como numa janela.
+    - Pequenas ondas na parte de baixo.
+    - Anel do timer em celeste `#B3D8F2`.
+  - **Lo-fi:**
+    - Gradiente de entardecer: azul cimento, violeta acinzentado e rosado no horizonte.
+    - Lua com brilho pulsando devagar.
+    - Silhueta de prédios com janelas acendendo e apagando.
+    - Partículas de poeira subindo.
+    - Um disco de vinil girando no canto esquerdo e um equalizador pequeno ao lado do nome do som.
+    - Anel em rosa `#F6BACB`.
+  - **Deep Focus:**
+    - Quase preto azulado com vinheta e pontos de luz à deriva.
+    - Um brilho atrás do timer que "respira" num ciclo de 10 s, com o texto Inspire / Expire alternando dentro do anel.
+    - Anéis concêntricos se expandindo devagar.
+    - Cabeçalho e rodapé com opacidade 0,6, para menos distração.
+    - Anel em `#9FB3C0`.
+  - **Implementação e desempenho:**
+    - Só CSS (`transform` e `opacity` em keyframes), numa camada decorativa com `aria-hidden` e `pointer-events: none`, atrás do conteúdo. Sem canvas, sem WebGL e sem vídeo, para economizar bateria no tablet.
+    - Pause as animações quando a aba fica oculta (`visibilitychange`).
+    - Em aparelho fraco (`navigator.hardwareConcurrency` ≤ 4 ou queda de FPS medida), reduza pela metade o número de partículas.
+  - **Interruptor "Animação do fundo"** no rodapé, salvo no perfil. Com `prefers-reduced-motion`, ele começa desligado e as animações não rodam.
+  - O som e o tema escolhidos ficam salvos e voltam na próxima sessão. Quando o som está tocando, o Lanima usa a Media Session API para mostrar os controles na tela de bloqueio do Android e do iOS.
 - **Timer:**
   - Baseado em timestamps, persistido no Dexie: se o app fechar, ao voltar mostra o tempo certo.
   - Wake Lock ligado durante a sessão.
@@ -617,7 +645,7 @@ Crie também o `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE
    - **Aceite:** instala no Galaxy Tab e no iPad e abre em tela cheia; os temas trocam sem piscar.
 2. **Auth, perfil e onboarding:** Supabase, RLS, `profiles`, avatar com compressão, seleção de matérias.
 3. **Matérias, metas e Início:** CRUD de matérias, tópicos e avaliações; metas do dia; métricas.
-4. **Modo foco:** timer resistente, Wake Lock, sons, registro de sessões, pontos.
+4. **Modo foco:** timer resistente, Wake Lock, sons com volume, os 3 temas animados (Chuva, Lo-fi, Deep Focus) e o Silêncio sem tema, interruptor de animação, registro de sessões, pontos. **Aceite:** as animações rodam suaves no Galaxy Tab, param com `prefers-reduced-motion` e não alteram o tempo do cronômetro.
 5. **Arquivos e extração de texto:**
    - Storage, compressão, tabela e filtros.
    - Extração de PDF, docx e pptx e OCR em Web Worker, `documents` e `document_chunks`, prévia do texto.
