@@ -3,12 +3,13 @@
 import { Pause, Play, RotateCcw, Settings, SkipForward, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/features/auth/auth-provider";
 import { advance, pause, reset, SESSIONS_PER_CYCLE, start, statusOf } from "@/lib/focus/timer";
+import { BreathText } from "./breath-text";
 import { PresetPicker } from "./preset-picker";
 import { SoundPicker } from "./sound-picker";
 import { SubjectPicker } from "./subject-picker";
@@ -33,6 +34,25 @@ function useAwake() {
     id.current = setTimeout(() => setAwake(false), AWAKE_MS);
   }, []);
   return { awake, wake };
+}
+
+/** Where the center of the ring is, for the decoration that surrounds it (--ring-y). */
+function useRingCenter(root: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const screen = root.current;
+    const ring = screen?.querySelector("[data-ring]");
+    if (!screen || !ring) return;
+    const place = () => {
+      const box = ring.getBoundingClientRect();
+      const y = box.top + box.height / 2 - screen.getBoundingClientRect().top;
+      screen.style.setProperty("--ring-y", `${Math.round(y)}px`);
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(screen);
+    observer.observe(ring);
+    return () => observer.disconnect();
+  }, [root]);
 }
 
 function Controls() {
@@ -105,6 +125,8 @@ export function FocusScreen() {
   const { awake, wake } = useAwake();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const theme = FOCUS_THEMES[prefs.sound];
+  const screen = useRef<HTMLDivElement>(null);
+  useRingCenter(screen);
 
   const userId = user?.id;
   useEffect(() => {
@@ -129,6 +151,7 @@ export function FocusScreen() {
 
   return (
     <div
+      ref={screen}
       data-focus-theme={prefs.sound}
       data-ready={ready && prefsReady ? "" : undefined}
       style={themeStyle(theme)}
@@ -165,7 +188,7 @@ export function FocusScreen() {
       >
         <h1 className="sr-only">Modo foco</h1>
         <SubjectPicker />
-        <TimerDial />
+        <TimerDial>{prefs.sound === "deep" && animation && prefs.breathText && <BreathText />}</TimerDial>
         <Controls />
         <PresetPicker />
       </main>

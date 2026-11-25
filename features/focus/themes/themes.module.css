@@ -265,3 +265,145 @@
     transform: scaleY(1);
   }
 }
+
+/* --- Deep Focus ------------------------------------------------------------------------------ */
+
+/* Centered on the ring, wherever the layout puts it (--ring-y and --ring come from the screen). */
+.glow,
+.sonar {
+  position: absolute;
+  top: var(--ring-y, 52%);
+  left: 50%;
+  border-radius: 50%;
+}
+
+.glow {
+  width: calc(var(--ring) * 1.63);
+  height: calc(var(--ring) * 1.63);
+  margin: calc(var(--ring) * -0.815) 0 0 calc(var(--ring) * -0.815);
+  background: radial-gradient(circle, rgba(126, 151, 167, 0.35) 0%, rgba(62, 85, 102, 0.18) 40%, transparent 70%);
+  animation: focus-deep-breathe 10s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.sonar {
+  width: calc(var(--ring) * 1.105);
+  height: calc(var(--ring) * 1.105);
+  margin: calc(var(--ring) * -0.5525) 0 0 calc(var(--ring) * -0.5525);
+  border: 1px solid rgba(179, 216, 242, 0.35);
+  animation: focus-deep-sonar 9s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: #c2cfd8;
+  animation: focus-deep-drift ease-in-out infinite alternate;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.breath {
+  position: absolute;
+  bottom: 18%;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  color: rgba(179, 216, 242, 0.85);
+  font-size: 13px;
+  line-height: 20px;
+  letter-spacing: 3px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.breath span {
+  position: absolute;
+  inset: 0;
+  /* Centers the letters, not the letters plus their trailing space. */
+  padding-left: 3px;
+}
+
+.inhale {
+  animation: focus-deep-inhale 10s ease-in-out infinite;
+}
+
+.exhale {
+  animation: focus-deep-exhale 10s ease-in-out infinite;
+}
+
+.breath[data-paused] span {
+  animation-play-state: paused;
+}
+
+/* Without motion there is no rhythm to follow: both words would show at once. */
+@media (prefers-reduced-motion: reduce) {
+  .breath {
+    display: none;
+  }
+}
+
+@keyframes focus-deep-breathe {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.9;
+  }
+}
+
+@keyframes focus-deep-sonar {
+  from {
+    transform: scale(0.7);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes focus-deep-drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes focus-deep-inhale {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes focus-deep-exhale {
+  0%,
+  45% {
+    opacity: 0;
+  }
+  50%,
+  95% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

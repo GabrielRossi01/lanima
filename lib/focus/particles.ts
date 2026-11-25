@@ -144,3 +144,20 @@ export function litWindows(reduced: boolean, seed = 5): LitWindow[] {
   // Spread over the whole skyline when halved: every other one.
   return reduced ? lit.filter((_, i) => i % 2 === 0) : lit;
 }
+
+export interface Star extends Timing {
+  left: number;
+  top: number;
+  size: number;
+  alpha: number;
+}
+
+export function stars(reduced: boolean, seed = 6): Star[] {
+  return generate(COUNTS.stars, reduced, seed, (between) => ({
+    left: between(0, 100, 1),
+    top: between(0, 100, 1),
+    size: between(1, 2.6, 1),
+    alpha: between(0.2, 0.7),
+    ...timing(between, 20, 40),
+  }));
+}

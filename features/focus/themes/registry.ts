@@ -1,5 +1,6 @@
 import type { ComponentType, CSSProperties } from "react";
 import { SOUND_IDS, type SoundId } from "@/lib/focus/prefs";
+import { DeepLayer } from "./deep-layer";
 import { LofiLayer } from "./lofi-layer";
 import { RainLayer } from "./rain-layer";
 
@@ -32,6 +33,8 @@ export interface FocusTheme {
   topLabel: string | null;
   /** Replaces topLabel while the sound is really playing. */
   playingLabel?: string;
+  /** Replaces topLabel while the background moves. */
+  animatedLabel?: string;
   cssVars: ThemeVars;
   /** Decorative layer; only the silence has none. */
   Layer: ComponentType<LayerProps> | null;
@@ -80,7 +83,8 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
   deep: {
     id: "deep",
     label: "Deep Focus",
-    topLabel: "Deep Focus · respiração 5 s",
+    topLabel: "Deep Focus",
+    animatedLabel: "Deep Focus · respiração 5 s",
     cssVars: {
       ...translucent,
       "--focus-bg": "radial-gradient(circle at 50% 52%, #13212B 0%, #0B1217 60%, #06090C 100%)",
@@ -91,7 +95,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
       "--focus-muted": "#FFFFFF",
       "--focus-chrome-opacity": "0.6",
     },
-    Layer: null,
+    Layer: DeepLayer,
   },
   silencio: {
     id: "silencio",

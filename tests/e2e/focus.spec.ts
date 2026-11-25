@@ -115,6 +115,7 @@ test.describe("Modo foco", () => {
 const LAYERS = [
   ["Chuva", "chuva", { drop: 110, "window-drop": 14, ripple: 10 }],
   ["Lo-fi", "lofi", { dust: 34 }],
+  ["Deep Focus", "deep", { star: 40 }],
 ] as const;
 
 test.describe("Camada decorativa", () => {
@@ -212,6 +213,71 @@ test.describe("Camada decorativa", () => {
     await expect(equalizer.locator("span")).toHaveCount(6);
     expect(await equalizer.evaluate((el) => el.getAnimations({ subtree: true }).length)).toBe(0);
     await expect(page.getByText("tocando agora")).toHaveCount(0);
+  });
+
+  test("Deep Focus: brilho e texto respiram juntos, em volta do anel", async ({ page, account }) => {
+    void account;
+    await openFocus(page);
+    await sound(page, "Deep Focus").click();
+    const layer = page.locator('[data-focus-layer="deep"]');
+    await expect(layer.locator("[data-sonar]")).toHaveCount(3);
+    await expect(page.getByText("Deep Focus · respiração 5 s")).toBeVisible();
+    await expect(page.locator("[data-breath-text]")).toBeVisible();
+
+    // Off and on again later: it comes back in phase.
+    const settings = page.getByRole("button", { name: "Ajustes do modo foco" });
+    const toggle = page.getByRole("switch", { name: /Texto de respiração/ });
+    await settings.click();
+    await toggle.click();
+    await expect(page.locator("[data-breath-text]")).toHaveCount(0);
+    await page.waitForTimeout(1300);
+    await toggle.click();
+    await page.keyboard.press("Escape");
+    const phases = () =>
+      page.evaluate(() => {
+        const progress = (el: Element) => el.getAnimations()[0].effect!.getComputedTiming().progress!;
+        const glow = document.querySelector("[data-breath]")!;
+        const texts = [...document.querySelectorAll("[data-breath-text] span")];
+        return [glow, ...texts].map(progress);
+      });
+    const drift = async () => {
+      const [glow, ...texts] = await phases();
+      return Math.max(...texts.map((p) => Math.min(Math.abs(p - glow), 1 - Math.abs(p - glow))));
+    };
+    // 2% of 10 s.
+    await expect.poll(drift).toBeLessThan(0.02);
+    for (const hidden of [true, false]) {
+      await page.evaluate((value) => {
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => value });
+        document.dispatchEvent(new Event("visibilitychange"));
+      }, hidden);
+      await page.waitForTimeout(800);
+    }
+    await expect.poll(drift, { message: "depois de voltar para a aba" }).toBeLessThan(0.02);
+
+    // The glow is centered on the ring (its box scales, its center doesn't move).
+    const centers = await page.evaluate(() =>
+      ["[data-ring]", "[data-breath]"].map((selector) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect();
+        return [box.left + box.width / 2, box.top + box.height / 2];
+      }),
+    );
+    expect(Math.abs(centers[0][0] - centers[1][0])).toBeLessThan(2);
+    expect(Math.abs(centers[0][1] - centers[1][1])).toBeLessThan(2);
+  });
+
+  test("Deep Focus: cabeçalho e rodapé discretos, e acesos ao tocar", async ({ page, account }) => {
+    void account;
+    await openFocus(page);
+    await sound(page, "Deep Focus").focus();
+    await page.keyboard.press("Enter");
+    await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    await page.mouse.move(5, 300);
+    const header = page.getByRole("banner");
+    await expect(header).toHaveCSS("opacity", "0.6", { timeout: 8000 });
+    await header.dispatchEvent("pointerdown");
+    await expect(header).toHaveCSS("opacity", "1");
+    await expect(header).toHaveCSS("opacity", "0.6", { timeout: 8000 });
   });
 
   test("o Silêncio não tem camada", async ({ page, account }) => {

@@ -9,8 +9,10 @@ import {
   rainDrops,
   ripples,
   seededRandom,
+  stars,
   windowDrops,
 } from "@/lib/focus/particles";
+import { BREATH_MS, breathDelayMs } from "@/lib/focus/breath";
 import { averageFps, isApple, isTooSlow, startsReduced } from "@/lib/focus/quality";
 import {
   advance,
@@ -126,6 +128,7 @@ describe("partículas", () => {
     ["gotas na janela", windowDrops, COUNTS.windowDrops],
     ["ondas", ripples, COUNTS.ripples],
     ["poeira", dustMotes, COUNTS.dust],
+    ["pontos de luz", stars, COUNTS.stars],
   ] as const;
 
   it.each(generators)("%s: mesma seed, mesma saída; seed diferente, outra", (_name, make) => {
@@ -191,7 +194,8 @@ describe("temas", () => {
   it("todo som tem tema", () => {
     expect(FOCUS_THEME_LIST.map((t) => t.id)).toEqual([...SOUND_IDS]);
     expect(new Set(FOCUS_THEME_LIST.map((t) => t.cssVars["--focus-bg"])).size).toBe(4);
-    expect(FOCUS_THEMES.silencio.Layer).toBeNull();
+    // Every sound has a theme of its own, except the silence.
+    expect(FOCUS_THEME_LIST.filter((t) => t.Layer === null).map((t) => t.id)).toEqual(["silencio"]);
   });
 
   type Rgb = [number, number, number];
@@ -204,6 +208,12 @@ describe("temas", () => {
   }
   const over = (top: { rgb: Rgb; a: number }, under: Rgb, opacity = 1): Rgb =>
     under.map((v, i) => v + (top.rgb[i] - v) * top.a * opacity) as Rgb;
+
+  it("respiração: quem entra depois fica na mesma fase", () => {
+    const phase = (mountedAt: number, now: number) => (now - mountedAt - breathDelayMs(mountedAt)) % BREATH_MS;
+    expect(phase(1234, 25_000)).toBe(phase(17_777, 25_000));
+    expect(phase(1234, 20_000)).toBe(0);
+  });
 
   it("Lo-fi: texto legível mesmo com uma janela acesa atrás das predefinições ou do rodapé", () => {
     const vars = FOCUS_THEMES.lofi.cssVars;

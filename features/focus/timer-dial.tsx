@@ -32,7 +32,7 @@ function useClock(running: boolean): number {
   return now;
 }
 
-/** Ring and time. `children` goes inside the ring, below the session (breathing text). */
+/** Ring and time. `children` goes over the ring, positioned by itself (breathing text). */
 export function TimerDial({ children }: { children?: ReactNode }) {
   const timer = useTimerStore((s) => s.timer);
   const finish = useTimerStore((s) => s.finish);
@@ -51,7 +51,7 @@ export function TimerDial({ children }: { children?: ReactNode }) {
   }, [running, remaining, finish]);
 
   return (
-    <div className="relative size-(--ring) shrink-0">
+    <div data-ring className="relative size-(--ring) shrink-0">
       <svg aria-hidden viewBox="0 0 380 380" className="absolute inset-0 size-full -rotate-90">
         <circle cx="190" cy="190" r={RADIUS} fill="none" stroke="var(--focus-track)" strokeWidth="8" />
         <circle
@@ -79,8 +79,8 @@ export function TimerDial({ children }: { children?: ReactNode }) {
         <span className="text-sm text-(--focus-muted)">
           Sessão {timer.session} de {SESSIONS_PER_CYCLE} · {timer.phase === "focus" ? "foco" : "pausa"}
         </span>
-        {children}
       </div>
+      {children}
     </div>
   );
 }

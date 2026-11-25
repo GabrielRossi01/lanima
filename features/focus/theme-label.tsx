@@ -4,6 +4,7 @@ import { useAudioState } from "./audio-state";
 import { FOCUS_THEMES } from "./themes/registry";
 import css from "./themes/themes.module.css";
 import { useHidden } from "./use-hidden";
+import { useReducedMotion } from "@/lib/hooks/use-reduced-motion";
 import type { SoundId } from "@/lib/focus/prefs";
 
 /** Seconds of each bar (FocoLofi.html). */
@@ -13,11 +14,14 @@ const BARS = [0.7, 0.88, 1.06, 1.24, 0.7, 0.88];
 export function ThemeLabel({ sound, animation }: { sound: SoundId; animation: boolean }) {
   const playing = useAudioState((s) => s.playing);
   const hidden = useHidden();
+  const reducedMotion = useReducedMotion();
   const theme = FOCUS_THEMES[sound];
   if (!theme.topLabel) return null;
+  const label =
+    (playing && theme.playingLabel) || (animation && !reducedMotion && theme.animatedLabel) || theme.topLabel;
   return (
     <>
-      {playing ? (theme.playingLabel ?? theme.topLabel) : theme.topLabel}
+      {label}
       {sound === "lofi" && (
         <span
           aria-hidden
