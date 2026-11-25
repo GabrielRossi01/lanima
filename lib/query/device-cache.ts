@@ -7,7 +7,7 @@ export const CACHE_KEY = "lanima:cache";
 export const LAST_USER_KEY = "lanima:last-user";
 
 /** Lists kept on the device so Matérias, Início and metas open offline (section 6). */
-const PERSISTED = new Set(["subjects", "topics", "assessments", "goals"]);
+const PERSISTED = new Set(["subjects", "topics", "assessments", "goals", "focus"]);
 
 export function isPersistedKey(queryKey: readonly unknown[]): boolean {
   return PERSISTED.has(String(queryKey[0]));

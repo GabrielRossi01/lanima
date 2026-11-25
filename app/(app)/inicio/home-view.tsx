@@ -28,7 +28,9 @@ import {
 import { greetingFor, longDate } from "@/lib/dates/greeting";
 import { weekProgress } from "@/lib/goals/goals";
 import { useNow } from "@/lib/hooks/use-now";
-import { firstNameOf, formatFocusGoal } from "@/lib/profile/profile";
+import { FOCUS_GOAL, firstNameOf, formatFocusGoal } from "@/lib/profile/profile";
+import { formatFocused } from "@/lib/focus/sessions";
+import { useFocusSummary } from "@/features/focus/use-focus-summary";
 import { SUBJECT_BG } from "@/lib/subjects/colors";
 import { subjectIcon } from "@/lib/subjects/icons";
 import { formatTimeShort } from "@/lib/subjects/schedule";
@@ -209,7 +211,7 @@ function WeekAgenda({
   );
 }
 
-/** Início (Inicio.html, iPhoneInicio.html, Desktop.html). Focus and streak arrive in phase 4. */
+/** Início (Inicio.html, iPhoneInicio.html, Desktop.html). */
 export function HomeView() {
   const now = useNow();
   const today = now ? todayIn(now) : null;
@@ -225,6 +227,9 @@ export function HomeView() {
   const activeAssessments = (assessments.data ?? []).filter((a) => activeIds.has(a.subject_id));
   const summaries = today && topics.data ? summarize(active, topics.data, activeAssessments, today) : [];
   const exam = today ? nextAssessment(activeAssessments, today) : undefined;
+  const focus = useFocusSummary(today);
+  const goalMin = profile?.daily_focus_goal_min ?? FOCUS_GOAL.default;
+  const goalReached = focus !== null && focus.minutes >= goalMin;
   const week = today && goals.data ? weekProgress(goals.data, today) : null;
 
   return (
@@ -245,10 +250,16 @@ export function HomeView() {
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard
           icon={Timer}
-          value="0m"
-          label={`Foco hoje · meta ${formatFocusGoal(profile?.daily_focus_goal_min ?? 120)}`}
+          color={goalReached ? "verde" : "brand"}
+          value={focus ? formatFocused(focus.minutes) : "–"}
+          label={`Foco hoje · ${goalReached ? "meta do dia concluída" : `meta ${formatFocusGoal(goalMin)}`}`}
         />
-        <MetricCard icon={Flame} color="amarelo" value="0 dias" label="Sequência de estudo" />
+        <MetricCard
+          icon={Flame}
+          color="amarelo"
+          value={focus ? `${focus.streak} ${focus.streak === 1 ? "dia" : "dias"}` : "–"}
+          label="Sequência de estudo"
+        />
         <MetricCard
           icon={Check}
           color="verde"

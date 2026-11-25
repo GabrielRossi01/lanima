@@ -52,7 +52,6 @@ export function AuthGate({ area, children }: { area: GateArea; children: ReactNo
         error={profile.error ?? lastError}
         retrying={profile.isFetching}
         onRetry={() => void profile.refetch()}
-        onSignOut={auth.signOut}
       />
     );
   }

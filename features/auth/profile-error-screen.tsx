@@ -1,17 +1,16 @@
 "use client";
 
-import { CloudOff, LogOut, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { CloudOff, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Logo } from "@/components/ui/logo";
 import { errorTag } from "@/lib/supabase/errors";
+import { SignOutButton } from "./sign-out-button";
 
 interface ProfileErrorScreenProps {
   error: unknown;
   retrying: boolean;
   onRetry: () => void;
-  onSignOut: () => Promise<void>;
 }
 
 /**
@@ -19,8 +18,7 @@ interface ProfileErrorScreenProps {
  * offers a retry and a way out, and shows a small technical tag ("perfil: 404 · PGRST205") that
  * identifies the cause from a photo of the screen.
  */
-export function ProfileErrorScreen({ error, retrying, onRetry, onSignOut }: ProfileErrorScreenProps) {
-  const [leaving, setLeaving] = useState(false);
+export function ProfileErrorScreen({ error, retrying, onRetry }: ProfileErrorScreenProps) {
   return (
     <main
       id="conteudo"
@@ -39,21 +37,7 @@ export function ProfileErrorScreen({ error, retrying, onRetry, onSignOut }: Prof
         <Button icon={RotateCw} onClick={onRetry} disabled={retrying}>
           {retrying ? "Tentando…" : "Tentar de novo"}
         </Button>
-        <Button
-          variant="secondary"
-          icon={LogOut}
-          disabled={leaving}
-          onClick={async () => {
-            setLeaving(true);
-            try {
-              await onSignOut();
-            } finally {
-              setLeaving(false);
-            }
-          }}
-        >
-          Sair
-        </Button>
+        <SignOutButton variant="secondary" />
       </div>
     </main>
   );

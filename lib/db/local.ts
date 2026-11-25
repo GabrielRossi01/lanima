@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from "dexie";
+import Dexie, { type EntityTable, type Table } from "dexie";
 import { LAST_USER_KEY } from "@/lib/query/device-cache";
 
 /**
@@ -18,9 +18,19 @@ export interface FocusPrefsRow {
   pending: boolean;
 }
 
+export interface FocusSessionRow {
+  userId: string;
+  /** Epoch ms: with the user, identifies the session. */
+  startedAt: number;
+  session: unknown;
+  /** Already on the server. */
+  sent: boolean;
+}
+
 type LocalDb = Dexie & {
   focusTimer: EntityTable<FocusTimerRow, "userId">;
   focusPrefs: EntityTable<FocusPrefsRow, "userId">;
+  focusSessions: Table<FocusSessionRow, [string, number]>;
 };
 
 let db: LocalDb | null | undefined;
@@ -31,12 +41,13 @@ export function localDb(): LocalDb | null {
     if (typeof indexedDB === "undefined") return (db = null);
     const created = new Dexie("lanima") as LocalDb;
     created.version(1).stores({ focusTimer: "userId", focusPrefs: "userId" });
+    created.version(2).stores({ focusSessions: "[userId+startedAt], userId" });
     db = created;
   }
   return db;
 }
 
-function isSignedIn(userId: string): boolean {
+export function isSignedIn(userId: string): boolean {
   try {
     const last = JSON.parse(localStorage.getItem(LAST_USER_KEY) ?? "null") as { id?: string } | null;
     return last?.id === userId;
@@ -45,14 +56,19 @@ function isSignedIn(userId: string): boolean {
   }
 }
 
-/** Runs a write for `userId`, unless she already signed out (a late write must not come back). */
-export async function writeLocal(userId: string, write: (db: LocalDb) => Promise<unknown>): Promise<void> {
+/**
+ * Runs a write for `userId`, unless she already signed out (a late write must not come back).
+ * Resolves to whether it was written: if not (storage full or blocked), the state stays in memory
+ * for this visit.
+ */
+export async function writeLocal(userId: string, write: (db: LocalDb) => Promise<unknown>): Promise<boolean> {
   const target = localDb();
-  if (!target || !isSignedIn(userId)) return;
+  if (!target || !isSignedIn(userId)) return false;
   try {
     await write(target);
+    return true;
   } catch {
-    // Storage full or blocked: the state stays in memory for this visit.
+    return false;
   }
 }
 

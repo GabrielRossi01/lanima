@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, LogOut } from "lucide-react";
+import { Camera } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { ThemePicker } from "@/components/layout/theme-picker";
@@ -11,7 +11,7 @@ import { Field, SelectField } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
-import { useAuth } from "@/features/auth/auth-provider";
+import { SignOutButton } from "@/features/auth/sign-out-button";
 import {
   FOCUS_GOAL,
   formatFocusGoal,
@@ -154,20 +154,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
 function PrivacyCard({ profile }: { profile: Profile }) {
   const update = useUpdateProfile();
-  const { signOut } = useAuth();
-  const [leaving, setLeaving] = useState(false);
-
-  async function onSignOut() {
-    setLeaving(true);
-    try {
-      await signOut(); // The gate goes to /entrar as soon as the session is gone.
-    } catch (error) {
-      toast({ title: "Não foi possível sair", description: friendlyError(error), tone: "danger" });
-    } finally {
-      setLeaving(false);
-    }
-  }
-
   return (
     <Card padding="compact" className="gap-2">
       <CardHeader title="Privacidade e dados" />
@@ -186,9 +172,7 @@ function PrivacyCard({ profile }: { profile: Profile }) {
         description="Mostra só pontos e sequência"
       />
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button variant="ghost" size="s" icon={LogOut} onClick={onSignOut} disabled={leaving}>
-          {leaving ? "Saindo…" : "Sair"}
-        </Button>
+        <SignOutButton size="s" />
       </div>
     </Card>
   );

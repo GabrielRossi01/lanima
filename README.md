@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 4 em andamento (modo foco: cronômetro, temas e sons prontos; registro das sessões a seguir).** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 4 em andamento (modo foco: cronômetro, temas, sons e registro das sessões prontos).** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -235,7 +235,7 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Próximas provas** (Início) mostra provas, práticas e exames das matérias ativas, cada uma de uma cor: a da matéria se estiver livre, senão outra da paleta; exame é sempre vermelho. Seminários e entregas ficam na página da matéria. O card escuro "Próxima prova" da spec continua.
 - **Metas atrasadas** (até 14 dias) aparecem no topo de "Metas de hoje" com "Mover para hoje". Os pontos de meta (fase 9) saem de `completed_at`: desmarcar desfaz.
 - **Reordenar** escreve só a posição do tópico movido (ponto médio entre os vizinhos).
-- **Offline:** matérias e metas são "online-first" (seção 6). A última cópia fica no aparelho (TanStack Query persistido), então as telas abrem sem internet com o aviso "Offline · mostrando dados salvos no aparelho". Alterações offline são recusadas com aviso; a fila de sincronização chega na fase 4, com o modo foco.
+- **Offline:** matérias e metas são "online-first" (seção 6). A última cópia fica no aparelho (TanStack Query persistido), então as telas abrem sem internet com o aviso "Offline · mostrando dados salvos no aparelho". Alterações offline são recusadas com aviso; só as sessões de foco entram numa fila (fase 4).
 - **Sair vale só para este aparelho** (`scope: "local"`): os outros continuam logados, e funciona sem internet (a sessão é removida antes do pedido ao servidor). Nada roda depois da resposta, que pode atrasar: quem leva para `/entrar` é só o AuthGate, uma vez. A cópia das listas é apagada na hora; também quando a sessão termina sozinha ou outra conta entra no aparelho (`lib/query/device-cache.ts`). As fotos de perfil já abertas continuam no cache do service worker por até 7 dias.
 
 ## Decisões técnicas da Fase 4 (modo foco: cronômetro e temas)
@@ -247,7 +247,12 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Áudio:** Web Audio faz o loop sem intervalo entre `loopStart` e `loopEnd`; cada arquivo traz meio segundo de si mesmo antes e depois, para o atraso do codificador não aparecer. O som toca enquanto a sessão corre. A tela de bloqueio precisa de um elemento de mídia tocando, então um `<audio>` toca silêncio gerado na hora (`silent-track.ts`). Os arquivos só entram no cache depois de tocar (`app/sw.ts`); créditos em `public/sounds/CREDITS.md`.
 - **Só `.m4a`:** todos os navegadores-alvo tocam AAC. Falta o `.ogg` alternativo, por não haver codificador Vorbis na máquina. Os testes usam um tom em WAV, porque o Chromium do Playwright não decodifica AAC.
 - **Tailwind só no `globals.css`:** a regra do Turbopack que valia para todo `*.css` transformava CSS Modules em CSS comum.
-- **Ainda nesta fase:** Wake Lock, som e vibração no fim, `focus_sessions` com sincronização, e os números reais do rodapé e do Início.
+- **Sessões (`focus_sessions`):** só a concluída é registrada; pular, reiniciar e o tempo em pausa não contam. O dia é o do **fim** da sessão, em São Paulo, e com o app fechado vale a hora em que o tempo acabou. A tabela aceita só leitura e inclusão; uma sessão por início (`unique (user_id, started_at)`), então reenviar não duplica. As pausas (`kind = 'pausa'`) existem na tabela, mas ainda não são gravadas.
+- **Fim em qualquer tela:** `FocusWatcher` fica nos dois layouts, grava sessão e cronômetro na mesma transação do Dexie e avisa. Quem decide é o cronômetro salvo: uma aba que dormiu não conclui o que outra já pausou.
+- **Fila no aparelho** (`features/focus/session-store.ts`): a sessão conta na hora e sobe quando houver rede (ao concluir, abrir, voltar ao app ou reconectar; sem repetir em laço). A cópia enviada fica 2 dias, porque outra aba pode ainda não ter a lista nova; a soma junta as duas pelo início. Sair com sessão não enviada pede confirmação.
+- **Números do dia** (`lib/focus/sessions.ts`): minutos, sessões, pontos (10 por hora, sem arredondar para cima) e sequência (dias com 25 min; hoje só soma). Os 30 dias recentes vêm sessão a sessão; os anteriores, somados por dia pela view `focus_days`.
+- **Sons com nome novo quando mudam:** o arquivo antigo continua no cache de quem já tocou. A chuva atual foi escolhida pela medição (4% da energia abaixo de 150 Hz; a anterior tinha 80%).
+- **Ainda nesta fase:** Wake Lock, som e vibração no fim.
 
 ### Por que o cacheComponents está desligado
 

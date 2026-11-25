@@ -7,7 +7,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/features/auth/auth-provider";
+import { cn } from "@/lib/cn";
+import { todayIn } from "@/lib/dates/calendar";
+import { formatFocused } from "@/lib/focus/sessions";
+import { useNow } from "@/lib/hooks/use-now";
 import { advance, pause, reset, SESSIONS_PER_CYCLE, start, statusOf } from "@/lib/focus/timer";
 import { BreathText } from "./breath-text";
 import { PresetPicker } from "./preset-picker";
@@ -21,6 +24,7 @@ import { useTimerStore } from "./timer-store";
 import { useAmbientAudio } from "./use-ambient-audio";
 import { useAnimation } from "./use-animation";
 import { useFocusPrefs } from "./use-focus-prefs";
+import { useFocusSummary } from "./use-focus-summary";
 
 /** How long header and footer stay bright after a touch (Deep Focus rests at 0.6). */
 const AWAKE_MS = 4000;
@@ -93,24 +97,44 @@ function Controls() {
   );
 }
 
-/** Sessions, time and points of the day. Real numbers arrive with focus_sessions. */
+/** Sessions, time and points of the day: they change as soon as a session ends. */
 function DayStats() {
+  const now = useNow();
+  const day = useFocusSummary(now ? todayIn(now) : null);
+  const sessions = day?.sessions ?? 0;
+  const extra = sessions - SESSIONS_PER_CYCLE;
   return (
     <div className="flex items-center justify-center gap-6">
       <div className="flex flex-col gap-1.5">
         <span className="text-xs text-(--focus-muted)">Sessões hoje</span>
-        <span role="img" aria-label={`0 de ${SESSIONS_PER_CYCLE}`} className="flex gap-1.5">
+        <span
+          role="img"
+          aria-label={extra > 0 ? `${sessions} sessões` : `${sessions} de ${SESSIONS_PER_CYCLE}`}
+          className="flex items-center gap-1.5"
+        >
           {Array.from({ length: SESSIONS_PER_CYCLE }, (_, i) => (
-            <span key={i} aria-hidden className="size-3 rounded-full border-2 border-(--focus-accent)" />
+            <span
+              key={i}
+              aria-hidden
+              className={cn(
+                "size-3 rounded-full border-2 border-(--focus-accent)",
+                i < sessions && "bg-(--focus-accent)",
+              )}
+            />
           ))}
+          {extra > 0 && (
+            <span aria-hidden className="text-xs leading-3 font-bold">
+              +{extra}
+            </span>
+          )}
         </span>
       </div>
       <div className="flex flex-col gap-0.5">
-        <span className="text-lg leading-6 font-bold">0m</span>
+        <span className="text-lg leading-6 font-bold">{day ? formatFocused(day.minutes) : "–"}</span>
         <span className="text-xs text-(--focus-muted)">focada hoje</span>
       </div>
       <div className="flex flex-col gap-0.5">
-        <span className="text-lg leading-6 font-bold">+0 pts</span>
+        <span className="text-lg leading-6 font-bold">{day ? `+${day.points} pts` : "–"}</span>
         <span className="text-xs text-(--focus-muted)">no ranking hoje</span>
       </div>
     </div>
@@ -119,8 +143,6 @@ function DayStats() {
 
 /** Modo foco (Foco.html and its themes): the theme is only the skin, the clock doesn't know it. */
 export function FocusScreen() {
-  const { user } = useAuth();
-  const load = useTimerStore((s) => s.load);
   const ready = useTimerStore((s) => s.ready);
   const { prefs, ready: prefsReady, update } = useFocusPrefs();
   const saveAnimation = useCallback((animation: boolean) => update({ animation }), [update]);
@@ -133,11 +155,6 @@ export function FocusScreen() {
   const theme = FOCUS_THEMES[prefs.sound];
   const screen = useRef<HTMLDivElement>(null);
   useRingCenter(screen);
-
-  const userId = user?.id;
-  useEffect(() => {
-    if (userId) load(userId);
-  }, [userId, load]);
 
   // "Estudar com foco" on a subject's page. Never under a session that already started.
   const params = useSearchParams();

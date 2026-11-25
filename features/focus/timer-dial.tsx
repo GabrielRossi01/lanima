@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { toast } from "@/components/ui/toast";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { formatClock, msToNextSecond, plannedMs, remainingMs, SESSIONS_PER_CYCLE, statusOf } from "@/lib/focus/timer";
 import { useTimerStore } from "./timer-store";
 
@@ -35,20 +34,11 @@ function useClock(running: boolean): number {
 /** Ring and time. `children` goes over the ring, positioned by itself (breathing text). */
 export function TimerDial({ children }: { children?: ReactNode }) {
   const timer = useTimerStore((s) => s.timer);
-  const finish = useTimerStore((s) => s.finish);
   const running = statusOf(timer) === "running";
   const now = useClock(running);
   const remaining = remainingMs(timer, now);
   const planned = plannedMs(timer);
   const clock = formatClock(remaining);
-
-  useEffect(() => {
-    if (!running || remaining > 0) return;
-    const ended = finish();
-    if (ended === "focus") toast({ title: "Sessão de foco concluída", description: "Hora da pausa.", tone: "success" });
-    if (ended === "break")
-      toast({ title: "Pausa concluída", description: "Pronto para a próxima sessão.", tone: "success" });
-  }, [running, remaining, finish]);
 
   return (
     <div data-ring className="relative size-(--ring) shrink-0">

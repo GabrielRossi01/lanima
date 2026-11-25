@@ -51,6 +51,57 @@ export type Database = {
           },
         ];
       };
+      focus_sessions: {
+        Row: {
+          actual_min: number;
+          completed: boolean;
+          created_at: string;
+          ended_at: string;
+          id: string;
+          kind: string;
+          planned_min: number;
+          started_at: string;
+          subject_id: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          actual_min: number;
+          completed?: boolean;
+          created_at?: string;
+          ended_at: string;
+          id?: string;
+          kind?: string;
+          planned_min: number;
+          started_at: string;
+          subject_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          actual_min?: number;
+          completed?: boolean;
+          created_at?: string;
+          ended_at?: string;
+          id?: string;
+          kind?: string;
+          planned_min?: number;
+          started_at?: string;
+          subject_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "focus_sessions_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
       goals: {
         Row: {
           completed_at: string | null;
@@ -241,7 +292,15 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      focus_days: {
+        Row: {
+          day: string | null;
+          minutes: number | null;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Relationships: [];
+      };
     };
     Functions: {
       [_ in never]: never;
