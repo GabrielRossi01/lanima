@@ -39,6 +39,7 @@ import {
   ASSESSMENT_KINDS,
   assessmentKindLabel,
   assessmentPill,
+  distinctColors,
   isCompleted,
   isExam,
   isTest,
@@ -275,6 +276,21 @@ describe("matérias", () => {
     expect(ASSESSMENT_KINDS.filter((kind) => isExam({ kind }))).toEqual(["exame"]);
     expect(assessmentKindLabel("exame")).toBe("Exame");
     expect(assessmentKindLabel("desconhecido")).toBe("desconhecido");
+  });
+
+  it("cada prova de uma cor: a da matéria se estiver livre, senão uma que ninguém quer", () => {
+    const item = (id: string, color: (typeof SUBJECT_COLORS)[number]) => ({ id, color });
+    const colors = distinctColors([
+      item("a", "rosa"),
+      item("b", "rosa"),
+      item("c", "verde"),
+      item("d", "rosa"),
+      item("e", "amarelo"),
+      item("f", "verde"),
+    ]);
+    expect(new Set(colors.values()).size).toBe(6);
+    expect([colors.get("a"), colors.get("c"), colors.get("e")]).toEqual(["rosa", "verde", "amarelo"]);
+    expect(distinctColors([])).toEqual(new Map());
   });
 
   it("10 cores de matéria, todas com classe e nome", () => {

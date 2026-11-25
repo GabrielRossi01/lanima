@@ -136,6 +136,16 @@ test.describe("Matérias", () => {
     await expect(page.getByText("Exame em 5 dias")).toBeVisible();
   });
 
+  test("ordenação com inicial maiúscula", async ({ page, account }) => {
+    await seedSubject(account, { name: "Anatomia", color: "celeste" });
+    await page.goto("/materias");
+    await expect(page.getByLabel("Ordenar por:").locator("option")).toHaveText([
+      "Próxima aula",
+      "Próxima avaliação",
+      "Nome",
+    ]);
+  });
+
   test("filtros e arquivar", async ({ page, account }) => {
     await seedSubject(account, { name: "Anatomia", color: "celeste" });
     const histo = await seedSubject(account, {
@@ -272,6 +282,16 @@ test.describe("Início", () => {
     await expect(board.getByRole("listitem").nth(0)).toContainText("amanhã");
     await expect(board.getByRole("listitem").nth(1)).toContainText("P2");
     await expect(board.getByRole("listitem").nth(1)).toContainText(formatDate(at(9)));
+    // Two tests of the same subject: still one color each, and the exam in red.
+    await seedAssessment(account, { subject_id: bio.id, title: "P3", kind: "prova", date: at(12) });
+    await seedAssessment(account, { subject_id: bio.id, title: "P4", kind: "prova", date: at(15) });
+    await page.reload();
+    await expect(board.getByRole("listitem")).toHaveCount(4);
+    const colors = await board
+      .getByRole("listitem")
+      .evaluateAll((items) => items.map((li) => getComputedStyle(li.querySelector("a")!).backgroundColor));
+    expect(new Set(colors).size).toBe(4);
+    expect(colors[0]).toBe("rgb(143, 58, 55)");
     await expectNoHorizontalScroll(page, "/inicio com o quadro");
     await board.getByRole("link", { name: /Exame final/ }).click();
     await expect(page).toHaveURL(new RegExp(`/materias/${bio.id}$`));

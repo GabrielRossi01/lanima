@@ -35,9 +35,9 @@ const FILTERS: readonly { value: SubjectFilter; label: string }[] = [
 ];
 
 const SORTS: readonly { value: SubjectSort; label: string }[] = [
-  { value: "proxima-aula", label: "próxima aula" },
-  { value: "proxima-avaliacao", label: "próxima avaliação" },
-  { value: "nome", label: "nome" },
+  { value: "proxima-aula", label: "Próxima aula" },
+  { value: "proxima-avaliacao", label: "Próxima avaliação" },
+  { value: "nome", label: "Nome" },
 ];
 
 function SkeletonGrid() {

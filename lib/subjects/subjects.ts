@@ -108,6 +108,23 @@ export function upcomingAssessments<T extends Pick<AssessmentRow, "date" | "comp
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * One color per item, none repeated: the subject's own when it is still free, otherwise the next one
+ * of the palette that nobody here wants.
+ */
+export function distinctColors(items: readonly { id: string; color: SubjectColor }[]): Map<string, SubjectColor> {
+  const wanted = new Set(items.map((item) => item.color));
+  const spare = SUBJECT_COLORS.filter((color) => !wanted.has(color));
+  const used = new Set<SubjectColor>();
+  const result = new Map<string, SubjectColor>();
+  for (const { id, color } of items) {
+    const own = used.has(color) ? (spare.shift() ?? color) : color;
+    used.add(own);
+    result.set(id, own);
+  }
+  return result;
+}
+
 export function nextAssessment<T extends Pick<AssessmentRow, "date" | "completed_at">>(
   assessments: readonly T[],
   today: IsoDate,

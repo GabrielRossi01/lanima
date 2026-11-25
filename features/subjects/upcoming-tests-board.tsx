@@ -1,10 +1,12 @@
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { Card, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { daysBetween, formatDate, weekdayOf, WEEKDAY_SHORT, type IsoDate } from "@/lib/dates/calendar";
-import { SUBJECT_BG } from "@/lib/subjects/colors";
+import { SUBJECT_BG, type SubjectColor } from "@/lib/subjects/colors";
 import {
   assessmentKindLabel,
+  distinctColors,
   isExam,
   isTest,
   upcomingAssessments,
@@ -12,10 +14,17 @@ import {
   type Subject,
 } from "@/lib/subjects/subjects";
 
-/** Notes that fit on the board; the rest are counted below it. */
+/** Tests that fit in the card; the rest are counted below them. */
 const BOARD_SIZE = 6;
 
-function Note({ test, subject, today }: { test: AssessmentRow; subject: Subject; today: IsoDate }) {
+interface TestCardProps {
+  test: AssessmentRow;
+  subject: Subject;
+  color: SubjectColor;
+  today: IsoDate;
+}
+
+function TestCard({ test, subject, color, today }: TestCardProps) {
   const n = daysBetween(today, test.date);
   const exam = isExam(test);
   return (
@@ -23,8 +32,8 @@ function Note({ test, subject, today }: { test: AssessmentRow; subject: Subject;
       <Link
         href={`/materias/${subject.id}`}
         className={cn(
-          "flex min-w-0 flex-1 flex-col gap-2 rounded-sm px-3.5 pt-3 pb-3.5 no-underline transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transform-none",
-          exam ? "bg-exam text-white" : cn(SUBJECT_BG[subject.color], "text-ink"),
+          "flex min-w-0 flex-1 flex-col gap-2 rounded-lg p-3.5 no-underline transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transform-none",
+          exam ? "bg-exam text-white" : cn(SUBJECT_BG[color], "text-ink"),
         )}
       >
         <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold">
@@ -52,41 +61,50 @@ interface UpcomingTestsBoardProps {
   today: IsoDate;
 }
 
-/** "Próximas provas": a framed notice board, one note per test in its subject's color, exams in red. */
+/** "Próximas provas": one card per test, each in a color of its own; make-up exams are always red. */
 export function UpcomingTestsBoard({ assessments, subjects, today }: UpcomingTestsBoardProps) {
-  const tests = upcomingAssessments(assessments, today).filter(isTest);
+  const subjectOf = new Map(subjects.map((s) => [s.id, s]));
+  const tests = upcomingAssessments(assessments, today).filter((a) => isTest(a) && subjectOf.has(a.subject_id));
   const shown = tests.slice(0, BOARD_SIZE);
   const rest = tests.length - shown.length;
+  const colors = distinctColors(
+    shown.filter((t) => !isExam(t)).map((t) => ({ id: t.id, color: subjectOf.get(t.subject_id)!.color })),
+  );
   return (
-    <section
-      aria-labelledby="proximas-provas"
-      className="flex min-w-0 flex-col gap-4 rounded-card border-[6px] border-brand bg-deep p-4 shadow-card md:p-5"
-    >
-      <header className="flex items-baseline justify-between gap-3">
-        <h2 id="proximas-provas" className="m-0 font-hand text-[32px] leading-9 font-semibold text-white">
-          Próximas provas
-        </h2>
-        <Link href="/materias" className="shrink-0 text-sm font-semibold text-white">
-          Matérias
-        </Link>
-      </header>
+    <Card aria-label="Próximas provas">
+      <CardHeader
+        title="Próximas provas"
+        action={
+          <Link href="/materias" className="text-sm font-semibold">
+            Todas as matérias
+          </Link>
+        }
+      />
       {shown.length === 0 ? (
-        <p className="type-body m-0 text-on-deep-2">
+        <p className="type-body m-0 text-fg-2">
           Nenhuma prova marcada. Abra uma matéria e marque a data na aba Avaliações.
         </p>
       ) : (
-        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-3 p-0">
+        <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
           {shown.map((test) => {
-            const subject = subjects.find((s) => s.id === test.subject_id);
-            return subject && <Note key={test.id} test={test} subject={subject} today={today} />;
+            const subject = subjectOf.get(test.subject_id)!;
+            return (
+              <TestCard
+                key={test.id}
+                test={test}
+                subject={subject}
+                color={colors.get(test.id) ?? subject.color}
+                today={today}
+              />
+            );
           })}
         </ul>
       )}
       {rest > 0 && (
-        <p className="type-caption m-0 text-on-deep-2">
+        <p className="type-caption m-0 text-fg-2">
           {rest === 1 ? "Mais 1 prova marcada depois dessas." : `Mais ${rest} provas marcadas depois dessas.`}
         </p>
       )}
-    </section>
+    </Card>
   );
 }
