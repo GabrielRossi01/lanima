@@ -38,6 +38,7 @@ const panelBySide: Record<SheetSide, string> = {
 const bottomPadding: Partial<Record<SheetSide, string>> = {
   auto: "pb-[max(20px,env(safe-area-inset-bottom))] md:pb-6",
   bottom: "pb-[max(20px,env(safe-area-inset-bottom))]",
+  center: "pb-5",
 };
 
 const maxWidth = { s: "md:max-w-[420px]", m: "md:max-w-[560px]", l: "md:max-w-[880px]" } as const;
