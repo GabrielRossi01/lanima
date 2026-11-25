@@ -34,7 +34,7 @@ export function AuthFrame({ children, heroOnPhone = false }: AuthFrameProps) {
         className={cn(
           "relative shrink-0 flex-col gap-6 overflow-hidden bg-night-900 text-white",
           "px-[max(24px,env(safe-area-inset-left))] pt-[max(32px,env(safe-area-inset-top))] pb-8",
-          "md:flex md:w-[clamp(320px,42vw,500px)] md:p-12",
+          "md:flex md:w-[clamp(320px,42vw,500px)] md:p-12 xl:w-[clamp(500px,40vw,680px)] xl:p-16",
           heroOnPhone ? "flex" : "hidden",
         )}
       >

@@ -15,9 +15,9 @@ function redirectTo(path: string) {
 /**
  * Finishes sign-in and sets the session cookies:
  * - magic link from the e-mail: ?token_hash=…&type=email (works in any browser, no PKCE verifier);
- * - Google and Notion: ?code=… (PKCE, same browser that started it) plus ?provedor= and ?origem=.
+ * - Google and Notion: ?code=… (PKCE, same browser that started it) plus ?provedor=.
  * Then goes to ?proxima= (same-origin only) or /inicio; the device decides about onboarding. When it
- * fails, back to the screen she came from, with the reason.
+ * fails, back to Entrar, with the reason.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;

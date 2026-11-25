@@ -1,16 +1,19 @@
 "use client";
 
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, ChevronRight, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
+import { FeatureList, StepHeader, StepTitle } from "@/features/onboarding/steps";
 import { cleanOtpInput, isValidOtp } from "@/lib/auth/otp";
 import { authPath, authProblemMessage, oauthCallbackUrl, type AuthMode } from "@/lib/auth/pages";
 import { enabledProviders, PROVIDER_LABEL, PROVIDER_PARAMS, type SocialProvider } from "@/lib/auth/providers";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { forgetSignUp, markSignUp } from "@/lib/auth/sign-up";
 import { getSupabase } from "@/lib/supabase/client";
 import { friendlyError } from "@/lib/supabase/errors";
 import { SocialButtons } from "./social-buttons";
@@ -19,6 +22,7 @@ const emailSchema = z.email({ error: "Confira o e-mail digitado." });
 
 const RESEND_SECONDS = 60;
 
+/** Only to sign in: "Criar conta" goes through the steps. */
 const PROVIDERS = enabledProviders(process.env.NEXT_PUBLIC_AUTH_PROVIDERS);
 
 /** "e-mail" that never breaks at its hyphen. */
@@ -27,8 +31,12 @@ const EMAIL_WORD = <span className="whitespace-nowrap">e-mail</span>;
 const COPY = {
   entrar: {
     title: "Entrar no Lanima",
-    intro: <>Sem senha: use uma conta abaixo ou receba um link e um código por {EMAIL_WORD}.</>,
-    emailOnlyIntro: <>Sem senha: você recebe um link e um código por {EMAIL_WORD}.</>,
+    intro:
+      PROVIDERS.length > 0 ? (
+        <>Sem senha: use uma conta abaixo ou receba um link e um código por {EMAIL_WORD}.</>
+      ) : (
+        <>Sem senha: você recebe um link e um código por {EMAIL_WORD}.</>
+      ),
     submit: "Receber link e código",
     confirm: "Entrar",
     confirming: "Entrando…",
@@ -38,10 +46,9 @@ const COPY = {
   },
   "criar-conta": {
     title: "Criar conta no Lanima",
-    intro: <>Sem senha: use uma conta abaixo ou confirme seu {EMAIL_WORD}. Depois é só montar seu perfil.</>,
-    emailOnlyIntro: <>Sem senha: confirme seu {EMAIL_WORD} com um link ou código. Depois é só montar seu perfil.</>,
-    submit: "Criar conta com e-mail",
-    confirm: "Criar conta",
+    intro: <>Em três passos rápidos o Lanima fica com a sua cara. Comece pelo seu {EMAIL_WORD}, sem senha.</>,
+    submit: "Continuar",
+    confirm: "Continuar",
     confirming: "Criando…",
     otherQuestion: "Já tem conta?",
     otherMode: "entrar",
@@ -49,15 +56,28 @@ const COPY = {
   },
 } as const;
 
+/** The steps don't show for an account that already did them: say why. */
+async function noticeExistingAccount(userId: string) {
+  const { data } = await getSupabase().from("profiles").select("onboarding_completed_at").eq("id", userId).single();
+  if (!data?.onboarding_completed_at) return;
+  forgetSignUp();
+  toast({ title: "Você já tinha uma conta", description: "Entramos nela com esse e-mail." });
+}
+
 /** E-mail typed on one screen, carried to the other. In memory: never in the address or storage. */
 let emailDraft = "";
 
-/** Form of both screens: social buttons, e-mail, then the code that arrived. */
+/**
+ * Form of both screens: e-mail, then the code that arrived. Entrar also has the social buttons;
+ * Criar conta is step 1 of 3 and goes on to the onboarding.
+ */
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNextPath(params.get("proxima"));
   const copy = COPY[mode];
+  const creating = mode === "criar-conta";
+  const stepHeader = creating && <StepHeader step={1} />;
 
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState(emailDraft);
@@ -120,14 +140,18 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
     start();
-    const { error: verifyError } = await getSupabase().auth.verifyOtp({ email, token, type: "email" });
+    // Before the request: signing in is what moves on to the onboarding.
+    if (creating) markSignUp();
+    const { data, error: verifyError } = await getSupabase().auth.verifyOtp({ email, token, type: "email" });
     if (verifyError) {
+      forgetSignUp();
       setBusy(false);
       setError(friendlyError(verifyError));
       return;
     }
     emailDraft = "";
     router.replace(next);
+    if (creating && data.user) void noticeExistingAccount(data.user.id);
   }
 
   async function continueWith(provider: SocialProvider) {
@@ -135,7 +159,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const { error: oauthError } = await getSupabase().auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: oauthCallbackUrl(window.location.origin, mode, next, provider),
+        redirectTo: oauthCallbackUrl(window.location.origin, next, provider),
         queryParams: PROVIDER_PARAMS[provider],
       },
     });
@@ -149,7 +173,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
   if (step === "code") {
     return (
-      <form onSubmit={verifyCode} aria-label="Confirmar código" className="flex max-w-md flex-col gap-5" noValidate>
+      <form onSubmit={verifyCode} aria-label="Confirmar código" className="flex flex-col gap-5" noValidate>
+        {stepHeader}
         <div>
           <h1 className="type-page-title m-0">Confira seu e-mail</h1>
           <p className="type-body mt-2 mb-0 text-fg-2 wrap-anywhere">
@@ -199,19 +224,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         void sendEmail();
       }}
       aria-label={copy.title}
-      className="flex max-w-md flex-col gap-5"
+      className="flex flex-col gap-5"
       noValidate
     >
-      <div>
-        <h1 className="type-page-title m-0">{copy.title}</h1>
-        <p className="type-body mt-2 mb-0 text-fg-2">{PROVIDERS.length > 0 ? copy.intro : copy.emailOnlyIntro}</p>
-      </div>
+      {stepHeader}
+      <StepTitle title={copy.title} subtitle={copy.intro} />
       {problem && (
         <p role="alert" className="m-0 rounded-lg bg-surface-alt px-4 py-3 text-sm leading-5 text-danger-text">
           {problem}
         </p>
       )}
-      {PROVIDERS.length > 0 && (
+      {!creating && PROVIDERS.length > 0 && (
         <>
           <SocialButtons providers={PROVIDERS} disabled={busy} onPick={(p) => void continueWith(p)} />
           <div className="flex items-center gap-3 text-xs text-fg-2">
@@ -231,7 +254,13 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         onChange={(e) => setEmail(e.target.value)}
         error={error}
       />
-      <Button type="submit" icon={Mail} disabled={busy} className="h-12">
+      <Button
+        type="submit"
+        icon={creating ? ChevronRight : Mail}
+        iconPosition={creating ? "end" : "start"}
+        disabled={busy}
+        className="h-12"
+      >
         {busy ? "Enviando…" : copy.submit}
       </Button>
       <p className="m-0 text-center text-sm text-fg-2">
@@ -246,6 +275,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           {copy.otherLabel}
         </Link>
       </p>
+      {creating && <FeatureList className="xl:grid xl:grid-cols-2" />}
     </form>
   );
 }

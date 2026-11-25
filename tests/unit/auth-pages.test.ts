@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { authErrorPath, authPath, authProblemMessage, oauthCallbackUrl } from "@/lib/auth/pages";
 import { enabledProviders, isSocialProvider, PROVIDER_PARAMS } from "@/lib/auth/providers";
 import { DEFAULT_AFTER_SIGN_IN, safeNextPath } from "@/lib/auth/redirect";
+import { cameFromSignUp, forgetSignUp, markSignUp } from "@/lib/auth/sign-up";
 
 describe("provedores sociais", () => {
   it("mostra só os listados, sempre na mesma ordem", () => {
@@ -27,37 +28,42 @@ describe("telas de entrar e criar conta", () => {
     expect(safeNextPath("/entrar?x=1")).toBe(DEFAULT_AFTER_SIGN_IN);
   });
 
-  it("o retorno do provedor lembra a tela, o destino e o provedor", () => {
-    const url = new URL(oauthCallbackUrl("https://app.test", "criar-conta", "/perfil", "notion"));
+  it("o retorno do provedor lembra o destino e o provedor", () => {
+    const url = new URL(oauthCallbackUrl("https://app.test", "/perfil", "notion"));
     expect(url.origin + url.pathname).toBe("https://app.test/callback");
     expect(Object.fromEntries(url.searchParams)).toEqual({
       proxima: "/perfil",
-      origem: "criar-conta",
       provedor: "notion",
     });
+  });
+
+  it("vindo de Criar conta, o cadastro continua no passo 2, e só uma vez", () => {
+    expect(cameFromSignUp()).toBe(false);
+    markSignUp();
+    expect(cameFromSignUp()).toBe(true);
+    forgetSignUp();
+    expect(cameFromSignUp()).toBe(false);
   });
 });
 
 describe("quando a entrada falha", () => {
   const back = (query: string) => authErrorPath(new URLSearchParams(query));
 
-  it("volta para a tela de onde saiu, com o motivo", () => {
-    expect(back("origem=criar-conta&provedor=google&proxima=/perfil&error=access_denied")).toBe(
-      "/criar-conta?erro=cancelado&provedor=google&proxima=%2Fperfil",
+  it("volta para Entrar, com o motivo", () => {
+    expect(back("provedor=google&proxima=/perfil&error=access_denied")).toBe(
+      "/entrar?erro=cancelado&provedor=google&proxima=%2Fperfil",
     );
-    expect(back("origem=entrar&provedor=notion&error=server_error")).toBe("/entrar?erro=social&provedor=notion");
+    expect(back("provedor=notion&error=server_error")).toBe("/entrar?erro=social&provedor=notion");
     expect(
-      back(
-        "origem=entrar&provedor=notion&error=server_error&error_description=Error+getting+user+email+from+external+provider",
-      ),
+      back("provedor=notion&error=server_error&error_description=Error+getting+user+email+from+external+provider"),
     ).toBe("/entrar?erro=sem-email&provedor=notion");
     // A code that can't be exchanged (another browser, expired).
-    expect(back("origem=entrar&provedor=google&code=x")).toBe("/entrar?erro=social&provedor=google");
+    expect(back("provedor=google&code=x")).toBe("/entrar?erro=social&provedor=google");
   });
 
   it("link do e-mail e parâmetros desconhecidos", () => {
     expect(back("token_hash=x&type=email")).toBe("/entrar?erro=link");
-    expect(back("origem=https://evil.com&provedor=google&proxima=//evil.com&error=access_denied")).toBe(
+    expect(back("provedor=google&proxima=//evil.com&error=access_denied")).toBe(
       "/entrar?erro=cancelado&provedor=google",
     );
     expect(back("provedor=apple&error=access_denied")).toBe("/entrar?erro=link");

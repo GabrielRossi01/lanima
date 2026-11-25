@@ -81,17 +81,14 @@ base.describe("Onboarding", () => {
     await expect(page).toHaveURL(/\/entrar$/);
     await page.getByRole("link", { name: "Criar conta", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Criar conta no Lanima" })).toBeVisible();
-    const message = await requestEmail(page, email, "Criar conta com e-mail");
+    const message = await requestEmail(page, email, "Continuar");
     await page.getByLabel("Código do e-mail").fill(codeFrom(message));
-    await page.getByRole("button", { name: "Criar conta", exact: true }).click();
-
-    // Step 1: welcome.
-    await expect(page).toHaveURL(/\/boas-vindas$/);
     await expect(page.getByText("Passo 1 de 3")).toBeVisible();
-    await expect(page.getByText("Seus estudos de Biomedicina, num lugar só.")).toBeVisible();
-    await page.getByRole("button", { name: "Começar" }).click();
+    await page.getByRole("button", { name: "Continuar" }).click();
 
-    // Step 2: profile.
+    // Step 2: profile. "Criar conta" was step 1.
+    await expect(page).toHaveURL(/\/boas-vindas$/);
+    await expect(page.getByText("Passo 2 de 3")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Monte seu perfil" })).toBeVisible();
     let overflow = await page.evaluate(describeHorizontalOverflow);
     expect(overflow.overflow, `passo 2: ${overflow.overflow}px${overflow.report}`).toBeLessThanOrEqual(0);

@@ -30,55 +30,47 @@ async function fakeProvider(page: Page, answer: Record<string, string>) {
 
 test.describe("Entrar e Criar conta", () => {
   for (const { path, title } of SCREENS) {
-    test(`${path}: botões sociais, e-mail e sem rolagem horizontal`, async ({ page }) => {
+    test(`${path}: conteúdo e sem rolagem horizontal`, async ({ page }) => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Continuar com o Google" })).toBeEnabled();
-      await expect(page.getByRole("button", { name: "Continuar com o Notion" })).toBeEnabled();
-      await expect(page.getByRole("button", { name: /Apple/ })).toHaveCount(0);
       await expect(page.getByLabel("E-mail")).toBeVisible();
+      const creating = path === "/criar-conta";
+      // Google and Notion only to sign in; Criar conta is the first of the three steps.
+      for (const provider of ["Google", "Notion"]) {
+        await expect(page.getByRole("button", { name: `Continuar com o ${provider}` })).toHaveCount(creating ? 0 : 1);
+      }
+      await expect(page.getByText("Passo 1 de 3")).toHaveCount(creating ? 1 : 0);
       const { overflow, report } = await page.evaluate(describeHorizontalOverflow);
       expect(overflow, `${path}: ${overflow}px de rolagem horizontal${report}`).toBeLessThanOrEqual(0);
     });
-  }
 
-  for (const scheme of ["light", "dark"] as const) {
-    test(`as duas têm a mesma estrutura e as mesmas cores (${scheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
-      const look = async (path: string) => {
-        await page.goto(path);
-        await expect(page.getByRole("button", { name: "Continuar com o Notion" })).toBeVisible();
-        return page.evaluate(() => {
-          const pick = (el: Element | null) => {
-            if (!el) return null;
-            const s = getComputedStyle(el);
-            const box = el.getBoundingClientRect();
-            return [
-              s.backgroundColor,
-              s.color,
-              s.borderColor,
-              s.fontSize,
-              Math.round(box.width),
-              Math.round(box.height),
-            ];
-          };
-          const buttons = [...document.querySelectorAll("form button")];
-          return {
-            theme: document.documentElement.getAttribute("data-theme"),
-            body: pick(document.body)?.slice(0, 2),
-            panel: pick(document.querySelector("aside")),
-            title: pick(document.querySelector("h1"))?.slice(1, 4),
-            input: pick(document.querySelector("form input")),
-            buttons: buttons.map(pick),
-          };
-        });
-      };
-      const signIn = await look("/entrar");
-      const signUp = await look("/criar-conta");
-      expect(signIn.theme).toBe(scheme);
-      expect(signIn.buttons).toHaveLength(3);
-      expect(signUp).toEqual(signIn);
-    });
+    for (const scheme of ["light", "dark"] as const) {
+      test(`${path}: no desktop, centralizado ao lado do painel (${scheme})`, async ({ page }, info) => {
+        test.skip(info.project.name !== "galaxy-tab-landscape", "uma vez basta: o tamanho da janela é deste teste");
+        await page.emulateMedia({ colorScheme: scheme });
+        for (const [width, height] of [
+          [1280, 720],
+          [1440, 900],
+          [1920, 1080],
+        ]) {
+          await page.setViewportSize({ width, height });
+          await page.goto(path);
+          await expect(page.getByLabel("E-mail")).toBeVisible();
+          const { main, form, theme } = await page.evaluate(() => {
+            const box = (selector: string) => {
+              const b = document.querySelector(selector)!.getBoundingClientRect();
+              return { center: b.left + b.width / 2, width: b.width, left: b.left };
+            };
+            return { main: box("main"), form: box("main form"), theme: document.documentElement.dataset.theme };
+          });
+          expect(theme).toBe(scheme);
+          expect(Math.abs(form.center - main.center), `${width}px`).toBeLessThanOrEqual(1);
+          // Comfortable to read: neither a thin strip nor across the whole screen.
+          expect(form.width).toBeGreaterThanOrEqual(400);
+          expect(form.width).toBeLessThanOrEqual(576);
+        }
+      });
+    }
   }
 
   test("e-mail sem conta em Entrar cria a conta na hora", async ({ page }) => {
@@ -93,15 +85,29 @@ test.describe("Entrar e Criar conta", () => {
     await expect(page).toHaveURL(/\/boas-vindas$/);
   });
 
-  test("Criar conta com um e-mail que já tem conta entra nela", async ({ page }) => {
+  test("conta nova por Entrar passa pelo passo 1", async ({ page }) => {
+    const email = uniqueEmail("entrar");
+    await page.goto("/entrar");
+    await page.getByLabel("E-mail").fill(email);
+    const sentAfter = Date.now() - 1000;
+    await page.getByRole("button", { name: "Receber link e código" }).click();
+    await page.getByLabel("Código do e-mail").fill(codeFrom(await latestEmailTo(email, sentAfter)));
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page.getByText("Passo 1 de 3")).toBeVisible();
+    await page.getByRole("button", { name: "Começar" }).click();
+    await expect(page.getByText("Passo 2 de 3")).toBeVisible();
+  });
+
+  test("Criar conta com um e-mail que já tem conta entra nela e avisa", async ({ page }) => {
     const account = await createAccount({ prefix: "existe", name: "Bia" });
     await page.goto("/criar-conta");
     await page.getByLabel("E-mail").fill(account.email);
     const sentAfter = Date.now() - 1000;
-    await page.getByRole("button", { name: "Criar conta com e-mail" }).click();
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await page.getByLabel("Código do e-mail").fill(codeFrom(await latestEmailTo(account.email, sentAfter)));
-    await page.getByRole("button", { name: "Criar conta", exact: true }).click();
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(page).toHaveURL(/\/inicio$/);
+    await expect(page.getByText("Você já tinha uma conta")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(", Bia");
   });
 
@@ -123,11 +129,9 @@ test.describe("Google e Notion", () => {
   ] as const) {
     test(`${label}: pede ao provedor certo e, cancelado, volta com o aviso`, async ({ page }) => {
       const requests = await fakeProvider(page, { error: "access_denied", error_description: "cancelado" });
-      await page.goto("/criar-conta?proxima=%2Fmaterias");
+      await page.goto("/entrar?proxima=%2Fmaterias");
       await page.getByRole("button", { name: `Continuar com o ${label}` }).click();
-      await expect(page).toHaveURL(
-        new RegExp(`/criar-conta\\?erro=cancelado&provedor=${provider}&proxima=%2Fmaterias$`),
-      );
+      await expect(page).toHaveURL(new RegExp(`/entrar\\?erro=cancelado&provedor=${provider}&proxima=%2Fmaterias$`));
       await expect(page.getByText(`A entrada com o ${label} foi cancelada.`)).toBeVisible();
       await expect(page.getByRole("button", { name: `Continuar com o ${label}` })).toBeEnabled();
 
