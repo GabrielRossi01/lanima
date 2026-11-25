@@ -52,6 +52,8 @@ function useRingCenter(root: RefObject<HTMLElement | null>) {
     const observer = new ResizeObserver(place);
     observer.observe(screen);
     observer.observe(ring);
+    // The ring can move without resizing: the label at the top takes room from this area.
+    if (ring.parentElement) observer.observe(ring.parentElement);
     return () => observer.disconnect();
   }, [root]);
 }

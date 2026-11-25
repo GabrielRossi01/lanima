@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 3 (matérias, metas e Início).** Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 4 em andamento (modo foco: cronômetro, temas e sons prontos; registro das sessões a seguir).** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -237,6 +237,17 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Reordenar** escreve só a posição do tópico movido (ponto médio entre os vizinhos).
 - **Offline:** matérias e metas são "online-first" (seção 6). A última cópia fica no aparelho (TanStack Query persistido), então as telas abrem sem internet com o aviso "Offline · mostrando dados salvos no aparelho". Alterações offline são recusadas com aviso; a fila de sincronização chega na fase 4, com o modo foco.
 - **Sair vale só para este aparelho** (`scope: "local"`): os outros continuam logados, e funciona sem internet (a sessão é removida antes do pedido ao servidor). Nada roda depois da resposta, que pode atrasar: quem leva para `/entrar` é só o AuthGate, uma vez. A cópia das listas é apagada na hora; também quando a sessão termina sozinha ou outra conta entra no aparelho (`lib/query/device-cache.ts`). As fotos de perfil já abertas continuam no cache do service worker por até 7 dias.
+
+## Decisões técnicas da Fase 4 (modo foco: cronômetro e temas)
+
+- **Cronômetro por horários** (`lib/focus/timer.ts`): o tempo sai de `startedAt` e `pausedDuration`, nunca de contar segundos. Fica no Dexie (`lib/db/local.ts`) por conta, vale entre abas e é apagado ao sair. Só `timer-dial.tsx` se redesenha a cada segundo.
+- **O tema é só a pele:** `features/focus/themes/registry.ts` liga cada som às cores e à camada decorativa. As cores dos temas existem só ali, como variáveis CSS. Um teste confere 4,5:1 dos textos em todos os fundos, inclusive com cabeçalho e rodapé em repouso (Deep Focus) e com uma janela acesa por trás (Lo-fi).
+- **Partículas com seed** (`lib/focus/particles.ts`): a metade, em aparelho fraco, é um recorte da lista inteira. Aparelho fraco: 4 núcleos ou menos, ou menos de 50 fps nos 3 primeiros segundos visíveis. Nos aparelhos Apple, só o FPS decide, porque o Safari limita os núcleos informados. `/foco?fps=1` mostra o FPS.
+- **"Reduzir movimento" é do aparelho:** a animação começa desligada e não muda a escolha da conta; ligada à mão, a camada aparece parada.
+- **Áudio:** Web Audio faz o loop sem intervalo entre `loopStart` e `loopEnd`; cada arquivo traz meio segundo de si mesmo antes e depois, para o atraso do codificador não aparecer. O som toca enquanto a sessão corre. A tela de bloqueio precisa de um elemento de mídia tocando, então um `<audio>` toca silêncio gerado na hora (`silent-track.ts`). Os arquivos só entram no cache depois de tocar (`app/sw.ts`); créditos em `public/sounds/CREDITS.md`.
+- **Só `.m4a`:** todos os navegadores-alvo tocam AAC. Falta o `.ogg` alternativo, por não haver codificador Vorbis na máquina. Os testes usam um tom em WAV, porque o Chromium do Playwright não decodifica AAC.
+- **Tailwind só no `globals.css`:** a regra do Turbopack que valia para todo `*.css` transformava CSS Modules em CSS comum.
+- **Ainda nesta fase:** Wake Lock, som e vibração no fim, `focus_sessions` com sincronização, e os números reais do rodapé e do Início.
 
 ### Por que o cacheComponents está desligado
 

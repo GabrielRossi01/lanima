@@ -167,6 +167,11 @@ test.describe("Camada decorativa", () => {
       await expect(layerOf(page)).toBeAttached();
       const animations = () => layerOf(page).evaluate((el) => el.getAnimations({ subtree: true }).length);
       expect(await animations()).toBe(0);
+      // Not just shortened by the global rule (globals.css): no keyframe is assigned at all.
+      const names = await layerOf(page).evaluate((el) => [
+        ...new Set([...el.querySelectorAll("*")].map((node) => getComputedStyle(node).animationName)),
+      ]);
+      expect(names).toEqual(["none"]);
       // And it is reduced motion that stops them, not a broken layer.
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await expect.poll(animations).toBeGreaterThan(5);
