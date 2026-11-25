@@ -20,7 +20,9 @@ import { withSerwist } from "@serwist/turbopack";
 const nextConfig: NextConfig = {
   turbopack: {
     rules: {
-      "*.css": {
+      // Only the file that uses Tailwind: matching every "*.css" turned CSS Modules into plain CSS
+      // (empty class names).
+      "globals.css": {
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },

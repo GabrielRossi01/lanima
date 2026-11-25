@@ -1,5 +1,6 @@
 import type { ComponentType, CSSProperties } from "react";
 import { SOUND_IDS, type SoundId } from "@/lib/focus/prefs";
+import { RainLayer } from "./rain-layer";
 
 export interface LayerProps {
   /** Weak device: half of the particles. */
@@ -50,7 +51,7 @@ export const FOCUS_THEMES: Record<SoundId, FocusTheme> = {
       "--focus-chip-bg": "rgba(179, 216, 242, 0.18)",
       "--focus-muted": "rgba(255, 255, 255, 0.8)",
     },
-    Layer: null,
+    Layer: RainLayer,
   },
   lofi: {
     id: "lofi",

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PREFS, prefsFromProfile, prefsToColumns, samePrefs, SOUND_IDS } from "@/lib/focus/prefs";
+import { countFor, COUNTS, rainDrops, ripples, seededRandom, windowDrops } from "@/lib/focus/particles";
+import { averageFps, isApple, isTooSlow, startsReduced } from "@/lib/focus/quality";
 import {
   advance,
   choosePreset,
@@ -105,6 +107,55 @@ describe("preferências do foco", () => {
   it("perfil antigo ou valor desconhecido usa o padrão", () => {
     expect(prefsFromProfile({})).toEqual(DEFAULT_PREFS);
     expect(prefsFromProfile({ focus_sound: "marrom", focus_volume: 300 })).toEqual(DEFAULT_PREFS);
+  });
+});
+
+describe("partículas", () => {
+  const generators = [
+    ["gotas", rainDrops, COUNTS.drops],
+    ["gotas na janela", windowDrops, COUNTS.windowDrops],
+    ["ondas", ripples, COUNTS.ripples],
+  ] as const;
+
+  it.each(generators)("%s: mesma seed, mesma saída; seed diferente, outra", (_name, make) => {
+    expect(make(false)).toEqual(make(false));
+    expect(make(false, 99)).toEqual(make(false, 99));
+    expect(make(false, 99)).not.toEqual(make(false, 100));
+  });
+
+  it.each(generators)("%s: metade no aparelho fraco, nos mesmos lugares", (_name, make, count) => {
+    expect(make(false)).toHaveLength(count);
+    expect(make(true)).toHaveLength(Math.ceil(count / 2));
+    expect(make(true)).toEqual(make(false).slice(0, Math.ceil(count / 2)));
+  });
+
+  it("começa já em andamento e respeita as medidas do mockup", () => {
+    for (const d of rainDrops(false)) {
+      expect(d.delay).toBeLessThanOrEqual(0);
+      expect(d.duration).toBeGreaterThanOrEqual(0.55);
+      expect(d.duration).toBeLessThanOrEqual(1.05);
+      expect(d.height).toBeGreaterThanOrEqual(50);
+      expect(d.height).toBeLessThanOrEqual(120);
+    }
+    expect(countFor(7, true)).toBe(4);
+    const random = seededRandom(5);
+    for (let i = 0; i < 1000; i++) {
+      const v = random();
+      expect(v >= 0 && v < 1).toBe(true);
+    }
+  });
+
+  it("metade: 4 núcleos ou menos, ou menos de 50 fps em 3 s; núcleos não valem na Apple", () => {
+    expect(startsReduced({ cores: 4, apple: false })).toBe(true);
+    expect(startsReduced({ cores: 8, apple: false })).toBe(false);
+    expect(startsReduced({ cores: undefined, apple: false })).toBe(false);
+    expect(startsReduced({ cores: 2, apple: true })).toBe(false);
+    expect(isApple("Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)")).toBe(true);
+    expect(isApple("Mozilla/5.0 (Linux; Android 14; SM-X710)")).toBe(false);
+    expect(averageFps(180, 3000)).toBe(60);
+    expect(isTooSlow(180, 3000)).toBe(false);
+    expect(isTooSlow(149, 3000)).toBe(true);
+    expect(isTooSlow(10, 1000)).toBe(false);
   });
 });
 

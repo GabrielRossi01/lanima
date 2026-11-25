@@ -111,7 +111,8 @@ export function FocusScreen() {
   }, [userId, load]);
 
   // "Estudar com foco" on a subject's page. Never under a session that already started.
-  const subjectParam = useSearchParams().get("materia");
+  const params = useSearchParams();
+  const subjectParam = params.get("materia");
   useEffect(() => {
     if (!ready || !subjectParam) return;
     useTimerStore
@@ -132,7 +133,7 @@ export function FocusScreen() {
       style={themeStyle(theme)}
       className="relative flex min-h-dvh flex-col overflow-hidden bg-night-950 text-white [--ring:clamp(200px,min(78vw,100dvh-430px),380px)]"
     >
-      <ThemeBackdrop sound={prefs.sound} animation={animation} />
+      <ThemeBackdrop sound={prefs.sound} animation={animation} showFps={params.get("fps") === "1"} />
 
       <header
         onPointerDown={wake}

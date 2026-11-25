@@ -1,0 +1,118 @@
+/*
+ * Decorative layers of the focus mode. Only `transform` and `opacity` are animated; `will-change`
+ * only on the few large elements. Sizes in cqh/cqw refer to the layer (container-type: size).
+ */
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+/* Tab hidden: nothing moves. */
+.layer[data-paused] * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer * {
+    animation: none !important;
+  }
+}
+
+/* --- Chuva ----------------------------------------------------------------------------------- */
+
+.fog {
+  position: absolute;
+  top: 35%;
+  left: -10%;
+  width: 120%;
+  height: 50%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(159, 179, 192, 0.16) 0%, transparent 65%);
+  animation: focus-rain-fog 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.drop {
+  position: absolute;
+  top: -140px;
+  width: 1.5px;
+  border-radius: 2px;
+  background: linear-gradient(rgba(194, 207, 216, 0), rgb(194, 207, 216));
+  animation: focus-rain-fall linear infinite;
+}
+
+.windowDrop {
+  position: absolute;
+  border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(255, 255, 255, 0.35),
+    rgba(159, 179, 192, 0.08) 60%,
+    transparent 70%
+  );
+  animation: focus-rain-slide ease-in infinite;
+  will-change: transform;
+}
+
+.ripple {
+  position: absolute;
+  width: 70px;
+  height: 14px;
+  border: 1px solid rgba(194, 207, 216, 0.35);
+  border-radius: 50%;
+  animation: focus-rain-ripple ease-out infinite;
+}
+
+.rainShade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(transparent, rgba(13, 18, 22, 0.6));
+}
+
+@keyframes focus-rain-fog {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: translateX(60px);
+  }
+}
+
+@keyframes focus-rain-fall {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(100cqh + 160px));
+  }
+}
+
+@keyframes focus-rain-slide {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(260px);
+    opacity: 0;
+  }
+}
+
+@keyframes focus-rain-ripple {
+  from {
+    transform: scale(0.2);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}

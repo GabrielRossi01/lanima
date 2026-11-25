@@ -111,6 +111,123 @@ test.describe("Modo foco", () => {
   });
 });
 
+/** Themes that have a decorative layer so far, with how many particles of each kind. */
+const LAYERS = [["Chuva", "chuva", { drop: 110, "window-drop": 14, ripple: 10 }]] as const;
+
+test.describe("Camada decorativa", () => {
+  for (const [name, id, particles] of LAYERS) {
+    const layerOf = (page: Page) => page.locator(`[data-focus-layer="${id}"]`);
+    const running = (page: Page) =>
+      layerOf(page).evaluate(
+        (el) => el.getAnimations({ subtree: true }).filter((a) => a.playState === "running").length,
+      );
+
+    test(`${name}: tem a camada, animada, atrás do conteúdo e fora da leitura`, async ({ page, account }) => {
+      void account;
+      await openFocus(page);
+      await sound(page, name).click();
+      const layer = layerOf(page);
+      await expect(layer).toBeAttached();
+      expect(await running(page)).toBeGreaterThan(5);
+      const half = (await layer.getAttribute("data-particles")) === "half";
+      for (const [kind, count] of Object.entries(particles)) {
+        await expect(layer.locator(`[data-particle="${kind}"]`)).toHaveCount(half ? Math.ceil(count / 2) : count);
+      }
+      expect(
+        await layer.evaluate((el) => ({
+          hidden: el.closest("[aria-hidden]") !== null,
+          pointer: getComputedStyle(el).pointerEvents,
+        })),
+      ).toMatchObject({ hidden: true, pointer: "none" });
+      const properties = await layer.evaluate((el) =>
+        el
+          .getAnimations({ subtree: true })
+          .flatMap((a) => (a.effect as KeyframeEffect).getKeyframes())
+          .flatMap((k) => Object.keys(k))
+          .filter((p) => !["offset", "computedOffset", "easing", "composite"].includes(p)),
+      );
+      expect([...new Set(properties)].filter((p) => p !== "transform" && p !== "opacity")).toEqual([]);
+    });
+
+    test(`${name}: com "reduzir movimento", nada anima`, async ({ page, account }) => {
+      void account;
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await openFocus(page);
+      await sound(page, name).click();
+      const toggle = page.getByRole("switch", { name: "Animação do fundo" });
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      await expect(layerOf(page)).toHaveCount(0);
+      await expect(page.locator(`[data-focus-backdrop="${id}"]`)).toBeVisible();
+      // Turned on by hand: the layer shows, still.
+      await toggle.click();
+      await expect(layerOf(page)).toBeAttached();
+      const animations = () => layerOf(page).evaluate((el) => el.getAnimations({ subtree: true }).length);
+      expect(await animations()).toBe(0);
+      // And it is reduced motion that stops them, not a broken layer.
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await expect.poll(animations).toBeGreaterThan(5);
+    });
+
+    test(`${name}: o interruptor esconde a camada e persiste`, async ({ page, account }) => {
+      await openFocus(page);
+      await sound(page, name).click();
+      await expect(layerOf(page)).toBeAttached();
+      await page.getByRole("switch", { name: "Animação do fundo" }).click();
+      await expect(layerOf(page)).toHaveCount(0);
+      await expect.poll(async () => (await savedSound(account))?.focus_animation).toBe(false);
+      await openFocus(page);
+      await expect(page.locator(`[data-focus-theme="${id}"]`)).toBeVisible();
+      await expect(layerOf(page)).toHaveCount(0);
+    });
+
+    test(`${name}: com a aba oculta, pausa; ao voltar, continua`, async ({ page, account }) => {
+      void account;
+      await openFocus(page);
+      await sound(page, name).click();
+      await expect.poll(() => running(page)).toBeGreaterThan(5);
+      const setHidden = (hidden: boolean) =>
+        page.evaluate((value) => {
+          Object.defineProperty(document, "hidden", { configurable: true, get: () => value });
+          document.dispatchEvent(new Event("visibilitychange"));
+        }, hidden);
+      await setHidden(true);
+      await expect.poll(() => running(page)).toBe(0);
+      await setHidden(false);
+      await expect.poll(() => running(page)).toBeGreaterThan(5);
+    });
+  }
+
+  test("o Silêncio não tem camada", async ({ page, account }) => {
+    void account;
+    await openFocus(page);
+    await sound(page, "Chuva").click();
+    await expect(page.locator("[data-focus-layer]")).toHaveCount(1);
+    await sound(page, "Silêncio").click();
+    await expect(page.locator("[data-focus-layer]")).toHaveCount(0);
+  });
+
+  test("o relógio não redesenha a camada", async ({ page, account }) => {
+    void account;
+    await openFocus(page);
+    await sound(page, "Chuva").click();
+    await expect(page.locator("[data-focus-backdrop]")).toHaveCount(1);
+    // Past the 3 s measure, which may halve the particles once.
+    await page.waitForTimeout(4500);
+    await page.evaluate(() => {
+      const w = window as unknown as { __mutations: number };
+      w.__mutations = 0;
+      new MutationObserver((list) => (w.__mutations += list.length)).observe(
+        document.querySelector("[data-focus-layer]")!,
+        { subtree: true, childList: true, attributes: true },
+      );
+    });
+    await page.getByRole("button", { name: "Iniciar", exact: true }).click();
+    await page.waitForTimeout(3000);
+    expect(await shown(page)).toBeLessThan(25 * 60 - 1);
+    expect(await page.evaluate(() => (window as unknown as { __mutations: number }).__mutations)).toBe(0);
+  });
+});
+
 test.describe("Sons e temas", () => {
   test("trocar de som com o timer rodando não mexe no tempo", async ({ page, account }) => {
     void account;
