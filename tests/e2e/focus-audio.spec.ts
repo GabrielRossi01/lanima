@@ -127,11 +127,42 @@ test.describe("Som do modo foco", () => {
   });
 });
 
+/** State of the service worker, for a failure that says why ("ready" alone just never resolves). */
+function workerState(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const look = async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) return "sem registro";
+      const { active, waiting, installing } = registration;
+      return active?.state ?? waiting?.state ?? installing?.state ?? "registro vazio";
+    };
+    const silent = new Promise<string>((resolve) => setTimeout(() => resolve("sem resposta do navegador"), 3000));
+    return Promise.race([look(), silent]);
+  });
+}
+
+async function waitForWorker(page: Page, notes: string[]) {
+  try {
+    await expect.poll(() => workerState(page), { timeout: 20_000 }).toBe("activated");
+  } catch (cause) {
+    const seen = notes.length > 0 ? notes.join(" | ") : "nenhum erro visto";
+    throw new Error(`service worker: ${await workerState(page)} · ${seen}`, { cause });
+  }
+}
+
 test.describe("Sons no aparelho", () => {
   test("só baixa o som usado, e ele fica guardado", async ({ page, account }) => {
     void account;
+    const notes: string[] = [];
+    page.on("pageerror", (error) => notes.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") notes.push(message.text());
+    });
+    page.context().on("requestfailed", (request) => {
+      notes.push(`${new URL(request.url()).pathname}: ${request.failure()?.errorText}`);
+    });
     await openFocus(page);
-    await page.evaluate(() => navigator.serviceWorker.ready);
+    await waitForWorker(page, notes);
     // Controlled by the worker from the first load on (clientsClaim), or after a reload.
     await page.reload();
     await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
