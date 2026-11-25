@@ -25,7 +25,8 @@ function sound(name: string, loopSeconds: number): FocusSound {
 
 /** Where the files come from, and their licenses: public/sounds/CREDITS.md and SOUND_CREDITS. */
 export const FOCUS_SOUNDS: Record<SoundId, FocusSound | null> = {
-  chuva: sound("chuva", 100),
+  // A new file name on purpose: the one before stays in the cache of who already played it.
+  chuva: sound("chuva-2", 80),
   lofi: sound("lofi", 66.461542),
   deep: sound("deep", 90),
   silencio: null,
@@ -42,9 +43,9 @@ export interface SoundCredit {
 export const SOUND_CREDITS: readonly SoundCredit[] = [
   {
     sound: "chuva",
-    title: "Rain pattering loop",
-    author: "HenKonen",
-    url: "https://freesound.org/people/HenKonen/sounds/797667/",
+    title: "Medium Rain",
+    author: "HECKFRICKER",
+    url: "https://freesound.org/people/HECKFRICKER/sounds/656541/",
     license: "CC0 1.0",
   },
   {

@@ -78,7 +78,7 @@ test.describe("Som do modo foco", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(label).toBeVisible();
     await sound(page, "Chuva").click();
-    await expect.poll(() => asked).toEqual(["/sounds/lofi.m4a", "/sounds/chuva.m4a"]);
+    await expect.poll(() => asked).toEqual(["/sounds/lofi.m4a", "/sounds/chuva-2.m4a"]);
     await sound(page, "Silêncio").click();
     await page.waitForTimeout(300);
     expect(asked).toHaveLength(2);
@@ -215,13 +215,13 @@ test.describe("Sons no aparelho", () => {
     expect(await cached()).toEqual([]);
     await sound(page, "Chuva").click();
     await start(page).click();
-    await expect.poll(cached).toEqual(["focus-sounds /sounds/chuva.m4a"]);
+    await expect.poll(cached).toEqual(["focus-sounds /sounds/chuva-2.m4a"]);
   });
 
   test("créditos na tela Sobre", async ({ page, account }) => {
     void account;
     await page.goto("/sobre");
-    for (const text of ["Chuva: Rain pattering loop", "Lo-fi: Lofi music 001", "Deep Focus: Brown noise 15-00"]) {
+    for (const text of ["Chuva: Medium Rain", "Lo-fi: Lofi music 001", "Deep Focus: Brown noise 15-00"]) {
       await expect(page.getByText(text)).toBeVisible();
     }
     await expect(page.getByRole("link", { name: "página original" })).toHaveCount(3);
