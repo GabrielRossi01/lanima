@@ -256,6 +256,7 @@ export async function generateQuestions(input: {
         topics: topics.map((t) => t.title),
         // The last ones she has are enough to steer the model away; all of them are checked below.
         avoid: avoid.slice(-40),
+        known: avoid.length,
         chunks: renderChunks(context, sent),
       }),
       schema: AI_QUESTIONS_JSON,

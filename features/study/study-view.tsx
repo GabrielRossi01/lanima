@@ -17,6 +17,9 @@ import type { Subject } from "@/lib/subjects/subjects";
 import { AI_DISCLAIMER, plural, shortDay } from "@/lib/study/format";
 import { NewSummarySheet } from "./new-summary-sheet";
 import { useAiRemaining, useSummaries, type Summary } from "./queries";
+import { useTests, type SavedTest } from "./test-queries";
+import { DifficultyBadge } from "@/components/ui/difficulty-badge";
+import { DIFFICULTIES } from "@/lib/ai/schemas";
 
 const ALL = "todas";
 
@@ -58,6 +61,27 @@ function SummaryRow({ summary, subject, today }: { summary: Summary; subject: Su
   );
 }
 
+/** A saved test: name, subject, its levels and size. Score and "Refazer" come with taking tests. */
+function TestRow({ test, subject, today }: { test: SavedTest; subject: Subject | undefined; today: string }) {
+  const counts = test.config.counts;
+  return (
+    <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-surface p-4">
+      <span className="text-[15px] font-semibold wrap-break-word">{test.title}</span>
+      <span className="flex flex-wrap items-center gap-1.5">
+        {subject && (
+          <SubjectChip color={subject.color} size="s">
+            {subject.name}
+          </SubjectChip>
+        )}
+        {counts && DIFFICULTIES.filter((d) => (counts[d] ?? 0) > 0).map((d) => <DifficultyBadge key={d} level={d} />)}
+      </span>
+      <span className="text-xs text-fg-2">
+        {plural(test.question_ids.length, "questão", "questões")} · {shortDay(test.created_at, today)}
+      </span>
+    </div>
+  );
+}
+
 function Column({ title, action, children }: { title: string; action: ReactNode; children: ReactNode }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-3" aria-label={title}>
@@ -80,7 +104,13 @@ export function StudyView() {
   const today = todayIn(new Date());
   const bySubject = new Map(subjects.map((s) => [s.id, s]));
   const list = (summaries.data ?? []).filter((s) => subject === ALL || s.subject_id === subject);
-  const used = subjects.filter((s) => (summaries.data ?? []).some((x) => x.subject_id === s.id));
+  const tests = useTests();
+  const testList = (tests.data ?? []).filter((t) => subject === ALL || t.subject_id === subject);
+  const used = subjects.filter(
+    (s) =>
+      (summaries.data ?? []).some((x) => x.subject_id === s.id) ||
+      (tests.data ?? []).some((x) => x.subject_id === s.id),
+  );
   const newTestHref = subject === ALL ? "/estudo/novo-teste" : `/estudo/novo-teste?materia=${subject}`;
 
   return (
@@ -161,11 +191,17 @@ export function StudyView() {
             </Link>
           }
         >
-          <EmptyState
-            icon={ListChecks}
-            title="Nenhum teste ainda"
-            description="Crie um teste com os níveis e os tipos de questão que quiser, a partir de arquivos ou resumos."
-          />
+          {tests.data && testList.length === 0 ? (
+            <EmptyState
+              icon={ListChecks}
+              title="Nenhum teste ainda"
+              description="Crie um teste com os níveis e os tipos de questão que quiser, a partir de arquivos ou resumos."
+            />
+          ) : (
+            testList.map((t) => (
+              <TestRow key={t.id} test={t} subject={bySubject.get(t.subject_id ?? "")} today={today} />
+            ))
+          )}
         </Column>
       </div>
       <AiDisclaimer className="mt-6" />

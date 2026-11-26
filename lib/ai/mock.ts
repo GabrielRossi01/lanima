@@ -85,7 +85,8 @@ function questions(chunks: MockChunk[], pedido: Record<string, unknown>) {
   const topics = (pedido.topicos as string[] | undefined) ?? [];
   const facts = chunks.flatMap((chunk) => sentences(chunk.text).map((s) => ({ chunk, s })));
   const out: Record<string, unknown>[] = [];
-  let n = 0;
+  // Numbered after the ones she has: a second request writes new questions, as a model would.
+  let n = Number(pedido.jaTem ?? 0);
   for (const level of DIFFICULTIES) {
     for (let i = 0; i < (counts[level] ?? 0); i++, n++) {
       const fact = facts[n % facts.length];

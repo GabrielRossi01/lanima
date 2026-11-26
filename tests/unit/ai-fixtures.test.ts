@@ -150,7 +150,8 @@ describe("Questões dos PDFs de exemplo", () => {
       providers: providers(),
       log: newLog(providers()),
     });
-    expect(again.drafts).toEqual([]);
-    expect(again.rejected.duplicada).toBe(3);
+    // Told what she has, it writes others; anything equal would be dropped (tests/unit/ai.test.ts).
+    expect(again.drafts).toHaveLength(3);
+    for (const q of again.drafts) expect(first.drafts.map((f) => f.statement)).not.toContain(q.statement);
   });
 });

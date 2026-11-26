@@ -76,7 +76,7 @@ export function SourcePicker({
               <span
                 aria-hidden
                 className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-md bg-surface-alt text-accent max-sm:hidden",
+                  "flex size-10 shrink-0 items-center justify-center rounded-md bg-surface-alt text-accent max-md:hidden",
                   !usable && "opacity-55",
                 )}
               >

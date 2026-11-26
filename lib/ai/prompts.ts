@@ -80,10 +80,18 @@ export function questionsUser(input: {
   types: readonly QuestionType[];
   topics: readonly string[];
   avoid: readonly string[];
+  /** How many questions she already has (all of them; `avoid` lists only the last ones). */
+  known?: number;
   chunks: string;
 }): string {
   const levels = (Object.keys(input.counts) as Difficulty[]).filter((d) => (input.counts[d] ?? 0) > 0);
-  const pedido = { tipo: "questoes", quantidades: input.counts, tipos: input.types, topicos: input.topics };
+  const pedido = {
+    tipo: "questoes",
+    quantidades: input.counts,
+    tipos: input.types,
+    topicos: input.topics,
+    jaTem: input.known ?? input.avoid.length,
+  };
   return `PEDIDO: ${JSON.stringify(pedido)}
 Escreva exatamente ${levels.map((d) => `${input.counts[d]} de nível ${d}`).join(", ")}.
 ${levels.map((d) => `- ${LEVELS[d]}`).join("\n")}

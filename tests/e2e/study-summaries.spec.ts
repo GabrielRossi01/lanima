@@ -1,14 +1,9 @@
 import type { Page } from "@playwright/test";
 import { adminClient, liftAppAiCap, seedAiUsage, seedReading, seedSubject, type TestAccount } from "./helpers/accounts";
 import { expect, test } from "./helpers/fixtures";
+import { PAGES, seedSummary } from "./helpers/study";
 
 // Summaries in topics (section 7.5), with the simulated AI provider (playwright.config.ts).
-
-const PAGES = [
-  "Sistema esquelético\nO esqueleto humano adulto tem 206 ossos. O esqueleto axial reúne 80 ossos.",
-  "Tecido ósseo\nOs osteoblastos produzem a matriz óssea. Os osteoclastos reabsorvem o osso.",
-  "Ossificação\nA ossificação endocondral substitui a cartilagem hialina por osso.",
-];
 
 test.beforeAll(liftAppAiCap);
 
@@ -214,52 +209,8 @@ test.describe("Resumos", () => {
  * database: the edit tests check editing, and stay clear of the generation request (covered above).
  */
 async function openNewSummary(page: Page, account: TestAccount, fileName: string) {
-  const { documentId } = await seedReading(account, { name: `${fileName}.pdf`, pages: PAGES });
-  const fonte = (pagina: number) => ({ documentId, pagina });
-  const content = {
-    titulo: "Sistema esquelético",
-    topicos: [
-      {
-        id: "t0",
-        titulo: "Sistema esquelético",
-        pontos: [
-          { id: "p0", texto: "O esqueleto humano adulto tem 206 ossos.", fonte: fonte(1) },
-          { id: "p1", texto: "O esqueleto axial reúne 80 ossos.", fonte: fonte(1) },
-        ],
-      },
-      {
-        id: "t1",
-        titulo: "Tecido ósseo",
-        pontos: [
-          { id: "p2", texto: "Os osteoblastos produzem a matriz óssea.", fonte: fonte(2) },
-          { id: "p3", texto: "Os osteoclastos reabsorvem o osso.", fonte: fonte(2) },
-        ],
-      },
-      {
-        id: "t2",
-        titulo: "Ossificação",
-        pontos: [
-          { id: "p4", texto: "A ossificação endocondral substitui a cartilagem hialina por osso.", fonte: fonte(3) },
-        ],
-      },
-    ],
-    termosChave: [{ termo: "Sistema esquelético", definicao: "O esqueleto humano adulto tem 206 ossos." }],
-    pontosDeAtencao: [],
-  };
-  const { data, error } = await adminClient()
-    .from("summaries")
-    .insert({
-      user_id: account.id,
-      title: content.titulo,
-      document_ids: [documentId],
-      content,
-      detail: "completo",
-      provider: "mock",
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  await page.goto(`/estudo/resumo/${data.id}`);
+  const { summaryId } = await seedSummary(account, { fileName });
+  await page.goto(`/estudo/resumo/${summaryId}`);
   await expect(page.getByRole("heading", { level: 1, name: "Sistema esquelético" })).toBeVisible();
 }
 

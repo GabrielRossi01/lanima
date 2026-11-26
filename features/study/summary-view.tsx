@@ -657,7 +657,7 @@ export function SummaryView({ id }: { id: string }) {
                       )}
                     </div>
                     {isOpen && (
-                      <div className="flex flex-col gap-3 px-[18px] pb-3.5 sm:pl-[58px]">
+                      <div className="flex flex-col gap-3 px-[18px] pb-3.5 md:pl-[58px]">
                         <PointList points={topic.pontos} topic={t} sub={null} render={renderPoint} onMove={onMove} />
                         {(topic.subtopicos ?? []).map((s, si) => (
                           <div key={s.id} className="flex flex-col gap-2">
