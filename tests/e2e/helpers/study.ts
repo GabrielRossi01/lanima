@@ -88,6 +88,101 @@ export async function seedBankQuestion(
   if (error) throw error;
 }
 
+/**
+ * A saved test with one question of each kind, in this order: multiple choice (206), true/false
+ * (true), matching, clinical case (first option) and short answer. Options are not shuffled.
+ */
+export async function seedTest(
+  account: TestAccount,
+  input: { subjectId: string; mode?: "treino" | "prova"; timeLimitMin?: number | null; title?: string },
+): Promise<{ testId: string; questionIds: string[] }> {
+  const admin = adminClient();
+  const base = {
+    user_id: account.id,
+    subject_id: input.subjectId,
+    status: "aprovada",
+    origin: "manual",
+    explanation: "",
+  };
+  const rows = [
+    {
+      ...base,
+      topic: "Ossos",
+      difficulty: "facil",
+      type: "multipla_escolha",
+      statement: "Quantos ossos tem o esqueleto adulto?",
+      options: ["196", "206", "216", "226"],
+      answer: { index: 1 },
+      explanation: "O esqueleto adulto tem 206 ossos.",
+    },
+    {
+      ...base,
+      topic: "Ossos",
+      difficulty: "facil",
+      type: "verdadeiro_falso",
+      statement: "O fêmur é o maior osso do corpo humano.",
+      options: null,
+      answer: { value: true },
+    },
+    {
+      ...base,
+      topic: "Células",
+      difficulty: "medio",
+      type: "associacao",
+      statement: "Associe cada célula à sua função.",
+      options: {
+        left: ["Osteoblasto", "Osteoclasto", "Osteócito"],
+        right: ["Reabsorve osso", "Mantém a matriz", "Forma matriz"],
+      },
+      answer: { match: [2, 0, 1] },
+    },
+    {
+      ...base,
+      topic: "Células",
+      difficulty: "dificil",
+      type: "caso_clinico",
+      statement: "Paciente de 68 anos com fraturas após quedas leves. Qual desequilíbrio explica o quadro?",
+      options: [
+        "Reabsorção maior que a formação",
+        "Formação maior que a reabsorção",
+        "Falta de hematopoese",
+        "Excesso de cálcio",
+      ],
+      answer: { index: 0 },
+    },
+    {
+      ...base,
+      topic: "Ossos",
+      difficulty: "dificil",
+      type: "resposta_curta",
+      statement: "O que é a diáfise?",
+      options: null,
+      answer: { text: "O corpo do osso longo." },
+    },
+  ];
+  const { data: questions, error } = await admin.from("questions").insert(rows).select("id, statement");
+  if (error) throw error;
+  const questionIds = rows.map((r) => questions.find((q) => q.statement === r.statement)!.id);
+  const { data: test, error: testError } = await admin
+    .from("tests")
+    .insert({
+      user_id: account.id,
+      subject_id: input.subjectId,
+      title: input.title ?? "Ossos · revisão",
+      config: {
+        counts: { facil: 2, medio: 1, dificil: 2 },
+        mode: input.mode ?? "treino",
+        timeLimitMin: input.timeLimitMin ?? null,
+        shuffle: false,
+      },
+      question_ids: questionIds,
+    })
+    .select("id")
+    .single();
+  if (testError) throw testError;
+  return { testId: test.id, questionIds };
+}
+
 export async function acceptAiNotice(account: TestAccount) {
   const { error } = await adminClient()
     .from("profiles")

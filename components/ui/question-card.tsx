@@ -23,6 +23,8 @@ interface QuestionCardProps {
   /** Feedback block (explanation + SourceTag), shown under the options. */
   feedback?: ReactNode;
   footer?: ReactNode;
+  /** In place of the alternatives (matching, short answer): the same card around another answer. */
+  body?: ReactNode;
   className?: string;
 }
 
@@ -39,6 +41,7 @@ export function QuestionCard({
   correctId,
   feedback,
   footer,
+  body,
   className,
 }: QuestionCardProps) {
   const graded = correctId != null;
@@ -78,58 +81,60 @@ export function QuestionCard({
       <h2 className="m-0 font-serif wrap-break-word text-xl leading-7 font-semibold tracking-[-0.3px] md:text-2xl md:leading-8">
         {statement}
       </h2>
-      <div role="radiogroup" aria-label="Alternativas" className="flex flex-col gap-2.5">
-        {alternatives.map((alt, index) => {
-          const selected = alt.id === selectedId;
-          const isRight = graded && alt.id === correctId;
-          const isWrong = graded && selected && alt.id !== correctId;
-          return (
-            <button
-              key={alt.id}
-              ref={(el) => {
-                refs.current[index] = el;
-              }}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-disabled={graded || undefined}
-              tabIndex={index === focusIndex ? 0 : -1}
-              onClick={() => !graded && onSelect(alt.id)}
-              onKeyDown={(e) => onKeyDown(e, index)}
-              className={cn(
-                "flex min-h-[60px] w-full items-center gap-3.5 rounded-lg px-4 py-3 text-left text-[15px] leading-[21px] text-fg transition-[border-color,background-color] duration-200",
-                isRight
-                  ? "border-2 border-success bg-surface"
-                  : isWrong
-                    ? "border-2 border-danger bg-active"
-                    : selected
-                      ? "border-2 border-brand bg-active"
-                      : "border border-line bg-surface hover:border-line-strong",
-              )}
-            >
-              <span
-                aria-hidden
-                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-alt text-sm font-bold text-accent"
+      {body ?? (
+        <div role="radiogroup" aria-label="Alternativas" className="flex flex-col gap-2.5">
+          {alternatives.map((alt, index) => {
+            const selected = alt.id === selectedId;
+            const isRight = graded && alt.id === correctId;
+            const isWrong = graded && selected && alt.id !== correctId;
+            return (
+              <button
+                key={alt.id}
+                ref={(el) => {
+                  refs.current[index] = el;
+                }}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-disabled={graded || undefined}
+                tabIndex={index === focusIndex ? 0 : -1}
+                onClick={() => !graded && onSelect(alt.id)}
+                onKeyDown={(e) => onKeyDown(e, index)}
+                className={cn(
+                  "flex min-h-[60px] w-full items-center gap-3.5 rounded-lg px-4 py-3 text-left text-[15px] leading-[21px] text-fg transition-[border-color,background-color] duration-200",
+                  isRight
+                    ? "border-2 border-success bg-surface"
+                    : isWrong
+                      ? "border-2 border-danger bg-active"
+                      : selected
+                        ? "border-2 border-brand bg-active"
+                        : "border border-line bg-surface hover:border-line-strong",
+                )}
               >
-                {LETTERS[index]}
-              </span>
-              <span className="min-w-0 flex-1 wrap-break-word">{alt.text}</span>
-              {isRight && (
-                <>
-                  <Check aria-hidden size={20} strokeWidth={2} className="shrink-0 text-success" />
-                  <span className="sr-only">(alternativa correta)</span>
-                </>
-              )}
-              {isWrong && (
-                <>
-                  <X aria-hidden size={20} strokeWidth={2} className="shrink-0 text-danger" />
-                  <span className="sr-only">(sua resposta, incorreta)</span>
-                </>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                <span
+                  aria-hidden
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-alt text-sm font-bold text-accent"
+                >
+                  {LETTERS[index]}
+                </span>
+                <span className="min-w-0 flex-1 wrap-break-word">{alt.text}</span>
+                {isRight && (
+                  <>
+                    <Check aria-hidden size={20} strokeWidth={2} className="shrink-0 text-success" />
+                    <span className="sr-only">(alternativa correta)</span>
+                  </>
+                )}
+                {isWrong && (
+                  <>
+                    <X aria-hidden size={20} strokeWidth={2} className="shrink-0 text-danger" />
+                    <span className="sr-only">(sua resposta, incorreta)</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {feedback && (
         <section aria-live="polite" className="flex flex-col gap-1.5 rounded-[18px] bg-surface-alt px-[18px] py-4">
           {feedback}

@@ -131,7 +131,10 @@ test.describe("Criar teste", () => {
     await page.getByLabel("Nome do teste").fill("Ossos · revisão");
     await page.getByRole("button", { name: "Criar teste" }).click();
     await expect(page.getByText("Teste salvo")).toBeVisible();
-    await expect(page).toHaveURL(/\/estudo$/);
+    // Saving opens the new test, ready to start; it is also listed in Resumos e testes.
+    await expect(page).toHaveURL(/\/estudo\/fazer\?teste=/);
+    await expect(page.getByRole("heading", { level: 1, name: "Ossos · revisão" })).toBeVisible();
+    await page.goto("/estudo");
     await expect(page.getByRole("region", { name: "Testes" })).toContainText("Ossos · revisão");
     await expect(page.getByRole("region", { name: "Testes" })).toContainText("6 questões");
 

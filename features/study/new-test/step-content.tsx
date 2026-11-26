@@ -17,6 +17,8 @@ import { SourcePicker } from "../source-picker";
 export interface TopicGroups {
   fromSummaries: string[];
   fromSyllabus: string[];
+  /** Weak topics of a result, when neither a summary nor the syllabus has them. */
+  toReview: string[];
 }
 
 function TopicChip({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
@@ -61,7 +63,7 @@ export function StepContent(props: {
   const chosenSummaries = props.summaries.filter((s) => props.selectedSummaries.has(s.id));
   const sources = chosenFiles.length + chosenSummaries.length;
   const pages = chosenFiles.reduce((sum, f) => sum + (f.document?.page_count ?? 0), 0);
-  const allTopics = [...props.topics.fromSummaries, ...props.topics.fromSyllabus];
+  const allTopics = [...props.topics.toReview, ...props.topics.fromSummaries, ...props.topics.fromSyllabus];
   const onTopics = allTopics.filter(props.isTopicOn).length;
   const subjectName = props.subjects.find((s) => s.id === props.subjectId)?.name;
 
@@ -208,6 +210,16 @@ export function StepContent(props: {
               </button>
             )}
           </div>
+          {props.topics.toReview.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold tracking-[0.6px] text-fg-2 uppercase">Para revisar</span>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Tópicos para revisar">
+                {props.topics.toReview.map((t) => (
+                  <TopicChip key={t} label={t} on={props.isTopicOn(t)} onToggle={() => props.onToggleTopic(t)} />
+                ))}
+              </div>
+            </div>
+          )}
           {props.topics.fromSummaries.length > 0 && (
             <div className="flex flex-col gap-2">
               <span className="text-xs font-semibold tracking-[0.6px] text-fg-2 uppercase">Do resumo</span>

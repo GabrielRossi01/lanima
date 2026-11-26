@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, FilePlus2, Info, ListChecks, Plus, Sparkles } from "lucide-react";
+import { ChevronRight, FilePlus2, Info, ListChecks, Play, Plus, RotateCcw, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import { useAiRemaining, useSummaries, type Summary } from "./queries";
 import { useTests, type SavedTest } from "./test-queries";
 import { DifficultyBadge } from "@/components/ui/difficulty-badge";
 import { DIFFICULTIES } from "@/lib/ai/schemas";
+import { pctLabel } from "@/lib/study/grading";
+import { useAttemptSync } from "./attempts";
+import { latestByTest, useFinishedAttempts, useReviewTopics, type LastAttempt, type ReviewTopic } from "./review";
 
 const ALL = "todas";
 
@@ -61,24 +64,110 @@ function SummaryRow({ summary, subject, today }: { summary: Summary; subject: Su
   );
 }
 
-/** A saved test: name, subject, its levels and size. Score and "Refazer" come with taking tests. */
-function TestRow({ test, subject, today }: { test: SavedTest; subject: Subject | undefined; today: string }) {
+/** A saved test (Estudo.html): its levels, the last score, "Resultado" and "Refazer". */
+function TestRow({
+  test,
+  subject,
+  last,
+  today,
+}: {
+  test: SavedTest;
+  subject: Subject | undefined;
+  last: LastAttempt | undefined;
+  today: string;
+}) {
   const counts = test.config.counts;
   return (
-    <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-surface p-4">
-      <span className="text-[15px] font-semibold wrap-break-word">{test.title}</span>
-      <span className="flex flex-wrap items-center gap-1.5">
-        {subject && (
-          <SubjectChip color={subject.color} size="s">
-            {subject.name}
-          </SubjectChip>
+    <article aria-label={test.title} className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-[15px] font-semibold wrap-break-word">{test.title}</span>
+          <span className="flex flex-wrap items-center gap-1.5">
+            {subject && (
+              <SubjectChip color={subject.color} size="s">
+                {subject.name}
+              </SubjectChip>
+            )}
+            {counts &&
+              DIFFICULTIES.filter((d) => (counts[d] ?? 0) > 0).map((d) => <DifficultyBadge key={d} level={d} />)}
+          </span>
+        </span>
+        {last && (
+          <span className="flex shrink-0 flex-col items-end">
+            <span className="font-serif text-[26px] leading-[30px] font-semibold tabular-nums">
+              {last.score >= 0 ? pctLabel(last.score) : "…"}
+            </span>
+            <span className="text-xs text-fg-2">
+              {last.waiting ? "a sincronizar" : shortDay(last.finishedAt, today)}
+            </span>
+          </span>
         )}
-        {counts && DIFFICULTIES.filter((d) => (counts[d] ?? 0) > 0).map((d) => <DifficultyBadge key={d} level={d} />)}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-fg-2">
+          {plural(test.question_ids.length, "questão", "questões")}
+          {!last && ` · criado ${shortDay(test.created_at, today)}`}
+        </span>
+        <span className="flex gap-2">
+          {last && (
+            <Link href={`/estudo/resultado?tentativa=${last.id}`} className={buttonClasses("ghost", "s")}>
+              Resultado
+            </Link>
+          )}
+          <Link href={`/estudo/fazer?teste=${test.id}`} className={buttonClasses("secondary", "s")}>
+            {last ? (
+              <RotateCcw aria-hidden size={16} strokeWidth={1.75} />
+            ) : (
+              <Play aria-hidden size={16} strokeWidth={1.75} />
+            )}
+            {last ? "Refazer" : "Começar"}
+          </Link>
+        </span>
+      </div>
+    </article>
+  );
+}
+
+/** Topics under 60% in her latest tests, and a test only with them. */
+function ReviewCard({ topics, subjects }: { topics: ReviewTopic[]; subjects: Subject[] }) {
+  const bySubject = new Map(subjects.map((s) => [s.id, s]));
+  const subjectIds = [...new Set(topics.map((t) => t.subjectId))];
+  const href = `/estudo/novo-teste?${new URLSearchParams({
+    ...(subjectIds.length === 1 && subjectIds[0] ? { materia: subjectIds[0] } : {}),
+    topicos: topics.map((t) => t.label).join("|"),
+  }).toString()}`;
+  return (
+    <section
+      aria-label="Para revisar"
+      className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-4 shadow-card"
+    >
+      <span className="flex items-center gap-2 text-sm font-semibold">
+        <Target aria-hidden size={18} strokeWidth={1.75} className="text-danger" />
+        Para revisar
       </span>
-      <span className="text-xs text-fg-2">
-        {plural(test.question_ids.length, "questão", "questões")} · {shortDay(test.created_at, today)}
-      </span>
-    </div>
+      <span className="text-[13px] leading-[18px] text-fg-2">Tópicos com menos de 60% nos últimos testes.</span>
+      <div className="flex flex-wrap gap-1.5">
+        {topics.map((t) => {
+          const subject = bySubject.get(t.subjectId ?? "");
+          return subject ? (
+            <SubjectChip key={t.label} color={subject.color} size="s">
+              {t.label} · {t.pct}%
+            </SubjectChip>
+          ) : (
+            <span
+              key={t.label}
+              className="inline-flex h-6 items-center rounded-full bg-subtle px-2.5 text-xs font-medium"
+            >
+              {t.label} · {t.pct}%
+            </span>
+          );
+        })}
+      </div>
+      <Link href={href} className={cn(buttonClasses("secondary", "s"), "self-start")}>
+        <ListChecks aria-hidden size={16} strokeWidth={1.75} />
+        Teste só com esses tópicos
+      </Link>
+    </section>
   );
 }
 
@@ -112,6 +201,10 @@ export function StudyView() {
       (tests.data ?? []).some((x) => x.subject_id === s.id),
   );
   const newTestHref = subject === ALL ? "/estudo/novo-teste" : `/estudo/novo-teste?materia=${subject}`;
+  // Attempts finished offline go up when this screen opens or the network is back.
+  useAttemptSync();
+  const latest = latestByTest(useFinishedAttempts().data ?? []);
+  const review = useReviewTopics().filter((t) => subject === ALL || t.subjectId === subject);
 
   return (
     <>
@@ -199,9 +292,16 @@ export function StudyView() {
             />
           ) : (
             testList.map((t) => (
-              <TestRow key={t.id} test={t} subject={bySubject.get(t.subject_id ?? "")} today={today} />
+              <TestRow
+                key={t.id}
+                test={t}
+                subject={bySubject.get(t.subject_id ?? "")}
+                last={latest.get(t.id)}
+                today={today}
+              />
             ))
           )}
+          {review.length > 0 && <ReviewCard topics={review} subjects={subjects} />}
         </Column>
       </div>
       <AiDisclaimer className="mt-6" />

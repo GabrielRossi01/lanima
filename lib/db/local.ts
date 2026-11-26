@@ -45,11 +45,22 @@ export interface SummaryEditRow {
   sending?: { version: number; revision: number; hash: string };
 }
 
+/** A test attempt made on this device (section 6): written here first, sent when it's finished. */
+export interface TestAttemptRow {
+  userId: string;
+  id: string;
+  testId: string;
+  attempt: unknown;
+  /** Finished and already on the server. */
+  sent: boolean;
+}
+
 type LocalDb = Dexie & {
   focusTimer: EntityTable<FocusTimerRow, "userId">;
   focusPrefs: EntityTable<FocusPrefsRow, "userId">;
   focusSessions: Table<FocusSessionRow, [string, number]>;
   summaryEdits: Table<SummaryEditRow, [string, string]>;
+  testAttempts: Table<TestAttemptRow, [string, string]>;
 };
 
 let db: LocalDb | null | undefined;
@@ -62,6 +73,7 @@ export function localDb(): LocalDb | null {
     created.version(1).stores({ focusTimer: "userId", focusPrefs: "userId" });
     created.version(2).stores({ focusSessions: "[userId+startedAt], userId" });
     created.version(3).stores({ summaryEdits: "[userId+summaryId], userId" });
+    created.version(4).stores({ testAttempts: "[userId+id], userId, [userId+testId]" });
     db = created;
   }
   return db;

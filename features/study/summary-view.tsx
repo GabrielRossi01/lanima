@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { SubjectChip } from "@/components/ui/chip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -438,6 +438,12 @@ export function SummaryView({ id }: { id: string }) {
   const saveState = useSaveState((s) => s.bySummary[id]);
   const { run, progress, failure, notice } = useGenerate();
   const [open, setOpen] = useState<Set<string> | null>(null);
+  // "#topico-t3": a link from "Para revisar" in a result opens that topic.
+  const [linked] = useState(() => (typeof window === "undefined" ? "" : window.location.hash.replace(/^#topico-/, "")));
+  const loaded = Boolean(summary);
+  useEffect(() => {
+    if (linked && loaded) document.getElementById(`topico-${linked}`)?.scrollIntoView({ block: "start" });
+  }, [linked, loaded]);
   const [editing, setEditing] = useState(false);
   const [marking, setMarking] = useState<PointPath | null>(null);
   const [preview, setPreview] = useState<StoredFile | null>(null);
@@ -470,7 +476,7 @@ export function SummaryView({ id }: { id: string }) {
   const subject = subjects.find((s) => s.id === summary.subject_id);
   const today = todayIn(new Date());
   // Open at first: the first two topics, as in the mockup.
-  const expanded = open ?? new Set(content.topicos.slice(0, 2).map((t) => t.id));
+  const expanded = open ?? new Set([...content.topicos.slice(0, 2).map((t) => t.id), linked]);
   const toggleTopic = (topicId: string) =>
     setOpen(() => {
       const next = new Set(expanded);
@@ -614,7 +620,11 @@ export function SummaryView({ id }: { id: string }) {
               {content.topicos.map((topic, t) => {
                 const isOpen = editing || expanded.has(topic.id);
                 return (
-                  <li key={topic.id} className="overflow-hidden rounded-[18px] border border-line bg-surface">
+                  <li
+                    key={topic.id}
+                    id={`topico-${topic.id}`}
+                    className="scroll-mt-4 overflow-hidden rounded-[18px] border border-line bg-surface"
+                  >
                     <div className="flex items-center gap-1 pr-2">
                       <button
                         type="button"

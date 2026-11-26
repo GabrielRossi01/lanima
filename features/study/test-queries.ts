@@ -25,8 +25,13 @@ export interface SavedTest extends Omit<TestRow, "config"> {
   config: Partial<TestConfig> & { sources?: { documentIds: string[]; summaryIds: string[] } };
 }
 
-export const bankKey = (userId: string | undefined) => ["study", "questions", userId] as const;
-export const testsKey = (userId: string | undefined) => ["study", "tests", userId] as const;
+/**
+ * Keys kept on the device start with "study" and the user's id second: the auth provider drops
+ * cached lists whose second item isn't the signed-in user (a shared tablet never shows someone else's).
+ */
+export const studyKey = (userId: string | undefined, ...rest: unknown[]) => ["study", userId, ...rest] as const;
+export const bankKey = (userId: string | undefined) => studyKey(userId, "questions");
+export const testsKey = (userId: string | undefined) => studyKey(userId, "tests");
 
 function check<T>(result: { data: T | null; error: { message: string; code?: string } | null; status: number }) {
   if (result.error) throw new DataError(result.error.message, { status: result.status, code: result.error.code });

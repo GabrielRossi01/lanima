@@ -19,6 +19,10 @@ export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } =
   additionalPrecacheEntries: [
     { url: "/~offline", revision },
     { url: "/inicio", revision },
+    // Taking a test and its result work offline from the first time (section 6), even if she never
+    // opened them with network: one page each, the test or attempt comes in the query (app/sw.ts).
+    { url: "/estudo/fazer", revision },
+    { url: "/estudo/resultado", revision },
   ],
   // Serwist's default glob, plus self-hosted fonts (.woff2) so they work offline from the first launch.
   globPatterns: [".next/static/**/*.{js,css,html,ico,png,svg,webp,json,webmanifest,woff2}", "public/**/*"],
