@@ -104,7 +104,7 @@ test.describe("Matérias", () => {
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowLeft");
     await page.keyboard.press("ArrowLeft");
-    await expect(sheet.getByRole("button", { name: spokenDate(examDay) })).toBeFocused();
+    await expect(sheet.getByRole("button", { name: spokenDate(examDay), exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(sheet.getByLabel("Data")).toHaveValue(formatDate(examDay));
     await expectNoHorizontalScroll(page, "nova avaliação");
