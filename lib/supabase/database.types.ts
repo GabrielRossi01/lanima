@@ -3,6 +3,81 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      ai_limits: {
+        Row: {
+          app_daily_requests: number;
+          id: boolean;
+          per_user_question_runs: number;
+          per_user_summaries: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          app_daily_requests: number;
+          id?: boolean;
+          per_user_question_runs: number;
+          per_user_summaries: number;
+          updated_at?: string;
+        };
+        Update: {
+          app_daily_requests?: number;
+          id?: boolean;
+          per_user_question_runs?: number;
+          per_user_summaries?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_usage: {
+        Row: {
+          app_day: string;
+          created_at: string;
+          day: string;
+          id: string;
+          input_tokens: number | null;
+          model: string | null;
+          operation: string;
+          output_tokens: number | null;
+          provider: string | null;
+          requests: number;
+          status: string;
+          updated_at: string;
+          user_id: string;
+          ai_usage_counts: boolean | null;
+        };
+        ComputedFields: "ai_usage_counts";
+        Insert: {
+          app_day: string;
+          created_at?: string;
+          day: string;
+          id?: string;
+          input_tokens?: number | null;
+          model?: string | null;
+          operation: string;
+          output_tokens?: number | null;
+          provider?: string | null;
+          requests?: number;
+          status?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          app_day?: string;
+          created_at?: string;
+          day?: string;
+          id?: string;
+          input_tokens?: number | null;
+          model?: string | null;
+          operation?: string;
+          output_tokens?: number | null;
+          provider?: string | null;
+          requests?: number;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       assessments: {
         Row: {
           completed_at: string | null;
@@ -47,6 +122,64 @@ export type Database = {
             columns: ["subject_id", "user_id"];
             isOneToOne: false;
             referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      attempt_answers: {
+        Row: {
+          attempt_id: string;
+          correct: boolean | null;
+          created_at: string;
+          id: string;
+          marked: boolean;
+          question_id: string;
+          response: Json | null;
+          self_assessment: string | null;
+          time_ms: number;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          attempt_id: string;
+          correct?: boolean | null;
+          created_at?: string;
+          id?: string;
+          marked?: boolean;
+          question_id: string;
+          response?: Json | null;
+          self_assessment?: string | null;
+          time_ms?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          attempt_id?: string;
+          correct?: boolean | null;
+          created_at?: string;
+          id?: string;
+          marked?: boolean;
+          question_id?: string;
+          response?: Json | null;
+          self_assessment?: string | null;
+          time_ms?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attempt_answers_attempt_id_user_id_fkey";
+            columns: ["attempt_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "test_attempts";
+            referencedColumns: ["id", "user_id"];
+          },
+          {
+            foreignKeyName: "attempt_answers_question_id_user_id_fkey";
+            columns: ["question_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "questions";
             referencedColumns: ["id", "user_id"];
           },
         ];
@@ -302,6 +435,7 @@ export type Database = {
       };
       profiles: {
         Row: {
+          ai_notice_accepted_at: string | null;
           avatar_path: string | null;
           course: string;
           created_at: string;
@@ -321,6 +455,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          ai_notice_accepted_at?: string | null;
           avatar_path?: string | null;
           course?: string;
           created_at?: string;
@@ -339,6 +474,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          ai_notice_accepted_at?: string | null;
           avatar_path?: string | null;
           course?: string;
           created_at?: string;
@@ -357,6 +493,98 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      questions: {
+        Row: {
+          answer: NonNullable<Json>;
+          batch_key: string | null;
+          created_at: string;
+          difficulty: string;
+          document_id: string | null;
+          explanation: string;
+          id: string;
+          model: string | null;
+          options: Json | null;
+          origin: string;
+          provider: string | null;
+          source: Json | null;
+          statement: string;
+          status: string;
+          subject_id: string | null;
+          summary_id: string | null;
+          topic: string;
+          type: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          answer: NonNullable<Json>;
+          batch_key?: string | null;
+          created_at?: string;
+          difficulty: string;
+          document_id?: string | null;
+          explanation?: string;
+          id?: string;
+          model?: string | null;
+          options?: Json | null;
+          origin?: string;
+          provider?: string | null;
+          source?: Json | null;
+          statement: string;
+          status?: string;
+          subject_id?: string | null;
+          summary_id?: string | null;
+          topic: string;
+          type: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          answer?: NonNullable<Json>;
+          batch_key?: string | null;
+          created_at?: string;
+          difficulty?: string;
+          document_id?: string | null;
+          explanation?: string;
+          id?: string;
+          model?: string | null;
+          options?: Json | null;
+          origin?: string;
+          provider?: string | null;
+          source?: Json | null;
+          statement?: string;
+          status?: string;
+          subject_id?: string | null;
+          summary_id?: string | null;
+          topic?: string;
+          type?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "questions_document_id_user_id_fkey";
+            columns: ["document_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "documents";
+            referencedColumns: ["id", "user_id"];
+          },
+          {
+            foreignKeyName: "questions_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+          {
+            foreignKeyName: "questions_summary_id_user_id_fkey";
+            columns: ["summary_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "summaries";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
       };
       subject_topics: {
         Row: {
@@ -440,6 +668,162 @@ export type Database = {
         };
         Relationships: [];
       };
+      summaries: {
+        Row: {
+          content: NonNullable<Json>;
+          created_at: string;
+          detail: string;
+          document_ids: string[];
+          edited_by_user: boolean;
+          focus: string | null;
+          id: string;
+          input_key: string | null;
+          model: string | null;
+          provider: string | null;
+          subject_id: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+          version: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          content: NonNullable<Json>;
+          created_at?: string;
+          detail: string;
+          document_ids?: string[];
+          edited_by_user?: boolean;
+          focus?: string | null;
+          id?: string;
+          input_key?: string | null;
+          model?: string | null;
+          provider?: string | null;
+          subject_id?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+          version?: number;
+        };
+        Update: {
+          content?: NonNullable<Json>;
+          created_at?: string;
+          detail?: string;
+          document_ids?: string[];
+          edited_by_user?: boolean;
+          focus?: string | null;
+          id?: string;
+          input_key?: string | null;
+          model?: string | null;
+          provider?: string | null;
+          subject_id?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "summaries_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      test_attempts: {
+        Row: {
+          completed: boolean;
+          created_at: string;
+          finished_at: string | null;
+          id: string;
+          mode: string;
+          question_ids: string[];
+          score: number | null;
+          started_at: string;
+          test_id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          completed?: boolean;
+          created_at?: string;
+          finished_at?: string | null;
+          id?: string;
+          mode: string;
+          question_ids: string[];
+          score?: number | null;
+          started_at?: string;
+          test_id: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          completed?: boolean;
+          created_at?: string;
+          finished_at?: string | null;
+          id?: string;
+          mode?: string;
+          question_ids?: string[];
+          score?: number | null;
+          started_at?: string;
+          test_id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "test_attempts_test_id_user_id_fkey";
+            columns: ["test_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "tests";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      tests: {
+        Row: {
+          config: NonNullable<Json>;
+          created_at: string;
+          id: string;
+          question_ids: string[];
+          subject_id: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          config?: NonNullable<Json>;
+          created_at?: string;
+          id?: string;
+          question_ids: string[];
+          subject_id?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          config?: NonNullable<Json>;
+          created_at?: string;
+          id?: string;
+          question_ids?: string[];
+          subject_id?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tests_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
     };
     Views: {
       focus_days: {
@@ -453,6 +837,36 @@ export type Database = {
       };
     };
     Functions: {
+      ai_remaining: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          app_open: boolean;
+          question_runs: number;
+          summaries: number;
+        }[];
+      };
+      ai_reserve: { Args: { p_operation: string; p_requests: number }; Returns: string };
+      ai_settle: {
+        Args: {
+          p_id: string;
+          p_input_tokens: number;
+          p_model: string;
+          p_ok: boolean;
+          p_output_tokens: number;
+          p_provider: string;
+          p_requests: number;
+        };
+        Returns: undefined;
+      };
+      ai_usage_counts: {
+        Args: {
+          u: Omit<
+            Database["public"]["Tables"]["ai_usage"]["Row"],
+            Database["public"]["Tables"]["ai_usage"]["ComputedFields"]
+          >;
+        };
+        Returns: boolean;
+      };
       save_extraction: {
         Args: {
           p_chunks: Json;
