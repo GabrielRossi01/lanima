@@ -51,6 +51,156 @@ export type Database = {
           },
         ];
       };
+      document_chunks: {
+        Row: {
+          created_at: string;
+          document_id: string;
+          id: string;
+          page: number;
+          position: number;
+          text: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          document_id: string;
+          id?: string;
+          page: number;
+          position: number;
+          text: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          document_id?: string;
+          id?: string;
+          page?: number;
+          position?: number;
+          text?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_user_id_fkey";
+            columns: ["document_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "documents";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      documents: {
+        Row: {
+          content_hash: string | null;
+          created_at: string;
+          excluded_pages: number[];
+          file_id: string;
+          id: string;
+          language: string;
+          page_count: number | null;
+          pages_approx: boolean;
+          status: string;
+          updated_at: string;
+          used_ocr: boolean;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          content_hash?: string | null;
+          created_at?: string;
+          excluded_pages?: number[];
+          file_id: string;
+          id?: string;
+          language?: string;
+          page_count?: number | null;
+          pages_approx?: boolean;
+          status?: string;
+          updated_at?: string;
+          used_ocr?: boolean;
+          user_id?: string;
+        };
+        Update: {
+          content_hash?: string | null;
+          created_at?: string;
+          excluded_pages?: number[];
+          file_id?: string;
+          id?: string;
+          language?: string;
+          page_count?: number | null;
+          pages_approx?: boolean;
+          status?: string;
+          updated_at?: string;
+          used_ocr?: boolean;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "documents_file_id_user_id_fkey";
+            columns: ["file_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "files";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      files: {
+        Row: {
+          created_at: string;
+          id: string;
+          kind: string;
+          mime_type: string;
+          name: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          subject_id: string | null;
+          updated_at: string;
+          uploaded_at: string | null;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          kind: string;
+          mime_type: string;
+          name: string;
+          sha256: string;
+          size_bytes: number;
+          storage_path: string;
+          subject_id?: string | null;
+          updated_at?: string;
+          uploaded_at?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          mime_type?: string;
+          name?: string;
+          sha256?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          subject_id?: string | null;
+          updated_at?: string;
+          uploaded_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "files_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
       focus_sessions: {
         Row: {
           actual_min: number;
@@ -303,7 +453,17 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      save_extraction: {
+        Args: {
+          p_chunks: Json;
+          p_content_hash: string;
+          p_document: string;
+          p_page_count: number;
+          p_pages_approx: boolean;
+          p_used_ocr: boolean;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

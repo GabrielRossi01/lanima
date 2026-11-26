@@ -4,7 +4,7 @@ export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR").trim();
 }
 
-export type SearchKind = "materia" | "topico" | "avaliacao" | "meta";
+export type SearchKind = "materia" | "topico" | "avaliacao" | "meta" | "arquivo";
 
 export interface SearchItem {
   kind: SearchKind;
@@ -20,6 +20,7 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   topico: "Conteúdo",
   avaliacao: "Avaliações",
   meta: "Metas",
+  arquivo: "Arquivos",
 };
 
 /**

@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 4 concluída (modo foco: cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões); Fase 5 (arquivos) em andamento.** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 5 concluída (Arquivos: envio, fotos comprimidas, 250 MB por conta, leitura do texto no aparelho de PDF, Word, slides e fotos com OCR, prévia por página).** Fase 4: modo foco com cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões. Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -33,7 +33,7 @@ npm run start        # http://localhost:3000
 
 | Script                            | O que faz                                                                                                                                                |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                     | Servidor de desenvolvimento                                                                                                                              |
+| `npm run dev`                     | Servidor de desenvolvimento (antes, copia os leitores de texto para `public/vendor`)                                                                     |
 | `npm run build` / `npm run start` | Build e servidor de produção                                                                                                                             |
 | `npm run lint`                    | ESLint                                                                                                                                                   |
 | `npm run typecheck`               | Gera os tipos de rota do Next e roda o `tsc`                                                                                                             |
@@ -202,6 +202,10 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 | @dnd-kit/core / @dnd-kit/sortable       | 6.3.1 / 10.0.0  | Reordenar o conteúdo da matéria com dedo, caneta ou teclado (e o kanban da fase 8)                                              |
 | @tanstack/react-query-persist-client    | 5.108.4         | Guarda matérias, conteúdo, avaliações e metas no aparelho (abre offline)                                                        |
 | @tanstack/query-async-storage-persister | 5.108.4         | Persistência no `localStorage` (o persister síncrono está descontinuado)                                                        |
+| pdfjs-dist                              | 6.5.438         | Texto dos PDFs, página por página (build "legacy", que também roda em iPads mais antigos)                                       |
+| jszip                                   | 3.10.2          | Abre `.docx` e `.pptx` (licença MIT, das duas que ele oferece)                                                                  |
+| tesseract.js / @tesseract.js-data/por   | 7.0.0 / 1.0.0   | OCR em português num Web Worker, modelo LSTM "best_int" (1,4 MB)                                                                |
+| pdf-lib                                 | 1.17.1          | Só para gerar os arquivos de exemplo dos testes                                                                                 |
 
 ## Decisões técnicas da Fase 1
 
@@ -256,6 +260,19 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Tela acesa** (`features/focus/use-wake-lock.ts`): Wake Lock enquanto a sessão corre, também minimizada; solto na pausa e pedido de novo ao voltar do segundo plano (o navegador o solta lá).
 - **Aviso do fim** (`features/focus/end-alert.ts`): dois tons suaves feitos na hora com Web Audio (sem arquivo) e vibração no Android (o Safari não vibra). Só se o fim for percebido em até 10 s: voltar ao app bem depois mostra só o aviso. No iOS o som só sai depois de um toque, então os toques com sessão destravam o áudio; sem sessão ele é suspenso. Com o som silenciado, só vibra.
 
+## Decisões técnicas da Fase 5 (arquivos e leitura do texto)
+
+- **Banco** (`supabase/migrations/20261126000001_files_documents.sql`): `files` (arquivo no bucket privado `files`, em `<usuária>/<id do arquivo>`), `documents` (a leitura: estado, hash do texto, páginas, páginas excluídas) e `document_chunks` (trechos de até ~1.500 tokens, cada um de uma página só). A leitura é salva de uma vez pela função `save_extraction` (os trechos antigos saem e os novos entram juntos).
+- **250 MB por conta:** o Supabase grátis tem 1 GB para todo o app. Um gatilho no banco soma os tamanhos e recusa o que passar (`LQ001`, com trava para dois envios ao mesmo tempo). O arquivo só sobe para o Storage se a linha dele já existir, então nada escapa da conta. Até 25 MB por arquivo (bucket e tabela).
+- **Mesmo arquivo, uma vez:** o SHA-256 do arquivo escolhido (antes da compressão) é único por conta; enviar de novo só avisa onde ele já está.
+- **Fotos:** o OCR lê a foto original (mais detalhe); o que vai para o Storage é a cópia comprimida (lado maior de 1.600 px, WebP ou JPEG, até ~400 KB). Câmeras dão nomes como `image.jpg`: esses viram "Foto 26-11 08h34".
+- **Leitura no aparelho** (`lib/extract`, `features/files/reader.ts`): PDF com pdf.js; página com menos de 20 letras vai para o OCR (PDF escaneado). Word lido direto do XML com JSZip, **sem o mammoth** do prompt: o mammoth descarta as marcas de página que o Word salva (`w:lastRenderedPageBreak`), e são elas que dão a página certa. Word sem marcas (exportado do Google Docs) vira blocos do mesmo tamanho, tantos quanto as páginas declaradas no arquivo, mostrados como "pág. ≈2". Slides na ordem da apresentação, com as notas do apresentador.
+- **Os leitores vêm do próprio app:** `scripts/copy-vendor.mjs` copia o worker do pdf.js, os dados dele, o motor do OCR e o português para `public/vendor/<pacote>-<versão>` antes do `dev` e do `build` (a pasta não vai para o git). Não entram no precache: o service worker guarda na primeira vez que um arquivo precisa (~6 MB) e depois funcionam offline.
+- **Fila na aba:** envio e leitura continuam se ela trocar de tela; uma leitura por vez (o OCR pesa no tablet), com a tela acesa enquanto isso. Se o app fechar no meio, depois de 10 minutos sem notícia o arquivo mostra "Leitura interrompida" e "Ler de novo" (baixa o arquivo e lê).
+- **Online primeiro:** a lista fica guardada no aparelho e abre offline; enviar, renomear, mover e excluir pedem internet, com aviso.
+- **Ainda não nesta fase:** "Resumir em tópicos" e "Criar teste" (no aviso, no menu e na barra de seleção) entram na Fase 6; as exportações, nas fases que criam esses conteúdos.
+- **Arquivos de exemplo dos testes** (`tests/fixtures/files`): escritos para o projeto, gerados por `node scripts/make-fixtures.mjs`.
+
 ### Por que o cacheComponents está desligado
 
 O template do Next 16.4 vem com `cacheComponents` e `partialPrefetching` ligados. No Lanima eles estão desligados por causa do service worker:
@@ -276,8 +293,8 @@ app/                  rotas (App Router); (app) com menu, (full) em tela cheia
   design/             página de componentes
 components/ui/        componentes-base
 components/layout/    AppShell, navegação, instalação, tema
-features/             telas e lógica por módulo (auth, onboarding, perfil, matérias)
-lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil
+features/             telas e lógica por módulo (auth, onboarding, perfil, matérias, foco, arquivos)
+lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil; extract/ (leitura de PDF, Word, slides e OCR)
 proxy.ts              renova o cookie da sessão (Next 16: antigo middleware)
 supabase/             config local, migrações, seed, testes de RLS e modelo de e-mail
 tests/unit/           Vitest

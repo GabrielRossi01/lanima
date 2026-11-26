@@ -1,9 +1,10 @@
 "use client";
 
-import { BookOpen, CalendarClock, CircleCheck, ListTree, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarClock, CircleCheck, FileText, ListTree, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { SearchField } from "@/components/ui/input";
+import { useFiles } from "@/features/files/queries";
 import { useGoals } from "@/features/goals/queries";
 import { useAssessments, useSubjects, useTopics } from "@/features/subjects/queries";
 import { cn } from "@/lib/cn";
@@ -15,11 +16,12 @@ const KIND_ICON: Record<SearchKind, LucideIcon> = {
   topico: ListTree,
   avaliacao: CalendarClock,
   meta: CircleCheck,
+  arquivo: FileText,
 };
 
 /**
- * Search at the top of Início: subjects, syllabus topics, assessments and goals (accents and case
- * ignored). Notes, summaries, questions and files join in their phases.
+ * Search at the top of Início: subjects, syllabus topics, assessments, goals and files (accents and
+ * case ignored). Notes, summaries and questions join in their phases.
  */
 export function GlobalSearch({ today, className }: { today: IsoDate | null; className?: string }) {
   const [query, setQuery] = useState("");
@@ -27,6 +29,7 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
   const topics = useTopics().data ?? [];
   const assessments = useAssessments().data ?? [];
   const goals = useGoals(today).data ?? [];
+  const files = useFiles().data ?? [];
   const resultsId = useId();
 
   const nameOf = new Map(subjects.map((s) => [s.id, s.name]));
@@ -58,6 +61,13 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
       title: g.title,
       detail: `${g.subject_id ? `${nameOf.get(g.subject_id) ?? ""} · ` : ""}${formatDate(g.date)}`,
       href: "/inicio",
+    })),
+    ...files.map((f) => ({
+      kind: "arquivo" as const,
+      id: f.id,
+      title: f.name,
+      detail: f.subject_id ? (nameOf.get(f.subject_id) ?? "") : "Sem matéria",
+      href: `/arquivos#arquivo-${f.id}`,
     })),
   ];
   const results = searchItems(items, query);

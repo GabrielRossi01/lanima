@@ -54,17 +54,31 @@ const soundRules: RuntimeCaching[] = [
   },
 ];
 
+/**
+ * Text readers (pdf.js data, OCR engine and Portuguese data, ~6 MB): downloaded with the first file
+ * that needs them, then offline. Versioned folders, so an update is a new URL.
+ */
+const vendorRules: RuntimeCaching[] = [
+  {
+    matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/vendor/"),
+    method: "GET",
+    handler: new CacheFirst({
+      cacheName: "text-readers",
+      plugins: [new ExpirationPlugin({ maxEntries: 400 })],
+    }),
+  },
+];
+
 /*
  * App shell (precached build assets + /inicio), self-hosted fonts and pages via Serwist's default
- * runtime caching, with an offline fallback page. Later phases add caches for 3D models, ambient
- * sounds and OCR language data.
+ * runtime caching, with an offline fallback page. Phase 10 adds a cache for the 3D models.
  */
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: [...supabaseRules, ...soundRules, ...defaultCache],
+  runtimeCaching: [...supabaseRules, ...soundRules, ...vendorRules, ...defaultCache],
   fallbacks: {
     entries: [
       {

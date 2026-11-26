@@ -5,7 +5,6 @@ import {
   ArchiveRestore,
   BookOpen,
   ChevronRight,
-  FileText,
   ListChecks,
   MoreHorizontal,
   NotebookPen,
@@ -32,6 +31,7 @@ import { subjectIcon } from "@/lib/subjects/icons";
 import { formatSchedule, rooms } from "@/lib/subjects/schedule";
 import { summarize } from "@/lib/subjects/subjects";
 import { errorTag, friendlyError } from "@/lib/supabase/errors";
+import { RecentFiles, SubjectFilesTab } from "@/features/files/subject-files";
 import { AssessmentList } from "./assessments";
 import { ImportSyllabusSheet } from "./import-syllabus-sheet";
 import { useAssessments, useDeleteSubject, useSetArchived, useSubjects, useTopics } from "./queries";
@@ -171,8 +171,7 @@ export function SubjectDetailView({ id }: { id: string }) {
                 <p className="type-body m-0 text-fg-2">Os testes chegam na fase 6, com resumos em tópicos.</p>
               </Card>
               <Card>
-                <CardHeader title="Arquivos" />
-                <p className="type-body m-0 text-fg-2">Os arquivos da matéria chegam na fase 5.</p>
+                <RecentFiles subjectId={subject.id} onSeeAll={() => setTab("arquivos")} />
               </Card>
             </div>
           </div>
@@ -184,7 +183,7 @@ export function SubjectDetailView({ id }: { id: string }) {
           <Later icon={ListChecks} title="Resumos e testes" phase={6} />
         </TabPanel>
         <TabPanel value="arquivos">
-          <Later icon={FileText} title="Arquivos" phase={5} />
+          <SubjectFilesTab subject={subject} subjects={subjects.data ?? []} />
         </TabPanel>
         <TabPanel value="atlas">
           <Later icon={PersonStanding} title="Atlas 3D" phase={10} />
