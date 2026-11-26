@@ -27,10 +27,29 @@ export interface FocusSessionRow {
   sent: boolean;
 }
 
+/**
+ * Her edits of a summary not yet on the server (section 6: outbox). One row per summary with the
+ * newest content; `baseVersion` is the server version it was made on.
+ */
+export interface SummaryEditRow {
+  userId: string;
+  summaryId: string;
+  content: unknown;
+  baseVersion: number;
+  /** Goes up with each edit: a send only clears the row if nothing changed meanwhile. */
+  revision: number;
+  /**
+   * The send under way: if the app closes before its answer, the server may have taken it. Then the
+   * server shows this version with this content, and it is hers, not a change from elsewhere.
+   */
+  sending?: { version: number; revision: number; hash: string };
+}
+
 type LocalDb = Dexie & {
   focusTimer: EntityTable<FocusTimerRow, "userId">;
   focusPrefs: EntityTable<FocusPrefsRow, "userId">;
   focusSessions: Table<FocusSessionRow, [string, number]>;
+  summaryEdits: Table<SummaryEditRow, [string, string]>;
 };
 
 let db: LocalDb | null | undefined;
@@ -42,6 +61,7 @@ export function localDb(): LocalDb | null {
     const created = new Dexie("lanima") as LocalDb;
     created.version(1).stores({ focusTimer: "userId", focusPrefs: "userId" });
     created.version(2).stores({ focusSessions: "[userId+startedAt], userId" });
+    created.version(3).stores({ summaryEdits: "[userId+summaryId], userId" });
     db = created;
   }
   return db;

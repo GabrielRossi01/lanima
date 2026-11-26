@@ -79,6 +79,9 @@ export default defineConfig({
           NEXT_PUBLIC_SUPABASE_URL: supabase.url,
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
           NEXT_PUBLIC_AUTH_PROVIDERS: "google,notion",
+          // No test ever calls a real AI API (section 7.12): the simulated provider answers.
+          AI_PRIMARY_PROVIDER: "mock",
+          AI_FALLBACK_PROVIDER: "",
         },
       },
 });

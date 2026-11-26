@@ -92,3 +92,70 @@ export async function seedGoal(account: TestAccount, row: Omit<Tables["goals"]["
     .insert({ ...row, user_id: account.id });
   if (error) throw error;
 }
+
+/**
+ * A file whose text was already read (phase 5), ready for summaries and tests: one chunk per page.
+ * No stored object: opening the file itself is covered by files.spec.
+ */
+export async function seedReading(
+  account: TestAccount,
+  input: { name: string; subjectId?: string | null; pages: string[] },
+): Promise<{ fileId: string; documentId: string }> {
+  const admin = adminClient();
+  const fileId = crypto.randomUUID();
+  const { error: fileError } = await admin.from("files").insert({
+    id: fileId,
+    user_id: account.id,
+    subject_id: input.subjectId ?? null,
+    name: input.name,
+    kind: "pdf",
+    mime_type: "application/pdf",
+    size_bytes: 1000,
+    storage_path: `${account.id}/${fileId}`,
+    sha256: Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join(""),
+    uploaded_at: new Date().toISOString(),
+  });
+  if (fileError) throw fileError;
+  const hash = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const { data: doc, error: docError } = await admin
+    .from("documents")
+    .insert({
+      user_id: account.id,
+      file_id: fileId,
+      status: "pronto",
+      content_hash: hash,
+      page_count: input.pages.length,
+    })
+    .select("id")
+    .single();
+  if (docError) throw docError;
+  const { error: chunkError } = await admin
+    .from("document_chunks")
+    .insert(
+      input.pages.map((text, i) => ({ user_id: account.id, document_id: doc.id, position: i, page: i + 1, text })),
+    );
+  if (chunkError) throw chunkError;
+  return { fileId, documentId: doc.id };
+}
+
+/** Generations already made today, to reach her daily limit. */
+export async function seedAiUsage(account: TestAccount, operation: "resumo" | "questoes", count: number) {
+  const now = new Date();
+  const day = (timeZone: string) => now.toLocaleDateString("en-CA", { timeZone });
+  const rows = Array.from({ length: count }, () => ({
+    user_id: account.id,
+    day: day("America/Sao_Paulo"),
+    app_day: day("America/Los_Angeles"),
+    operation,
+    status: "ok",
+    requests: 0,
+  }));
+  const { error } = await adminClient().from("ai_usage").insert(rows);
+  if (error) throw error;
+}
+
+/** Summaries and tests made by the E2E would reach the whole app's daily cap on a busy day. */
+export async function liftAppAiCap() {
+  const { error } = await adminClient().from("ai_limits").update({ app_daily_requests: 100000 }).eq("id", true);
+  if (error) throw error;
+}
