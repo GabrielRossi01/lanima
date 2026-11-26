@@ -9,7 +9,7 @@ export function Label({ className, ...props }: ComponentProps<"label">) {
 }
 
 const fieldClasses =
-  "h-11 w-full rounded-md border border-line-strong bg-surface px-3.5 text-sm text-fg placeholder:text-fg-2 transition-colors duration-150 focus-visible:border-brand aria-invalid:border-danger disabled:opacity-60";
+  "h-11 w-full rounded-md border border-line-strong bg-surface px-3.5 text-sm text-fg placeholder:text-fg-2 transition-colors duration-150 focus-visible:border-brand aria-invalid:border-danger read-only:bg-subtle disabled:opacity-60";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(fieldClasses, className)} {...props} />;

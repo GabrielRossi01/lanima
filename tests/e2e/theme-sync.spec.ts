@@ -84,3 +84,24 @@ test.describe("Tema guardado na conta", () => {
     expect(await savedTheme(other)).toBe("system");
   });
 });
+
+test.describe("Tema no cadastro", () => {
+  test.use({ colorScheme: "dark" });
+
+  test("a conta nova fica com o tema que já está no aparelho", async ({ page }) => {
+    await page.goto("/entrar");
+    await page.evaluate(() => localStorage.setItem("lanima:theme", "light"));
+    await page.reload();
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+
+    const fresh = await createAccount({ prefix: "tema", onboarded: false });
+    expect(await savedTheme(fresh)).toBe("system");
+    await signIn(page, fresh, "/boas-vindas");
+    await expect(page.getByRole("button", { name: "Começar" })).toBeVisible();
+    await expect.poll(() => savedTheme(fresh), { message: "salvo na conta nova" }).toBe("light");
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Começar" })).toBeVisible();
+    await expect(html(page)).toHaveAttribute("data-theme", "light");
+  });
+});

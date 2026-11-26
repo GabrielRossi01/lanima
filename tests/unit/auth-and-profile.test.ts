@@ -120,16 +120,22 @@ describe("perfil", () => {
     const ok = parseProfileDetails({ name: "  Maria ", semester: "3", course: "Biomedicina", institution: "" });
     expect(ok).toEqual({ ok: true, data: { name: "Maria", semester: 3, course: "Biomedicina", institution: "" } });
 
-    const bad = parseProfileDetails({ name: " ", semester: "", course: "", institution: "x".repeat(121) });
+    const bad = parseProfileDetails({ name: " ", semester: "", institution: "x".repeat(121) });
     expect(bad).toEqual({
       ok: false,
       errors: {
         name: "Escreva seu nome ou apelido.",
         semester: "Escolha o semestre.",
-        course: "Informe o curso.",
         institution: "Use até 120 caracteres.",
       },
     });
+  });
+
+  it("o curso é sempre Biomedicina, venha o que vier", () => {
+    for (const course of [undefined, "", "Medicina"]) {
+      const parsed = parseProfileDetails({ name: "Maria", semester: "3", course, institution: "" });
+      expect(parsed).toMatchObject({ ok: true, data: { course: "Biomedicina" } });
+    }
   });
 
   it("rótulos de semestre e subtítulo do perfil", () => {

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import {
+  COURSE,
   FOCUS_GOAL,
   formatFocusGoal,
   parseProfileDetails,
@@ -29,7 +30,6 @@ import { useAvatarUrl, useProfile, useUpdateProfile } from "./queries";
 function detailsOf(profile: Profile) {
   return {
     name: profile.name,
-    course: profile.course,
     institution: profile.institution,
     semester: profile.semester ? String(profile.semester) : "",
     goal: profile.daily_focus_goal_min,
@@ -105,13 +105,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
             error={errors.name}
             maxLength={60}
           />
-          <Field
-            label="Curso"
-            value={form.course}
-            onChange={(e) => set("course", e.target.value)}
-            error={errors.course}
-            maxLength={80}
-          />
+          <Field label="Curso" value={COURSE} readOnly />
           <Field
             label="Instituição"
             value={form.institution}

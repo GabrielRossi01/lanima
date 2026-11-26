@@ -9,6 +9,9 @@ export function toProfile(row: ProfileRow): Profile {
   return { ...row, theme: isThemePreference(row.theme) ? row.theme : "system" };
 }
 
+/** Lanima is made for Biomedicina students: the course is not chosen, it is always this one. */
+export const COURSE = "Biomedicina";
+
 /** Daily focus goal slider: 30 min to 6 h (section 7.11). */
 export const FOCUS_GOAL = { min: 30, max: 360, step: 15, default: 120 } as const;
 
@@ -33,7 +36,7 @@ export function firstNameOf(name: string | null | undefined): string | undefined
 
 /** "Biomedicina · 3º semestre" (sidebar card, profile header). */
 export function profileSubtitle(profile: Pick<Profile, "course" | "semester">): string {
-  return [profile.course || "Biomedicina", profile.semester ? semesterLabel(profile.semester) : null]
+  return [profile.course || COURSE, profile.semester ? semesterLabel(profile.semester) : null]
     .filter(Boolean)
     .join(" · ");
 }
@@ -49,7 +52,7 @@ export const profileDetailsSchema = z.object({
     .int({ error: "Escolha o semestre." })
     .min(1, { error: "Escolha o semestre." })
     .max(12, { error: "Escolha o semestre." }),
-  course: z.string().trim().min(1, { error: "Informe o curso." }).max(80, { error: "Use até 80 caracteres." }),
+  course: z.literal(COURSE).catch(COURSE),
   institution: z.string().trim().max(120, { error: "Use até 120 caracteres." }),
 });
 

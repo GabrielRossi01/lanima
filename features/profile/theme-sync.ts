@@ -62,6 +62,7 @@ export function useThemeSync(profile: Profile | undefined) {
   const { mutateAsync } = useUpdateProfile();
   const remote = profile?.theme;
   const profileId = profile?.id;
+  const signingUp = profile ? !profile.onboarding_completed_at : false;
   useEffect(() => {
     if (!remote || !profileId) return;
     const local = document.documentElement.getAttribute("data-theme-preference") as ThemePreference | null;
@@ -72,8 +73,12 @@ export function useThemeSync(profile: Profile | undefined) {
       else setPending(null);
       return;
     }
-    if (local !== remote) setThemePreference(remote);
-  }, [remote, profileId, mutateAsync]);
+    if (local === remote) return;
+    // A new account starts at "system", which nobody chose (the theme is only picked in Perfil):
+    // during the sign-up the theme on the screen stays, and becomes the account's.
+    if (signingUp && local) void upload(mutateAsync, profileId, local);
+    else setThemePreference(remote);
+  }, [remote, profileId, signingUp, mutateAsync]);
 }
 
 /** Theme preference that is also saved to the profile when she is signed in. */

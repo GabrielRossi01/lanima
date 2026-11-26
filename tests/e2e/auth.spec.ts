@@ -110,6 +110,7 @@ base.describe("Onboarding", () => {
     await page.getByLabel("Como prefere que te chamem?").fill("Ana Souza");
     await page.getByLabel("Semestre").selectOption("4");
     await expect(page.getByLabel("Curso")).toHaveValue("Biomedicina");
+    await expect(page.getByLabel("Curso")).not.toBeEditable();
     await page.getByLabel("Instituição").fill("Universidade Federal Exemplo");
     await page.getByRole("button", { name: "Bioquímica" }).click();
     await page.getByRole("button", { name: "Imunologia" }).click();
@@ -175,6 +176,8 @@ test.describe("Perfil", () => {
     await page.getByLabel("Nome").fill("Maria Clara");
     await page.getByLabel("Instituição").fill("");
     await page.getByLabel("Semestre").selectOption("5");
+    await expect(page.getByLabel("Curso")).toHaveValue("Biomedicina");
+    await expect(page.getByLabel("Curso")).not.toBeEditable();
     await page.getByRole("button", { name: "Salvar alterações" }).click();
     await expect(page.getByText("Perfil salvo")).toBeVisible();
     await page.reload();

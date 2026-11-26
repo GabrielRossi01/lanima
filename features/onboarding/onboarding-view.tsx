@@ -14,6 +14,7 @@ import { useAvatarUrl, useProfile, useUpdateProfile } from "@/features/profile/q
 import { useCreateSubjects } from "@/features/subjects/queries";
 import { cn } from "@/lib/cn";
 import {
+  COURSE,
   FOCUS_GOAL,
   formatFocusGoal,
   parseProfileDetails,
@@ -62,7 +63,6 @@ function ProfileStep({ onBack, onNext }: ProfileStepProps) {
 
   const [name, setName] = useState(profile?.name ?? "");
   const [semester, setSemester] = useState(profile?.semester ? String(profile.semester) : "");
-  const [course, setCourse] = useState(profile?.course || "Biomedicina");
   const [institution, setInstitution] = useState(profile?.institution ?? "");
   const [errors, setErrors] = useState<ProfileDetailsErrors>({});
 
@@ -104,7 +104,7 @@ function ProfileStep({ onBack, onNext }: ProfileStepProps) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const parsed = parseProfileDetails({ name, semester, course, institution });
+    const parsed = parseProfileDetails({ name, semester, institution });
     if (!parsed.ok) {
       setErrors(parsed.errors);
       return;
@@ -175,13 +175,7 @@ function ProfileStep({ onBack, onNext }: ProfileStepProps) {
         </SelectField>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field
-          label="Curso"
-          value={course}
-          onChange={(e) => setCourse(e.target.value)}
-          error={errors.course}
-          maxLength={80}
-        />
+        <Field label="Curso" value={COURSE} readOnly hint="O Lanima é feito para Biomedicina." />
         <Field
           label="Instituição"
           autoComplete="organization"
