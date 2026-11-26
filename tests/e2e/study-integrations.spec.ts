@@ -15,6 +15,12 @@ const fixture = (name: string) => join(__dirname, "..", "fixtures", "files", nam
 /** 2 of 5 right (40%): the multiple choice and the true or false; Células all wrong. */
 const FORTY = [{ index: 1 }, { value: true }, null, { index: 1 }, null];
 
+/**
+ * The name the app gave the download. Playwright's WebKit reports spaces as "_"
+ * ("Sistema_esquelético.pdf") while Chromium keeps them: the app's name has spaces.
+ */
+const downloadName = (download: Download) => download.suggestedFilename().replace(/_/g, " ");
+
 /** The text of each page of a downloaded PDF. */
 async function pdfText(download: Download): Promise<string[]> {
   const data = new Uint8Array(await readFile((await download.path())!));
@@ -177,7 +183,7 @@ test.describe("Resumos e testes no resto do app", () => {
     let downloading = page.waitForEvent("download");
     await page.getByRole("button", { name: "Exportar em PDF" }).click();
     let download = await downloading;
-    expect(download.suggestedFilename()).toBe("Sistema esquelético.pdf");
+    expect(downloadName(download)).toBe("Sistema esquelético.pdf");
     let text = (await pdfText(download)).join(" ");
     expect(text).toContain("Sistema esquelético");
     expect(text).toContain("O esqueleto humano adulto tem 206 ossos.");
@@ -190,7 +196,7 @@ test.describe("Resumos e testes no resto do app", () => {
     downloading = page.waitForEvent("download");
     await sheet.getByRole("button", { name: "Baixar PDF" }).click();
     download = await downloading;
-    expect(download.suggestedFilename()).toBe("Ossos · revisão.pdf");
+    expect(downloadName(download)).toBe("Ossos · revisão.pdf");
     const pages = await pdfText(download);
     expect(pages.join(" ")).toContain("Quantos ossos tem o esqueleto adulto?");
     expect(pages[pages.length - 1]).toContain("Gabarito");
