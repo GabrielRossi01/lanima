@@ -126,7 +126,8 @@ export async function readAgain(file: StoredFile, userId: string, queryClient: Q
 }
 
 export interface UploadReport {
-  sent: string[];
+  /** Names and ids of the files sent. */
+  sent: { id: string; name: string }[];
   refused: { name: string; reason: string }[];
   duplicates: { name: string; existing: StoredFile }[];
   quotaFull: boolean;
@@ -222,7 +223,7 @@ export async function uploadFiles(input: {
       if (done.error) throw new DataError(done.error.message, { status: done.status, code: done.error.code });
 
       known.set(hash, { id, name } as StoredFile);
-      report.sent.push(name);
+      report.sent.push({ id, name });
       await queryClient.invalidateQueries({ queryKey: filesKey(userId) });
       // Photos are read from the original: more detail for the OCR than the stored copy.
       enqueue({ fileId: id, documentId, kind, source: file, userId, queryClient });

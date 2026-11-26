@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Download,
   FileText,
   GripVertical,
   ListChecks,
@@ -63,6 +64,7 @@ import {
 } from "@/lib/study/summary";
 import { friendlyError } from "@/lib/supabase/errors";
 import { useQueryClient } from "@tanstack/react-query";
+import { exportPdf, longDate } from "./export-pdf";
 import { summariesKey, useDeleteSummary, useSaveSummaryContent, useSummary, type Summary } from "./queries";
 import { AiDisclaimer } from "./study-view";
 import { useSaveState, type SaveState } from "./summary-sync";
@@ -448,6 +450,7 @@ export function SummaryView({ id }: { id: string }) {
   const [marking, setMarking] = useState<PointPath | null>(null);
   const [preview, setPreview] = useState<StoredFile | null>(null);
   const [confirm, setConfirm] = useState<"regenerate" | "delete" | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   if (!summary) {
     if (summaries.isPending) {
@@ -529,6 +532,26 @@ export function SummaryView({ id }: { id: string }) {
   const onMove = (path: PointPath, to: number) => commit((c) => movePoint(c, path, to));
   const sourceFiles = summary.document_ids.map((d) => byDocument.get(d));
 
+  async function exportSummary() {
+    setExporting(true);
+    try {
+      await exportPdf(summary!.title, (pdf, fonts) =>
+        pdf.summaryPdf(
+          {
+            content: summary!.content,
+            meta: [subject?.name, longDate(new Date())].filter(Boolean).join(" · "),
+            fileName: (documentId) => byDocument.get(documentId)?.name.replace(/\.[^.]+$/, "") ?? null,
+          },
+          fonts,
+        ),
+      );
+    } catch (error) {
+      toast({ title: "Não foi possível exportar", description: friendlyError(error), tone: "danger" });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <>
       <nav aria-label="Trilha" className="mb-3 flex min-w-0 items-center gap-1.5 text-[13px]">
@@ -596,6 +619,13 @@ export function SummaryView({ id }: { id: string }) {
             label={editing ? "Concluir edição" : "Editar resumo"}
             variant="outline"
             onClick={() => setEditing((e) => !e)}
+          />
+          <IconButton
+            icon={Download}
+            label="Exportar em PDF"
+            variant="outline"
+            disabled={exporting}
+            onClick={() => void exportSummary()}
           />
           <IconButton icon={Trash2} label="Excluir resumo" variant="outline" onClick={() => setConfirm("delete")} />
           <Link href={`/estudo/novo-teste?resumo=${summary.id}`} className={buttonClasses("primary", "m")}>

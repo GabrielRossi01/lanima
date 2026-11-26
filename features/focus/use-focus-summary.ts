@@ -5,6 +5,8 @@ import { useMemo } from "react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { addDays, todayIn, type IsoDate } from "@/lib/dates/calendar";
 import { recentSince, summarizeFocus, type FocusHistory, type FocusSummary } from "@/lib/focus/sessions";
+import { useFinishedAttempts } from "@/features/study/review";
+import { testDays } from "@/lib/study/grading";
 import { getSupabase } from "@/lib/supabase/client";
 import { DataError } from "@/lib/supabase/errors";
 import { forgetSent, useSessionStore } from "./session-store";
@@ -59,12 +61,19 @@ export function useFocusHistory() {
   });
 }
 
-/** Today's focus and the streak, with the sessions still on this device; null until known. */
+/**
+ * Today's focus and the streak, with the sessions still on this device; null until known. A day
+ * with a finished test also counts for the streak (section 5).
+ */
 export function useFocusSummary(today: IsoDate | null): FocusSummary | null {
   const { data: history } = useFocusHistory();
   const local = useSessionStore((s) => s.sessions);
+  const attempts = useFinishedAttempts().data;
   return useMemo(
-    () => (today && (history || local.length > 0) ? summarizeFocus(history, local, today) : null),
-    [history, local, today],
+    () =>
+      today && (history || local.length > 0 || attempts?.length)
+        ? summarizeFocus(history, local, today, testDays(attempts ?? []))
+        : null,
+    [history, local, today, attempts],
   );
 }

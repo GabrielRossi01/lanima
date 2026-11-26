@@ -1,9 +1,9 @@
 "use client";
 
-import { BookOpen, Check, ChevronRight, Flame, Play, Target, Timer } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Flame, ListChecks, Play, Target, Timer } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -31,6 +31,10 @@ import { useNow } from "@/lib/hooks/use-now";
 import { FOCUS_GOAL, firstNameOf, formatFocusGoal } from "@/lib/profile/profile";
 import { formatFocused } from "@/lib/focus/sessions";
 import { useFocusSummary } from "@/features/focus/use-focus-summary";
+import { useFiles } from "@/features/files/queries";
+import { useFinishedAttempts } from "@/features/study/review";
+import { averageScore } from "@/lib/study/grading";
+import { newTestHref } from "@/lib/study/links";
 import { SUBJECT_BG } from "@/lib/subjects/colors";
 import { subjectIcon } from "@/lib/subjects/icons";
 import { formatTimeShort } from "@/lib/subjects/schedule";
@@ -96,7 +100,18 @@ function ContinueStudying({ recent }: { recent: SubjectSummary[] }) {
   );
 }
 
-function NextExamCard({ exam, subject, today }: { exam?: AssessmentRow; subject?: Subject; today: IsoDate }) {
+function NextExamCard({
+  exam,
+  subject,
+  today,
+  fileIds,
+}: {
+  exam?: AssessmentRow;
+  subject?: Subject;
+  today: IsoDate;
+  /** The subject's files with their text read: the test wizard opens with them chosen. */
+  fileIds: string[];
+}) {
   if (!exam || !subject) {
     return (
       <Card tone="deep" className="gap-2.5">
@@ -117,10 +132,14 @@ function NextExamCard({ exam, subject, today }: { exam?: AssessmentRow; subject?
       <span className="type-body wrap-break-word text-on-deep-2">
         {[subject.name, exam.title, exam.description].filter(Boolean).join(" · ")} · {formatDate(exam.date)}
       </span>
-      <Button variant="inverse" disabled className="mt-1 self-start">
+      <ButtonLink
+        variant="inverse"
+        icon={ListChecks}
+        href={newTestHref({ subjectId: subject.id, fileIds })}
+        className="mt-1 self-start"
+      >
         Criar teste para a prova
-      </Button>
-      <span className="type-caption text-on-deep-2">Os testes chegam na fase 6.</span>
+      </ButtonLink>
     </Card>
   );
 }
@@ -231,6 +250,10 @@ export function HomeView() {
   const goalMin = profile?.daily_focus_goal_min ?? FOCUS_GOAL.default;
   const goalReached = focus !== null && focus.minutes >= goalMin;
   const week = today && goals.data ? weekProgress(goals.data, today) : null;
+  const files = useFiles();
+  // "Acerto médio": the tests of the last 7 days (also the ones finished offline, scored here).
+  const attempts = useFinishedAttempts().data;
+  const average = now && attempts ? averageScore(attempts, now) : null;
 
   return (
     <>
@@ -266,7 +289,12 @@ export function HomeView() {
           value={week ? `${week.done} de ${week.total}` : "–"}
           label="Metas da semana"
         />
-        <MetricCard icon={Target} color="rosa" value="–" label="Acerto médio nos testes" />
+        <MetricCard
+          icon={Target}
+          color="rosa"
+          value={average === null ? "–" : `${average}%`}
+          label="Acerto médio nos testes"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_290px] xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -292,7 +320,16 @@ export function HomeView() {
             <CardHeader title="Ranking da semana" />
             <p className="type-body m-0 text-fg-2">Entre num grupo para ver o ranking da turma.</p>
           </Card>
-          {today && <NextExamCard exam={exam} subject={active.find((s) => s.id === exam?.subject_id)} today={today} />}
+          {today && (
+            <NextExamCard
+              exam={exam}
+              subject={active.find((s) => s.id === exam?.subject_id)}
+              today={today}
+              fileIds={(files.data ?? [])
+                .filter((f) => f.subject_id === exam?.subject_id && f.document?.status === "pronto")
+                .map((f) => f.id)}
+            />
+          )}
           {today && <WeekAgenda subjects={active} assessments={activeAssessments} today={today} />}
           {subjects.data && active.length === 0 && (
             <Card tone="alt">

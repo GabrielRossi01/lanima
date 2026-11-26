@@ -73,6 +73,16 @@ describe("sessões de foco", () => {
     expect(streak([d(2), d(3)])).toBe(0);
   });
 
+  it("sequência: um dia com teste concluído conta, mesmo sem os 25 minutos (seção 5)", () => {
+    const d = (n: number, minutes = 25) => session(addDays(TODAY, -n), minutes);
+    const streak = (list: FocusSession[], tests: number[]) =>
+      summarizeFocus(history(list), [], TODAY, new Set(tests.map((n) => addDays(TODAY, -n)))).streak;
+    expect(streak([d(1), d(3)], [2])).toBe(3);
+    expect(streak([d(1, 10)], [0])).toBe(1);
+    expect(streak([], [0, 1, 2])).toBe(3);
+    expect(streak([d(1)], [3])).toBe(1);
+  });
+
   it("os dias antigos vêm somados do servidor, e os recentes não contam duas vezes", () => {
     const recent = Array.from({ length: RECENT_DAYS + 1 }, (_, n) => session(addDays(TODAY, -n)));
     const days = Array.from({ length: 40 }, (_, n) => ({ day: addDays(TODAY, -n), minutes: 25 }));

@@ -1,5 +1,5 @@
 import { DIFFICULTIES, type Difficulty, type QuestionType } from "@/lib/ai/schemas";
-import { todayIn } from "@/lib/dates/calendar";
+import { addDays, todayIn, type IsoDate } from "@/lib/dates/calendar";
 import { permutation } from "@/lib/ai/validate";
 import { topicKey } from "./test-config";
 
@@ -144,6 +144,50 @@ export function pointsFor(attempt: FinishedAttempt, all: readonly FinishedAttemp
     .sort((a, b) => a.finishedAt.localeCompare(b.finishedAt))[0];
   if (first && first.id !== attempt.id) return 0;
   return 5 + (attempt.score >= 70 ? 3 : 0);
+}
+
+/**
+ * "Acerto médio" (Início): the mean score of the attempts finished in the last 7 days (today and
+ * the 6 before, São Paulo), or null without any.
+ */
+export function averageScore(attempts: readonly FinishedAttempt[], now: Date): number | null {
+  const today = todayIn(now);
+  const since = addDays(today, -6);
+  const recent = attempts.filter((a) => {
+    const day = todayIn(new Date(a.finishedAt));
+    return a.score >= 0 && day >= since && day <= today;
+  });
+  if (recent.length === 0) return null;
+  return Math.round(recent.reduce((s, a) => s + a.score, 0) / recent.length);
+}
+
+/** The São Paulo days with a finished test: they count for the streak (section 5). */
+export function testDays(attempts: readonly FinishedAttempt[]): Set<IsoDate> {
+  return new Set(attempts.map((a) => todayIn(new Date(a.finishedAt))));
+}
+
+/**
+ * An answer in words (the result list and the PDF). `pair` joins the two sides of a match: the PDF
+ * fonts have no "↔".
+ */
+export function answerText(q: GradableQuestion, a: Answer | undefined, pair = " ↔ "): string {
+  const r = (a?.response ?? null) as Record<string, unknown> | null;
+  if (q.type === "resposta_curta") return String(r?.text ?? "").trim() || "em branco";
+  if (!r) return "em branco";
+  if (q.type === "multipla_escolha" || q.type === "caso_clinico") {
+    const options = (q.options as string[] | null) ?? [];
+    return options[r.index as number] ?? "em branco";
+  }
+  if (q.type === "verdadeiro_falso") return r.value ? "Verdadeiro" : "Falso";
+  const { left = [], right = [] } = (q.options ?? {}) as { left?: string[]; right?: string[] };
+  return left.map((l, i) => `${l}${pair}${right[(r.match as number[] | undefined)?.[i] ?? -1] ?? "?"}`).join("; ");
+}
+
+/** The answer key in words. */
+export function correctText(q: GradableQuestion, pair?: string): string {
+  const key = (q.answer ?? {}) as Record<string, unknown>;
+  const response = (q.type === "resposta_curta" ? { text: String(key.text ?? "") } : key) as Response;
+  return answerText(q, { response, selfAssessment: null }, pair);
 }
 
 /** "22 min", "1h 05min", "40 s". */

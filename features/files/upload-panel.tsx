@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera, CloudUpload, LoaderCircle, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useId, useState, type DragEvent } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,19 +14,32 @@ import { useSubjects } from "@/features/subjects/queries";
 import { cn } from "@/lib/cn";
 import { ACCEPT, QUOTA_BYTES } from "@/lib/files/files";
 import { useOnline } from "@/lib/hooks/use-online";
+import { newTestHref, summarizeHref } from "@/lib/study/links";
 import { useFiles, type StoredFile } from "./queries";
 import { usedBytes } from "./use-file-statuses";
 import { uploadFiles, useFilesWork, type UploadReport } from "./work-store";
 
 const NO_SUBJECT = "";
 
-function announce(report: UploadReport, subjectName: (id: string | null) => string) {
+function announce(
+  report: UploadReport,
+  subjectName: (id: string | null) => string,
+  go: (href: string) => void,
+  subjectId: string | null,
+) {
   const { sent, refused, duplicates } = report;
   if (sent.length > 0) {
+    const ids = sent.map((s) => s.id);
+    // Section 7.5: right after the upload, the way to a summary or a test. Their sheets wait for the
+    // text to be read.
     toast({
       title: sent.length === 1 ? "Arquivo enviado" : `${sent.length} arquivos enviados`,
       description: "Lendo o texto. Você pode continuar usando o app.",
       tone: "success",
+      actions: [
+        { label: "Resumir em tópicos", onClick: () => go(summarizeHref(ids)) },
+        { label: "Criar teste", onClick: () => go(newTestHref({ fileIds: ids, subjectId })) },
+      ],
     });
   }
   for (const { name, existing } of duplicates) {
@@ -53,6 +67,7 @@ function announce(report: UploadReport, subjectName: (id: string | null) => stri
  */
 export function UploadPanel({ subjectId }: { subjectId?: string }) {
   const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const online = useOnline();
   const files = useFiles();
@@ -73,14 +88,15 @@ export function UploadPanel({ subjectId }: { subjectId?: string }) {
   async function send(list: FileList | File[] | null) {
     const picked = Array.from(list ?? []);
     if (picked.length === 0 || disabled || !user) return;
+    const destination = subjectId ?? (target || null);
     const report = await uploadFiles({
       files: picked,
-      subjectId: subjectId ?? (target || null),
+      subjectId: destination,
       userId: user.id,
       existing: (files.data ?? []) as StoredFile[],
       queryClient,
     });
-    announce(report, subjectName);
+    announce(report, subjectName, (href) => router.push(href), destination);
   }
 
   function onDrop(event: DragEvent) {

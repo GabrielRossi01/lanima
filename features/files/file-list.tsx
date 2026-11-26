@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderInput, MoreHorizontal, Trash2, X } from "lucide-react";
+import { FolderInput, ListChecks, MoreHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SubjectChip } from "@/components/ui/chip";
@@ -12,6 +13,7 @@ import { formatBytes, KIND_LABELS } from "@/lib/files/files";
 import { dayLabel, type FileStatus } from "@/lib/files/status";
 import { useNow } from "@/lib/hooks/use-now";
 import { useOnline } from "@/lib/hooks/use-online";
+import { newTestHref, summarizeHref } from "@/lib/study/links";
 import type { Subject } from "@/lib/subjects/subjects";
 import { FileDialogs, type FileDialog } from "./file-dialogs";
 import type { StoredFile } from "./queries";
@@ -83,8 +85,7 @@ function SubjectCell({ subject }: { subject: Subject | undefined }) {
 
 /**
  * The files (section 7.9): a table from the tablet up, a list on the phone. Each file has a menu of
- * actions; several can be selected to move or delete together. Phase 6 adds "Resumir juntos" and
- * "Criar teste" to the selection bar.
+ * actions; several can be selected to summarize together, make a test, move or delete.
  */
 export function FileList({
   files,
@@ -126,6 +127,11 @@ export function FileList({
   }, [highlight, files.length > 0]);
 
   const chosen = files.filter((f) => selected.has(f.id));
+  // "Resumir juntos" and "Criar teste" take the ones whose text is read.
+  const readyIds = chosen.filter((f) => f.document?.status === "pronto").map((f) => f.id);
+  const subjectIds = new Set(chosen.map((f) => f.subject_id));
+  const sharedSubject = subjectIds.size === 1 ? [...subjectIds][0] : null;
+  const router = useRouter();
   const toggle = (id: string, on: boolean) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -158,6 +164,24 @@ export function FileList({
           <span className="mr-auto text-sm font-semibold">
             {chosen.length === 1 ? "1 selecionado" : `${chosen.length} selecionados`}
           </span>
+          <Button
+            variant="inverse"
+            size="s"
+            icon={Sparkles}
+            disabled={!online || readyIds.length === 0}
+            onClick={() => router.push(summarizeHref(readyIds))}
+          >
+            Resumir juntos
+          </Button>
+          <Button
+            variant="inverse"
+            size="s"
+            icon={ListChecks}
+            disabled={!online || readyIds.length === 0}
+            onClick={() => router.push(newTestHref({ fileIds: readyIds, subjectId: sharedSubject }))}
+          >
+            Criar teste
+          </Button>
           <Button
             variant="inverse"
             size="s"

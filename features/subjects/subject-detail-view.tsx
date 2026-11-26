@@ -5,7 +5,6 @@ import {
   ArchiveRestore,
   BookOpen,
   ChevronRight,
-  ListChecks,
   MoreHorizontal,
   NotebookPen,
   Pencil,
@@ -32,6 +31,8 @@ import { formatSchedule, rooms } from "@/lib/subjects/schedule";
 import { summarize } from "@/lib/subjects/subjects";
 import { errorTag, friendlyError } from "@/lib/supabase/errors";
 import { RecentFiles, SubjectFilesTab } from "@/features/files/subject-files";
+import { LastTestCard } from "@/features/study/last-test-card";
+import { SubjectStudyTab } from "@/features/study/study-view";
 import { AssessmentList } from "./assessments";
 import { ImportSyllabusSheet } from "./import-syllabus-sheet";
 import { useAssessments, useDeleteSubject, useSetArchived, useSubjects, useTopics } from "./queries";
@@ -166,10 +167,7 @@ export function SubjectDetailView({ id }: { id: string }) {
                 />
                 <AssessmentList subjectId={subject.id} assessments={own} today={today!} compact />
               </Card>
-              <Card>
-                <CardHeader title="Último teste" />
-                <p className="type-body m-0 text-fg-2">Os testes chegam na fase 6, com resumos em tópicos.</p>
-              </Card>
+              <LastTestCard subjectId={subject.id} />
               <Card>
                 <RecentFiles subjectId={subject.id} onSeeAll={() => setTab("arquivos")} />
               </Card>
@@ -180,7 +178,7 @@ export function SubjectDetailView({ id }: { id: string }) {
           <Later icon={NotebookPen} title="Anotações" phase={7} />
         </TabPanel>
         <TabPanel value="estudo">
-          <Later icon={ListChecks} title="Resumos e testes" phase={6} />
+          <SubjectStudyTab subjectId={subject.id} />
         </TabPanel>
         <TabPanel value="arquivos">
           <SubjectFilesTab subject={subject} subjects={subjects.data ?? []} />

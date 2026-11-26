@@ -53,18 +53,22 @@ export interface FocusSummary {
   sessions: number;
   /** 10 points per hour of focus (section 5), never more than the ranking will give. */
   points: number;
-  /** Days in a row with at least 25 minutes. Today only adds: until then, yesterday's streak holds. */
+  /**
+   * Days in a row with at least 25 minutes of focus or a finished test (section 5). Today only adds:
+   * until then, yesterday's streak holds.
+   */
   streak: number;
 }
 
 /**
  * `local` are the sessions kept on this device. They may already be on the server too, at any
- * moment: what is the same session (same start) counts once.
+ * moment: what is the same session (same start) counts once. `testDays`: days with a finished test.
  */
 export function summarizeFocus(
   history: FocusHistory | undefined,
   local: readonly FocusSession[],
   today: IsoDate,
+  testDays: ReadonlySet<IsoDate> = new Set(),
 ): FocusSummary {
   const byStart = new Map<number, FocusSession>();
   for (const session of [...(history?.sessions ?? []), ...local]) byStart.set(session.startedAt, session);
@@ -81,7 +85,7 @@ export function summarizeFocus(
     if (day === today) sessions++;
   }
 
-  const counts = (day: IsoDate) => (minutes.get(day) ?? 0) >= STREAK_MIN;
+  const counts = (day: IsoDate) => (minutes.get(day) ?? 0) >= STREAK_MIN || testDays.has(day);
   let streak = counts(today) ? 1 : 0;
   for (let day = addDays(today, -1); counts(day); day = addDays(day, -1)) streak++;
 

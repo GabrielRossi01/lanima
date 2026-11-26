@@ -183,6 +183,50 @@ export async function seedTest(
   return { testId: test.id, questionIds };
 }
 
+/**
+ * A finished attempt of a seeded test, graded by the database like one sent from the app.
+ * `responses[i]` is the answer to question i (null: blank); `finishedAt` defaults to now.
+ */
+export async function seedFinishedAttempt(
+  account: TestAccount,
+  input: {
+    testId: string;
+    questionIds: string[];
+    responses: (Record<string, unknown> | null)[];
+    finishedAt?: Date;
+  },
+): Promise<{ attemptId: string; score: number }> {
+  const admin = adminClient();
+  const finishedAt = input.finishedAt ?? new Date();
+  const attemptId = crypto.randomUUID();
+  const { error } = await admin.from("test_attempts").insert({
+    id: attemptId,
+    user_id: account.id,
+    test_id: input.testId,
+    mode: "treino",
+    question_ids: input.questionIds,
+    started_at: new Date(finishedAt.getTime() - 5 * 60_000).toISOString(),
+  });
+  if (error) throw error;
+  const { error: answersError } = await admin.from("attempt_answers").insert(
+    input.questionIds.map((questionId, i) => ({
+      user_id: account.id,
+      attempt_id: attemptId,
+      question_id: questionId,
+      response: (input.responses[i] ?? null) as never,
+    })),
+  );
+  if (answersError) throw answersError;
+  const { data, error: doneError } = await admin
+    .from("test_attempts")
+    .update({ completed: true, finished_at: finishedAt.toISOString() })
+    .eq("id", attemptId)
+    .select("score")
+    .single();
+  if (doneError) throw doneError;
+  return { attemptId, score: Number(data.score) };
+}
+
 export async function acceptAiNotice(account: TestAccount) {
   const { error } = await adminClient()
     .from("profiles")

@@ -2,6 +2,7 @@
 
 import { ChevronRight, FilePlus2, Info, ListChecks, Play, Plus, RotateCcw, Sparkles, Target } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { FilterChip, SubjectChip } from "@/components/ui/chip";
@@ -15,6 +16,7 @@ import { todayIn } from "@/lib/dates/calendar";
 import { subjectIcon } from "@/lib/subjects/icons";
 import type { Subject } from "@/lib/subjects/subjects";
 import { AI_DISCLAIMER, plural, shortDay } from "@/lib/study/format";
+import { newTestHref, parseIds } from "@/lib/study/links";
 import { NewSummarySheet } from "./new-summary-sheet";
 import { useAiRemaining, useSummaries, type Summary } from "./queries";
 import { useTests, type SavedTest } from "./test-queries";
@@ -183,28 +185,113 @@ function Column({ title, action, children }: { title: string; action: ReactNode;
   );
 }
 
-/** Resumos e testes (Estudo.html): her summaries and tests, by subject, and what to review. */
-export function StudyView() {
+/**
+ * The two columns of Resumos e testes, for every subject (ALL) or one: summaries, tests with their
+ * last score, and "Para revisar". Also the subject page's "Resumos e testes" tab.
+ */
+export function StudyColumns({ subject, onNewSummary }: { subject: string; onNewSummary: () => void }) {
   const summaries = useSummaries();
   const subjects = useSubjects().data ?? [];
-  const remaining = useAiRemaining().data;
-  const [subject, setSubject] = useState(ALL);
-  const [newSummary, setNewSummary] = useState(false);
   const today = todayIn(new Date());
   const bySubject = new Map(subjects.map((s) => [s.id, s]));
   const list = (summaries.data ?? []).filter((s) => subject === ALL || s.subject_id === subject);
   const tests = useTests();
   const testList = (tests.data ?? []).filter((t) => subject === ALL || t.subject_id === subject);
+  const testHref = newTestHref({ subjectId: subject === ALL ? null : subject });
+  // Attempts finished offline go up when this screen opens or the network is back.
+  useAttemptSync();
+  const latest = latestByTest(useFinishedAttempts().data ?? []);
+  const review = useReviewTopics().filter((t) => subject === ALL || t.subjectId === subject);
+
+  return (
+    <div className="flex flex-col gap-5 lg:flex-row">
+      <Column
+        title="Resumos"
+        action={
+          <Button variant="ghost" size="s" icon={Plus} onClick={onNewSummary}>
+            Novo resumo
+          </Button>
+        }
+      >
+        {!summaries.data ? (
+          <div aria-busy className="flex flex-col gap-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-[18px] bg-surface-alt motion-reduce:animate-none" />
+            ))}
+          </div>
+        ) : list.length === 0 ? (
+          <EmptyState
+            icon={FilePlus2}
+            title="Nenhum resumo ainda"
+            description="Escolha arquivos já enviados e receba um resumo em tópicos, com a página de cada ponto."
+            action={
+              <Button variant="secondary" onClick={onNewSummary}>
+                Fazer um resumo
+              </Button>
+            }
+          />
+        ) : (
+          list.map((s) => (
+            <SummaryRow key={s.id} summary={s} subject={bySubject.get(s.subject_id ?? "")} today={today} />
+          ))
+        )}
+      </Column>
+      <Column
+        title="Testes"
+        action={
+          <Link href={testHref} className={buttonClasses("ghost", "s")}>
+            <Plus aria-hidden size={16} strokeWidth={1.75} />
+            Novo teste
+          </Link>
+        }
+      >
+        {tests.data && testList.length === 0 ? (
+          <EmptyState
+            icon={ListChecks}
+            title="Nenhum teste ainda"
+            description="Crie um teste com os níveis e os tipos de questão que quiser, a partir de arquivos ou resumos."
+          />
+        ) : (
+          testList.map((t) => (
+            <TestRow
+              key={t.id}
+              test={t}
+              subject={bySubject.get(t.subject_id ?? "")}
+              last={latest.get(t.id)}
+              today={today}
+            />
+          ))
+        )}
+        {review.length > 0 && <ReviewCard topics={review} subjects={subjects} />}
+      </Column>
+    </div>
+  );
+}
+
+/** Resumos e testes (Estudo.html): her summaries and tests, by subject, and what to review. */
+export function StudyView() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const summaries = useSummaries();
+  const subjects = useSubjects().data ?? [];
+  const remaining = useAiRemaining().data;
+  const [subject, setSubject] = useState(ALL);
+  // "?resumir=<ids>": from Arquivos ("Resumir em tópicos"), the sheet opens with those files chosen.
+  const [fromFiles] = useState(() => parseIds(params.get("resumir")));
+  const [newSummary, setNewSummary] = useState(fromFiles.length > 0);
+  const tests = useTests();
   const used = subjects.filter(
     (s) =>
       (summaries.data ?? []).some((x) => x.subject_id === s.id) ||
       (tests.data ?? []).some((x) => x.subject_id === s.id),
   );
-  const newTestHref = subject === ALL ? "/estudo/novo-teste" : `/estudo/novo-teste?materia=${subject}`;
-  // Attempts finished offline go up when this screen opens or the network is back.
-  useAttemptSync();
-  const latest = latestByTest(useFinishedAttempts().data ?? []);
-  const review = useReviewTopics().filter((t) => subject === ALL || t.subjectId === subject);
+  const testHref = newTestHref({ subjectId: subject === ALL ? null : subject });
+
+  function closeSheet() {
+    setNewSummary(false);
+    // Reloading doesn't open it again.
+    if (params.get("resumir")) router.replace("/estudo", { scroll: false });
+  }
 
   return (
     <>
@@ -222,7 +309,7 @@ export function StudyView() {
             <Button variant="secondary" icon={FilePlus2} onClick={() => setNewSummary(true)}>
               Novo resumo
             </Button>
-            <Link href={newTestHref} className={buttonClasses("primary", "m")}>
+            <Link href={testHref} className={buttonClasses("primary", "m")}>
               <ListChecks aria-hidden size={18} strokeWidth={1.75} />
               Novo teste
             </Link>
@@ -243,71 +330,28 @@ export function StudyView() {
         </div>
       )}
 
-      <div className="flex flex-col gap-5 lg:flex-row">
-        <Column
-          title="Resumos"
-          action={
-            <Button variant="ghost" size="s" icon={Plus} onClick={() => setNewSummary(true)}>
-              Novo resumo
-            </Button>
-          }
-        >
-          {!summaries.data ? (
-            <div aria-busy className="flex flex-col gap-2">
-              {[0, 1].map((i) => (
-                <div key={i} className="h-20 animate-pulse rounded-[18px] bg-surface-alt motion-reduce:animate-none" />
-              ))}
-            </div>
-          ) : list.length === 0 ? (
-            <EmptyState
-              icon={FilePlus2}
-              title="Nenhum resumo ainda"
-              description="Escolha arquivos já enviados e receba um resumo em tópicos, com a página de cada ponto."
-              action={
-                <Button variant="secondary" onClick={() => setNewSummary(true)}>
-                  Fazer um resumo
-                </Button>
-              }
-            />
-          ) : (
-            list.map((s) => (
-              <SummaryRow key={s.id} summary={s} subject={bySubject.get(s.subject_id ?? "")} today={today} />
-            ))
-          )}
-        </Column>
-        <Column
-          title="Testes"
-          action={
-            <Link href={newTestHref} className={buttonClasses("ghost", "s")}>
-              <Plus aria-hidden size={16} strokeWidth={1.75} />
-              Novo teste
-            </Link>
-          }
-        >
-          {tests.data && testList.length === 0 ? (
-            <EmptyState
-              icon={ListChecks}
-              title="Nenhum teste ainda"
-              description="Crie um teste com os níveis e os tipos de questão que quiser, a partir de arquivos ou resumos."
-            />
-          ) : (
-            testList.map((t) => (
-              <TestRow
-                key={t.id}
-                test={t}
-                subject={bySubject.get(t.subject_id ?? "")}
-                last={latest.get(t.id)}
-                today={today}
-              />
-            ))
-          )}
-          {review.length > 0 && <ReviewCard topics={review} subjects={subjects} />}
-        </Column>
-      </div>
+      <StudyColumns subject={subject} onNewSummary={() => setNewSummary(true)} />
       <AiDisclaimer className="mt-6" />
       {newSummary && (
-        <NewSummarySheet open onClose={() => setNewSummary(false)} subjectId={subject === ALL ? null : subject} />
+        <NewSummarySheet
+          open
+          onClose={closeSheet}
+          subjectId={subject === ALL || fromFiles.length > 0 ? null : subject}
+          fileIds={fromFiles}
+        />
       )}
+    </>
+  );
+}
+
+/** Aba "Resumos e testes" da matéria: the same columns, only for this subject. */
+export function SubjectStudyTab({ subjectId }: { subjectId: string }) {
+  const [newSummary, setNewSummary] = useState(false);
+  return (
+    <>
+      <StudyColumns subject={subjectId} onNewSummary={() => setNewSummary(true)} />
+      <AiDisclaimer className="mt-6" />
+      {newSummary && <NewSummarySheet open onClose={() => setNewSummary(false)} subjectId={subjectId} />}
     </>
   );
 }

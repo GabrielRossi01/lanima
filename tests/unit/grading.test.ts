@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { newTestHref, parseIds, summarizeHref } from "@/lib/study/links";
 import {
+  answerText,
+  averageScore,
   byLevel,
   byTopic,
+  correctText,
   creditOf,
   durationLabel,
   isAnswered,
@@ -10,6 +14,7 @@ import {
   pctLabel,
   pointsFor,
   scoreOf,
+  testDays,
   wrongOnes,
   type GradableQuestion,
 } from "@/lib/study/grading";
@@ -117,5 +122,55 @@ describe("resultado", () => {
     expect(durationLabel(65 * 60_000)).toBe("1h 05min");
     expect(pctLabel(62.5)).toBe("62,5%");
     expect(pctLabel(70)).toBe("70%");
+  });
+
+  it("a resposta e o gabarito em palavras", () => {
+    expect(answerText(mc, { response: { index: 2 }, selfAssessment: null })).toBe("216");
+    expect(answerText(mc, undefined)).toBe("em branco");
+    expect(answerText(vf, { response: { value: false }, selfAssessment: null })).toBe("Falso");
+    expect(answerText(assoc, { response: { match: [0, -1] }, selfAssessment: null })).toBe("a ↔ B; b ↔ ?");
+    expect(answerText(short, { response: { text: "  " }, selfAssessment: "errei" })).toBe("em branco");
+    expect(correctText(mc)).toBe("206");
+    expect(correctText(assoc, " – ")).toBe("a – A; b – B");
+    expect(correctText(short)).toBe("O corpo do osso longo.");
+  });
+});
+
+describe("Início e sequência", () => {
+  const at = (id: string, finishedAt: string, score: number) => ({ id, testId: id, finishedAt, score });
+  const now = new Date("2026-11-26T15:00:00Z");
+
+  it("acerto médio: os testes de hoje e dos 6 dias antes, em São Paulo", () => {
+    const list = [
+      at("a", "2026-11-26T13:00:00Z", 80),
+      at("b", "2026-11-20T12:00:00Z", 61),
+      // 19/11 at 23h in São Paulo: 8 days ago, out.
+      at("c", "2026-11-20T02:00:00Z", 0),
+      // Finished offline, score not known yet: left out.
+      at("d", "2026-11-25T13:00:00Z", -1),
+    ];
+    expect(averageScore(list, now)).toBe(71);
+    expect(averageScore([list[2]], now)).toBeNull();
+    expect(averageScore([], now)).toBeNull();
+  });
+
+  it("os dias com teste, no fuso de São Paulo", () => {
+    expect([...testDays([at("a", "2026-11-26T02:00:00Z", 50), at("b", "2026-11-26T13:00:00Z", 90)])]).toEqual([
+      "2026-11-25",
+      "2026-11-26",
+    ]);
+  });
+});
+
+describe("de onde se começa um resumo ou um teste", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+
+  it("links com os arquivos e a matéria", () => {
+    expect(summarizeHref([A, B])).toBe(`/estudo?resumir=${A}%2C${B}`);
+    expect(newTestHref({ fileIds: [A], subjectId: B })).toBe(`/estudo/novo-teste?materia=${B}&arquivo=${A}`);
+    expect(newTestHref({})).toBe("/estudo/novo-teste");
+    expect(parseIds(`${A},x,${B}`)).toEqual([A, B]);
+    expect(parseIds(null)).toEqual([]);
   });
 });

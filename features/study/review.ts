@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
 import { addDays, todayIn } from "@/lib/dates/calendar";
-import { byTopic, REVIEW_BELOW, type Answer, type FinishedAttempt, type Stat } from "@/lib/study/grading";
+import { byTopic, REVIEW_BELOW, scoreOf, type Answer, type FinishedAttempt, type Stat } from "@/lib/study/grading";
 import { getSupabase } from "@/lib/supabase/client";
 import { DataError } from "@/lib/supabase/errors";
 import type { Response, SelfAssessment } from "@/lib/study/grading";
@@ -33,7 +33,8 @@ export function useFinishedAttempts(): { data: LastAttempt[] | undefined } {
       id: l.attempt.id,
       testId: l.attempt.testId,
       finishedAt: new Date(l.attempt.finishedAt!).toISOString(),
-      score: l.attempt.serverScore ?? -1,
+      // Before the server's, the score worked out here from the copy of its questions (-1: unknown).
+      score: l.attempt.serverScore ?? (l.attempt.questions ? scoreOf(l.attempt.questions, l.attempt.answers) : -1),
       waiting: !l.sent,
     }));
   return { data: [...fromServer, ...fromHere].sort((a, b) => b.finishedAt.localeCompare(a.finishedAt)) };

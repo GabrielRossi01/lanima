@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, ListChecks, RotateCcw } from "lucide-react";
+import { Download, FileText, ListChecks, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -11,13 +11,14 @@ import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useFiles } from "@/features/files/queries";
 import { DIFFICULTY_LABELS } from "@/lib/ai/schemas";
-import { permutation } from "@/lib/ai/validate";
 import { cn } from "@/lib/cn";
 import { formatDate, todayIn } from "@/lib/dates/calendar";
 import { shortDay } from "@/lib/study/format";
 import {
+  answerText,
   byLevel,
   byTopic,
+  correctText,
   creditOf,
   durationLabel,
   pctLabel,
@@ -31,10 +32,12 @@ import {
 } from "@/lib/study/grading";
 import { topicKey } from "@/lib/study/test-config";
 import { friendlyError } from "@/lib/supabase/errors";
-import { getSupabase } from "@/lib/supabase/client";
+import { useSubjects } from "@/features/subjects/queries";
+import { TestPdfSheet } from "../pdf-sheets";
 import { useSummaries } from "../queries";
+import { createRedoTest } from "../redo";
 import { AiDisclaimer } from "../study-view";
-import { testsKey, useTests, type Question, type SavedTest } from "../test-queries";
+import { useTests } from "../test-queries";
 import {
   useAnswers,
   useAttemptSync,
@@ -102,28 +105,6 @@ function Bars({
   );
 }
 
-/** What an answer says, in words. */
-function answerText(q: Question, a: Answer | undefined): string {
-  const r = (a?.response ?? null) as Record<string, unknown> | null;
-  if (q.type === "resposta_curta") return String(r?.text ?? "") || "em branco";
-  if (!r) return "em branco";
-  if (q.type === "multipla_escolha" || q.type === "caso_clinico") {
-    const options = (q.options as string[]) ?? [];
-    return options[r.index as number] ?? "em branco";
-  }
-  if (q.type === "verdadeiro_falso") return r.value ? "Verdadeiro" : "Falso";
-  const { left = [], right = [] } = (q.options ?? {}) as { left?: string[]; right?: string[] };
-  return left.map((l, i) => `${l} ↔ ${right[(r.match as number[])?.[i]] ?? "?"}`).join("; ");
-}
-
-function correctText(q: Question): string {
-  const key = (q.answer ?? {}) as Record<string, unknown>;
-  return answerText(q, {
-    response: q.type === "resposta_curta" ? { text: String(key.text ?? "") } : (key as never),
-    selfAssessment: null,
-  });
-}
-
 /** Resultado (Resultado.html): score, time, points, by topic and level, the questions and what's next. */
 export function ResultView() {
   const router = useRouter();
@@ -139,6 +120,8 @@ export function ResultView() {
   useAttemptSync();
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const subjects = useSubjects().data ?? [];
 
   const mine = local.data?.find((a) => a.attempt.id === attemptId);
   const remote = server.data?.find((a) => a.id === attemptId);
@@ -237,24 +220,16 @@ export function ResultView() {
     }
     setBusy(true);
     try {
-      const ids = wrong.map((q) => q.id);
-      const order = permutation(ids.length, attemptId!).map((i) => ids[i]);
-      const counts = { facil: 0, medio: 0, dificil: 0 };
-      for (const q of wrong) counts[q.difficulty]++;
-      const config: SavedTest["config"] = { ...test.config, counts };
-      const { data, error } = await getSupabase()
-        .from("tests")
-        .insert({
-          title: `${test.title} · erradas`.slice(0, 200),
-          subject_id: test.subject_id,
-          config,
-          question_ids: order,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: testsKey(userId) });
-      router.push(`/estudo/fazer?teste=${data.id}`);
+      const id = await createRedoTest({
+        test,
+        questions: list,
+        answers: answers ?? {},
+        attemptId: attemptId!,
+        userId,
+        queryClient,
+      });
+      if (id) router.push(`/estudo/fazer?teste=${id}`);
+      else setBusy(false);
     } catch (error) {
       toast({ title: "Não foi possível criar o teste", description: friendlyError(error), tone: "danger" });
       setBusy(false);
@@ -355,9 +330,18 @@ export function ResultView() {
       </div>
 
       <section className="mb-5 flex flex-col gap-1 rounded-card border border-line bg-surface p-5 shadow-card">
-        <h2 className="m-0 text-base font-semibold">
-          {showAll ? "Todas as questões" : wrong.length ? "Questões que você errou" : "Você acertou todas as questões"}
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="m-0 text-base font-semibold">
+            {showAll
+              ? "Todas as questões"
+              : wrong.length
+                ? "Questões que você errou"
+                : "Você acertou todas as questões"}
+          </h2>
+          <Button variant="ghost" size="s" icon={Download} onClick={() => setExporting(true)}>
+            Exportar PDF
+          </Button>
+        </div>
         <ul className="m-0 list-none p-0">
           {shown.map((q) => {
             const n = list.indexOf(q) + 1;
@@ -413,6 +397,15 @@ export function ResultView() {
         </section>
       )}
       <AiDisclaimer />
+      {exporting && (
+        <TestPdfSheet
+          open
+          onClose={() => setExporting(false)}
+          title={test?.title ?? mine?.attempt.title ?? "Teste"}
+          subjectName={subjects.find((s) => s.id === (test?.subject_id ?? mine?.attempt.subjectId))?.name ?? null}
+          questions={list}
+        />
+      )}
     </>
   );
 }

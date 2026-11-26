@@ -5,12 +5,15 @@ import {
   Download,
   ExternalLink,
   FolderInput,
+  ListChecks,
   Pencil,
   RotateCcw,
   ScrollText,
+  Sparkles,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -23,6 +26,7 @@ import { formatBytes, KIND_LABELS, renamed } from "@/lib/files/files";
 import { canReadAgain, hasPreview, type FileStatus } from "@/lib/files/status";
 import { useOnline } from "@/lib/hooks/use-online";
 import type { Subject } from "@/lib/subjects/subjects";
+import { newTestHref, summarizeHref } from "@/lib/study/links";
 import { friendlyError } from "@/lib/supabase/errors";
 import { fileLink, useDeleteFiles, useMoveFiles, useRenameFile, type StoredFile } from "./queries";
 import { TextPreviewSheet } from "./text-preview";
@@ -100,6 +104,8 @@ function ActionsSheet({
   const stored = file.uploaded_at !== null;
   const links = useLinks(file, online && stored);
   const waiting = !links.data;
+  const router = useRouter();
+  const ready = file.document?.status === "pronto";
   return (
     <Sheet
       open
@@ -139,6 +145,27 @@ function ActionsSheet({
             Ver texto
           </ActionRow>
         )}
+        {/* Section 7.5: from a file to a summary or a test, once its text is read. */}
+        <ActionRow
+          icon={Sparkles}
+          disabled={!online || !ready}
+          onClick={() => {
+            onClose();
+            router.push(summarizeHref([file.id]));
+          }}
+        >
+          {ready ? "Resumir em tópicos" : "Resumir em tópicos (texto ainda não lido)"}
+        </ActionRow>
+        <ActionRow
+          icon={ListChecks}
+          disabled={!online || !ready}
+          onClick={() => {
+            onClose();
+            router.push(newTestHref({ fileIds: [file.id], subjectId: file.subject_id }));
+          }}
+        >
+          Criar teste
+        </ActionRow>
         {canReadAgain(status) && stored && (
           <ActionRow
             icon={RotateCcw}

@@ -105,6 +105,8 @@ describe("arquivos aceitos", () => {
       tesseract: installed("tesseract.js"),
       tesseractCore: installed("tesseract.js-core"),
       tessdataPor: installed("@tesseract.js-data/por"),
+      fraunces: installed("@fontsource/fraunces"),
+      dmSans: installed("@fontsource/dm-sans"),
     });
   });
 });

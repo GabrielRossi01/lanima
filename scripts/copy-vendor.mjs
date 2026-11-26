@@ -1,10 +1,12 @@
 // Copies the files that text extraction loads at runtime (pdf.js worker and data, the OCR engine
-// and the Portuguese language data) from node_modules to public/vendor, under versioned folders.
-// The app serves them itself: no third-party CDN. Runs before `dev` and `build`; public/vendor is
-// not committed. The versions must match lib/extract/vendor.ts (checked by a unit test).
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+// and the Portuguese language data) from node_modules to public/vendor, under versioned folders,
+// and the fonts of the exported PDFs (as TrueType). The app serves them itself: no third-party CDN.
+// Runs before `dev` and `build`; public/vendor is not committed. The versions must match
+// lib/extract/vendor.ts (checked by a unit test).
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { woffToTtf } from "./woff-to-ttf.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const modules = join(root, "node_modules");
@@ -41,4 +43,21 @@ for (const [from, to] of copies) {
   mkdirSync(dirname(target), { recursive: true });
   cpSync(source, target, { recursive: true });
 }
-console.log(`copy-vendor: ${copies.length} items in public/vendor (${pdfjs}, ${tesseract}, ${core}, ${lang})`);
+// PDF fonts (Fraunces 600, DM Sans 400 and 600, latin): WOFF in the package, TrueType for the PDF.
+const fraunces = `fraunces-${version("@fontsource/fraunces")}`;
+const dmSans = `dm-sans-${version("@fontsource/dm-sans")}`;
+const fonts = [
+  ["@fontsource/fraunces/files/fraunces-latin-600-normal.woff", `${fraunces}/fraunces-latin-600-normal.ttf`],
+  ["@fontsource/dm-sans/files/dm-sans-latin-400-normal.woff", `${dmSans}/dm-sans-latin-400-normal.ttf`],
+  ["@fontsource/dm-sans/files/dm-sans-latin-600-normal.woff", `${dmSans}/dm-sans-latin-600-normal.ttf`],
+];
+for (const [from, to] of fonts) {
+  const source = join(modules, from);
+  if (!existsSync(source)) throw new Error(`copy-vendor: missing ${from}`);
+  const target = join(out, to);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, woffToTtf(new Uint8Array(readFileSync(source))));
+}
+console.log(
+  `copy-vendor: ${copies.length + fonts.length} items in public/vendor (${pdfjs}, ${tesseract}, ${core}, ${lang}, ${fraunces}, ${dmSans})`,
+);

@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 5 concluída (Arquivos: envio, fotos comprimidas, 250 MB por conta, leitura do texto no aparelho de PDF, Word, slides e fotos com OCR, prévia por página).** Fase 4: modo foco com cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões. Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 6 concluída (Resumos e testes: resumo em tópicos editável com as fontes, banco de questões, teste em 3 passos com níveis e tipos, modos treino e prova, resultado por tópico e nível, "Refazer só as erradas", testes offline e PDFs).** Fase 5: Arquivos com envio, fotos comprimidas, 250 MB por conta, leitura do texto no aparelho de PDF, Word, slides e fotos com OCR, prévia por página. Fase 4: modo foco com cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões. Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -76,8 +76,11 @@ Antes do primeiro deploy da Fase 2, crie o projeto no Supabase (próxima seção
 | `NEXT_PUBLIC_SUPABASE_URL`             | Supabase → Project Settings → Data API → Project URL                          |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys → Publishable key (`sb_publishable_…`) |
 | `NEXT_PUBLIC_AUTH_PROVIDERS`           | Botões sociais ativos (`google,notion`; seção abaixo); vazio, só e-mail       |
+| `GOOGLE_GENERATIVE_AI_API_KEY`         | Fase 6: chave gratuita do Google AI Studio (seção “IA grátis”)                |
+| `GROQ_API_KEY`                         | Fase 6: chave gratuita da Groq (reserva)                                      |
+| `AI_PRIMARY_*` / `AI_FALLBACK_*` / …   | Fase 6: os mesmos valores do `.env.example` (provedores, modelos, limites)    |
 
-Depois de mudar variáveis, faça **Deployments → ⋯ → Redeploy**: as `NEXT_PUBLIC_*` entram no código no momento do build.
+As chaves de IA **não** levam `NEXT_PUBLIC_`: ficam só no servidor (as rotas `/api/ai/*`). Depois de mudar variáveis, faça **Deployments → ⋯ → Redeploy**: as `NEXT_PUBLIC_*` entram no código no momento do build.
 
 ## Supabase grátis (projeto de verdade)
 
@@ -205,7 +208,8 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 | pdfjs-dist                              | 6.5.438         | Texto dos PDFs, página por página (build "legacy", que também roda em iPads mais antigos)                                       |
 | jszip                                   | 3.10.2          | Abre `.docx` e `.pptx` (licença MIT, das duas que ele oferece)                                                                  |
 | tesseract.js / @tesseract.js-data/por   | 7.0.0 / 1.0.0   | OCR em português num Web Worker, modelo LSTM "best_int" (1,4 MB)                                                                |
-| pdf-lib                                 | 1.17.1          | Só para gerar os arquivos de exemplo dos testes                                                                                 |
+| pdf-lib / @pdf-lib/fontkit              | 1.17.1 / 1.1.1  | "Exportar em PDF" no aparelho (e os arquivos de exemplo dos testes); carregados só ao exportar                                  |
+| @fontsource/fraunces / dm-sans          | 5.3.0 / 5.3.0   | Fraunces e DM Sans (OFL) embutidas nos PDFs, convertidas para TrueType pelo `copy-vendor`                                       |
 
 ## Decisões técnicas da Fase 1
 
@@ -270,8 +274,33 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Os leitores vêm do próprio app:** `scripts/copy-vendor.mjs` copia o worker do pdf.js, os dados dele, o motor do OCR e o português para `public/vendor/<pacote>-<versão>` antes do `dev` e do `build` (a pasta não vai para o git). Não entram no precache: o service worker guarda na primeira vez que um arquivo precisa (~6 MB) e depois funcionam offline.
 - **Fila na aba:** envio e leitura continuam se ela trocar de tela; uma leitura por vez (o OCR pesa no tablet), com a tela acesa enquanto isso. Se o app fechar no meio, depois de 10 minutos sem notícia o arquivo mostra "Leitura interrompida" e "Ler de novo" (baixa o arquivo e lê).
 - **Online primeiro:** a lista fica guardada no aparelho e abre offline; enviar, renomear, mover e excluir pedem internet, com aviso.
-- **Ainda não nesta fase:** "Resumir em tópicos" e "Criar teste" (no aviso, no menu e na barra de seleção) entram na Fase 6; as exportações, nas fases que criam esses conteúdos.
+- **"Resumir em tópicos" e "Criar teste"** (no aviso depois do envio, no menu de cada arquivo e na barra de seleção) chegaram na Fase 6. As outras exportações chegam nas fases que criam esses conteúdos (caderno na 7, backup na 11).
 - **Arquivos de exemplo dos testes** (`tests/fixtures/files`): escritos para o projeto, gerados por `node scripts/make-fixtures.mjs`.
+
+## IA grátis (Fase 6)
+
+Resumos e questões usam só planos gratuitos, sem cartão:
+
+1. **Gemini (principal):** entre em [aistudio.google.com](https://aistudio.google.com) com uma conta Google, **Get API key → Create API key**. Copie para `GOOGLE_GENERATIVE_AI_API_KEY`. Modelo: `gemini-3.5-flash-lite`, o que tem mais pedidos por dia no plano gratuito (confira os números atuais em **Rate limits** no AI Studio).
+2. **Groq (reserva):** em [console.groq.com](https://console.groq.com), **API Keys → Create API Key**, para `GROQ_API_KEY`. Ela só atende pedidos pequenos (`AI_FALLBACK_MAX_TOKENS`), quando o Gemini falha ou chega ao limite.
+3. Cadastre as duas chaves e as variáveis `AI_*` do `.env.example` na Vercel e faça **Redeploy**.
+
+No plano gratuito, o Google pode usar o texto enviado para melhorar os modelos: por isso o app mostra, na primeira geração, o aviso de não enviar dados pessoais ou de pacientes.
+
+**Limites por dia** (tabela `ai_limits`, uma linha só): 10 resumos e 15 gerações de questões por pessoa, e 400 pedidos para o app todo. Esse teto deve ficar abaixo dos pedidos por dia que o AI Studio mostra para o modelo; se o número de lá for menor, ajuste. Para mudar, no **SQL Editor**: `update public.ai_limits set app_daily_requests = 300;`.
+
+## Decisões técnicas da Fase 6 (resumos e testes)
+
+- **Banco** (`supabase/migrations/20261127000001_summaries_tests.sql`): `summaries` (o resumo em JSON com as chaves da seção 7.5, `version` para salvar sem perder edições), `questions` (o banco de questões: aprovada, descartada ou sinalizada), `tests`, `test_attempts` e `attempt_answers`, `ai_limits` e `ai_usage`. Testes de RLS e das regras em `supabase/tests/phase6.test.sql`.
+- **A nota é do banco:** gatilhos corrigem cada resposta e calculam a nota quando a tentativa termina (certa 1, "parcial" 0,5, errada ou em branco 0); uma tentativa concluída não muda mais (`LQ010`). O aparelho usa as mesmas regras (`lib/study/grading.ts`) para mostrar o resultado na hora, também offline.
+- **IA só no servidor** (`lib/ai`, rotas `/api/ai/resumo` e `/api/ai/questoes`): respostas em JSON com schema (Gemini `responseJsonSchema`, Groq `json_schema` estrito), validadas com Zod; cada ponto e cada questão precisam citar um arquivo e uma página enviados, senão saem. Acima de `AI_MAX_INPUT_TOKENS`, o resumo é feito por partes e juntado. A cota é reservada antes (`ai_reserve`) e acertada depois (`ai_settle`), com o limite da pessoa (`LQ002`) e o do app (`LQ003`). Questões já geradas para os mesmos trechos vêm do cache.
+- **Provedor simulado:** `AI_PRIMARY_PROVIDER=mock` gera resumos e questões a partir do próprio texto, sem rede. O CI e o E2E usam só ele; os PDFs de exemplo estão em `tests/ai-fixtures`.
+- **Edição do resumo sem perder nada:** cada mudança vai para uma fila no aparelho (Dexie) e é aplicada sobre a versão mais recente, em série. O servidor só aceita se a versão for a esperada; se outro aparelho salvou antes, o app busca a nova e avisa, sem sobrescrever.
+- **Testes offline:** a tentativa fica no aparelho (Dexie), corrigida ali, com uma cópia das questões; sobe quando a rede volta (e ao sair da conta, com aviso se não der). `/estudo/fazer` e `/estudo/resultado` entram no precache e abrem sem internet com o teste guardado.
+- **Listas no aparelho:** as chaves de cache de estudo começam com `["study", <id da pessoa>]`. O app apaga ao abrir as listas guardadas de outra pessoa, olhando esse segundo item.
+- **Sequência e Início:** um dia conta na sequência com 25 minutos de foco **ou** um teste concluído. "Acerto médio" é a média dos testes de hoje e dos 6 dias antes, no fuso de São Paulo.
+- **PDFs no aparelho** (`lib/study/pdf.ts`): pdf-lib com Fraunces e DM Sans, uma coluna, as fontes citadas no rodapé de cada página e o gabarito à parte quando ela pede. As fontes do `@fontsource` vêm em WOFF; o `copy-vendor` converte para TrueType (`scripts/woff-to-ttf.mjs`), porque o PDF precisa da fonte crua e o recorte de glifos do fontkit quebra com WOFF. Sem as fontes (offline antes da primeira exportação), o PDF sai com as fontes padrão. As ligaduras ficam desligadas para o texto copiado do PDF sair igual.
+- **Fica para depois:** "Salvar no caderno" (fase 7), "Gerar questões sobre isto" no Atlas (fase 10) e os pontos dos testes no ranking (fase 9; a regra já está em `pointsFor`).
 
 ### Por que o cacheComponents está desligado
 
@@ -293,8 +322,9 @@ app/                  rotas (App Router); (app) com menu, (full) em tela cheia
   design/             página de componentes
 components/ui/        componentes-base
 components/layout/    AppShell, navegação, instalação, tema
-features/             telas e lógica por módulo (auth, onboarding, perfil, matérias, foco, arquivos)
-lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil; extract/ (leitura de PDF, Word, slides e OCR)
+features/             telas e lógica por módulo (auth, onboarding, perfil, matérias, foco, arquivos, estudo)
+lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil; extract/ (leitura de PDF, Word, slides e OCR);
+                      ai/ (provedores, prompts, schemas, cota); study/ (correção, resumo, PDFs)
 proxy.ts              renova o cookie da sessão (Next 16: antigo middleware)
 supabase/             config local, migrações, seed, testes de RLS e modelo de e-mail
 tests/unit/           Vitest
@@ -304,4 +334,4 @@ design-reference/     mockups aprovados (somente leitura)
 
 ## Próximas seções deste README
 
-Chegam com as fases correspondentes: as chaves gratuitas do Gemini e do Groq (fase 6), grupos e ranking (fase 9).
+Chegam com as fases correspondentes: grupos e ranking (fase 9).

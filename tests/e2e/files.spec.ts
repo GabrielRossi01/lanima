@@ -231,7 +231,7 @@ test.describe("Arquivos", () => {
     await picker(page).setInputFiles([fixture("anatomia-slides.pdf"), fixture("imunologia-aula.pptx")]);
     await ready(page, "anatomia-slides.pdf");
     await ready(page, "imunologia-aula.pptx");
-    const storage = page.getByRole("complementary", { name: "Espaço e importação" });
+    const storage = page.getByRole("complementary", { name: "Espaço, importação e exportação" });
     await expect(storage.getByText("10 KB")).toBeVisible();
     await page.getByRole("checkbox", { name: "Selecionar anatomia-slides.pdf" }).locator("visible=true").check();
     await page.getByRole("checkbox", { name: "Selecionar imunologia-aula.pptx" }).locator("visible=true").check();
@@ -266,7 +266,7 @@ test.describe("Arquivos", () => {
     if (error) throw error;
     await gotoFiles(page);
     await expect(
-      page.getByRole("complementary", { name: "Espaço e importação" }).getByText("250 MB", { exact: true }),
+      page.getByRole("complementary", { name: "Espaço, importação e exportação" }).getByText("250 MB", { exact: true }),
     ).toBeVisible();
     await picker(page).setInputFiles(fixture("anatomia-slides.pdf"));
     await expect(page.getByText("Seu espaço de 250 MB acabou.")).toBeVisible();

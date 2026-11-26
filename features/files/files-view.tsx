@@ -1,6 +1,6 @@
 "use client";
 
-import { Cloud, FolderOpen } from "lucide-react";
+import { Archive, Cloud, FolderOpen, ListChecks, NotebookPen, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { FilterChip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { StudyPdfSheet } from "@/features/study/pdf-sheets";
 import { useSubjects } from "@/features/subjects/queries";
 import { formatBytes, matchesFilter, QUOTA_BYTES, type KindFilter } from "@/lib/files/files";
 import { errorTag } from "@/lib/supabase/errors";
@@ -65,6 +66,45 @@ function ImportCard() {
   );
 }
 
+/** Arquivos.html, "Exportar": what can be taken out of the app, made on the device. */
+function ExportCard() {
+  const [open, setOpen] = useState(false);
+  const row = (icon: LucideIcon, title: string, detail: string, onClick?: () => void) => {
+    const Icon = icon;
+    const body = (
+      <>
+        <Icon aria-hidden size={20} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent" />
+        <span className="flex min-w-0 flex-col gap-0.5 text-left">
+          <span className="text-sm font-semibold">{title}</span>
+          <span className="type-caption text-fg-2">{detail}</span>
+        </span>
+      </>
+    );
+    return onClick ? (
+      <button
+        type="button"
+        onClick={onClick}
+        className="-mx-2 flex min-h-12 items-start gap-3 rounded-md px-2 py-1.5 hover:bg-surface-alt"
+      >
+        {body}
+      </button>
+    ) : (
+      <div className="flex items-start gap-3 py-1.5 opacity-60">{body}</div>
+    );
+  };
+  return (
+    <Card>
+      <CardHeader title="Exportar" as="h2" />
+      <div className="flex flex-col gap-1">
+        {row(ListChecks, "Resumos e testes", "PDF, com gabarito no fim", () => setOpen(true))}
+        {row(NotebookPen, "Caderno em PDF", "Chega com o caderno, na fase 7")}
+        {row(Archive, "Backup completo", "Arquivo .zip com tudo, na fase 11")}
+      </div>
+      {open && <StudyPdfSheet open onClose={() => setOpen(false)} />}
+    </Card>
+  );
+}
+
 /** The file to point at, from a search result (/arquivos#arquivo-<id>). */
 function useHashTarget(): string | null {
   const [target, setTarget] = useState<string | null>(null);
@@ -102,9 +142,10 @@ export function FilesView() {
       {/* The cards sit beside the upload area, so the table below gets the whole width. */}
       <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <UploadPanel />
-        <aside className="flex flex-col gap-5 max-lg:order-last" aria-label="Espaço e importação">
+        <aside className="flex flex-col gap-5 max-lg:order-last" aria-label="Espaço, importação e exportação">
           <StorageCard />
           <ImportCard />
+          <ExportCard />
         </aside>
         <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
