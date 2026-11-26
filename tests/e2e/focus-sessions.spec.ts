@@ -252,3 +252,100 @@ test.describe("Sessões de foco", () => {
     expect(await savedSessions(account)).toEqual([]);
   });
 });
+
+interface Alerts {
+  locks: number;
+  releases: number;
+  vibrations: number[][];
+  tones: number;
+}
+
+/** Records the wake lock, the vibration and the tones of the end sound, without real hardware. */
+async function recordAlerts(page: Page) {
+  await page.addInitScript(() => {
+    const alerts: Alerts = { locks: 0, releases: 0, vibrations: [], tones: 0 };
+    (window as unknown as { __alerts: Alerts }).__alerts = alerts;
+    const wakeLock = {
+      request: async () => {
+        alerts.locks++;
+        const lock = {
+          released: false,
+          type: "screen",
+          release: async () => {
+            if (lock.released) return;
+            lock.released = true;
+            alerts.releases++;
+          },
+          addEventListener() {},
+          removeEventListener() {},
+        };
+        (window as unknown as { __lastLock: typeof lock }).__lastLock = lock;
+        return lock;
+      },
+    };
+    Object.defineProperty(Navigator.prototype, "wakeLock", { get: () => wakeLock, configurable: true });
+    Object.defineProperty(Navigator.prototype, "vibrate", {
+      value: (pattern: number[]) => {
+        alerts.vibrations.push(pattern);
+        return true;
+      },
+      configurable: true,
+      writable: true,
+    });
+    const startTone = OscillatorNode.prototype.start;
+    OscillatorNode.prototype.start = function (...args: Parameters<OscillatorNode["start"]>) {
+      alerts.tones++;
+      return startTone.apply(this, args);
+    };
+  });
+}
+
+const alerts = (page: Page) => page.evaluate(() => (window as unknown as { __alerts: Alerts }).__alerts);
+
+test.describe("Tela acesa e aviso do fim", () => {
+  test("a tela fica acesa enquanto a sessão corre, também minimizada", async ({ page, account }) => {
+    void account; // Signed in.
+    await recordAlerts(page);
+    await page.goto("/foco");
+    await appReady(page);
+    expect((await alerts(page)).locks).toBe(0);
+    await page.getByRole("button", { name: "Iniciar", exact: true }).click();
+    await expect.poll(async () => (await alerts(page)).locks).toBe(1);
+    await page.getByRole("button", { name: "Pausar", exact: true }).click();
+    await expect.poll(async () => (await alerts(page)).releases).toBe(1);
+    await page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await page.getByRole("link", { name: "Minimizar" }).click();
+    await expect(page).toHaveURL(/\/inicio$/);
+    // Still held on the other screen: one lock more than released.
+    await expect.poll(async () => ((a) => a.locks - a.releases)(await alerts(page))).toBe(1);
+    // In the background the browser lets go of it: asked for again when she is back.
+    const before = (await alerts(page)).locks;
+    await page.evaluate(() => {
+      (window as unknown as { __lastLock: { released: boolean } }).__lastLock.released = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(async () => (await alerts(page)).locks).toBe(before + 1);
+  });
+
+  test("no fim, toca um som suave e vibra", async ({ page, account }) => {
+    await recordAlerts(page);
+    await openEndingIn(page, account, "/inicio", 8);
+    // A tap: the end sound can only play after one (iOS).
+    await page.getByRole("heading", { level: 1 }).click();
+    await expect(page.getByText("Sessão de foco concluída")).toBeVisible({ timeout: 15_000 });
+    const after = await alerts(page);
+    expect(after.vibrations).toEqual([[180, 120, 180]]);
+    expect(after.tones).toBe(2);
+    expect(after.locks - after.releases).toBe(0);
+  });
+
+  test("voltar ao app bem depois do fim só mostra o aviso", async ({ page, account }) => {
+    await recordAlerts(page);
+    await openEndingIn(page, account, "/inicio", -60);
+    await expect(page.getByText("Sessão de foco concluída")).toBeVisible();
+    await page.waitForTimeout(500);
+    const after = await alerts(page);
+    expect(after.vibrations).toEqual([]);
+    expect(after.tones).toBe(0);
+  });
+});

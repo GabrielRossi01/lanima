@@ -16,9 +16,12 @@ import { BREATH_MS, breathDelayMs } from "@/lib/focus/breath";
 import { averageFps, isApple, isTooSlow, startsReduced } from "@/lib/focus/quality";
 import {
   advance,
+  alertsOnEnd,
+  ALERT_WINDOW_MS,
   choosePreset,
   elapsedMs,
   endSession,
+  endsAt,
   formatClock,
   initialTimer,
   isOver,
@@ -38,6 +41,27 @@ import { contrastRatio } from "@/lib/theme/contrast";
 
 const MIN = 60_000;
 const t0 = 1_800_000_000_000;
+
+describe("aviso do fim da fase", () => {
+  it("sabe quando termina, contando as pausas, e só enquanto corre", () => {
+    const running = start(initialTimer(), t0);
+    expect(endsAt(running)).toBe(t0 + 25 * MIN);
+    const paused = pause(running, t0 + 5 * MIN);
+    expect(endsAt(paused)).toBeNull();
+    expect(endsAt(start(paused, t0 + 8 * MIN))).toBe(t0 + 28 * MIN);
+    expect(endsAt(initialTimer())).toBeNull();
+    expect(endsAt(start(advance(initialTimer()), t0))).toBe(t0 + 5 * MIN);
+  });
+
+  it("toca e vibra só se o fim é percebido na hora", () => {
+    const end = t0 + 25 * MIN;
+    expect(alertsOnEnd(end, end)).toBe(true);
+    expect(alertsOnEnd(end, end + ALERT_WINDOW_MS)).toBe(true);
+    expect(alertsOnEnd(end, end + ALERT_WINDOW_MS + 1)).toBe(false);
+    expect(alertsOnEnd(end, end + 60 * MIN)).toBe(false);
+    expect(alertsOnEnd(null, end)).toBe(false);
+  });
+});
 
 describe("fora da tela do Modo foco", () => {
   it("encerrar volta ao começo do foco, e na pausa vai para o próximo foco", () => {

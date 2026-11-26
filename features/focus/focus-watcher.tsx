@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -13,12 +14,15 @@ import {
   type FocusHistory,
   type FocusSession,
 } from "@/lib/focus/sessions";
-import { remainingMs, statusOf } from "@/lib/focus/timer";
+import { alertsOnEnd, endsAt, remainingMs, showsIndicator, statusOf } from "@/lib/focus/timer";
 import { FOCUS_GOAL, formatFocusGoal } from "@/lib/profile/profile";
+import { useAudioState } from "./audio-state";
+import { alertEnd, restEndSound, unlockEndSound } from "./end-alert";
 import { sendSessions, useSessionStore } from "./session-store";
 import { useTimerStore } from "./timer-store";
 import { useFocusPrefsSync } from "./use-focus-prefs";
 import { focusKey, useFocusHistory } from "./use-focus-summary";
+import { useWakeLock } from "./use-wake-lock";
 
 /** Long waits are cut short: a device that slept may fire them late. */
 const MAX_WAIT_MS = 30_000;
@@ -37,8 +41,24 @@ export function FocusWatcher() {
   const loadSessions = useSessionStore((s) => s.load);
   const timer = useTimerStore((s) => s.timer);
   const finish = useTimerStore((s) => s.finish);
+  const onFocusScreen = usePathname() === "/foco";
   useFocusHistory();
   useFocusPrefsSync();
+  useWakeLock(statusOf(timer) === "running");
+
+  // Her taps unlock the end sound (iOS) while a session exists or may start; otherwise it rests.
+  useEffect(() => {
+    if (!(onFocusScreen || showsIndicator(timer, Date.now()))) {
+      restEndSound();
+      return;
+    }
+    document.addEventListener("click", unlockEndSound, true);
+    document.addEventListener("keydown", unlockEndSound, true);
+    return () => {
+      document.removeEventListener("click", unlockEndSound, true);
+      document.removeEventListener("keydown", unlockEndSound, true);
+    };
+  }, [onFocusScreen, timer]);
 
   useEffect(() => {
     if (!userId) return;
@@ -75,8 +95,10 @@ export function FocusWatcher() {
         id = setTimeout(tick, Math.min(left, MAX_WAIT_MS));
         return;
       }
+      const endedAt = endsAt(timer);
       void finish().then((ended) => {
         if (!ended) return;
+        if (alertsOnEnd(endedAt, Date.now())) alertEnd({ sound: !useAudioState.getState().muted });
         if (ended.phase === "break") {
           toast({ title: "Pausa concluída", description: "Pronto para a próxima sessão.", tone: "success" });
           return;

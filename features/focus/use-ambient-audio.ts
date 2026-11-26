@@ -7,6 +7,7 @@ import { FOCUS_SOUNDS } from "@/lib/focus/sounds";
 import { pause, start, statusOf } from "@/lib/focus/timer";
 import { AmbientPlayer } from "./ambient-player";
 import { useAudioState } from "./audio-state";
+import { unlockEndSound } from "./end-alert";
 import { silentWav } from "./silent-track";
 import { useTimerStore } from "./timer-store";
 
@@ -110,6 +111,7 @@ export function useAmbientAudio({ sound, volume, muted, ready, anySound }: Ambie
     const { act } = useTimerStore.getState();
     session.setActionHandler("play", () => {
       player.current?.unlock();
+      unlockEndSound();
       act(start);
     });
     session.setActionHandler("pause", () => act(pause));

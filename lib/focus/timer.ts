@@ -116,6 +116,22 @@ export function showsIndicator(timer: TimerState, now: number): boolean {
   return timer.phase === "break" && now - timer.updatedAt < PENDING_BREAK_MS;
 }
 
+/** When the running phase ends (epoch ms); null if it isn't running. */
+export function endsAt(timer: TimerState): number | null {
+  if (statusOf(timer) !== "running" || timer.startedAt === null) return null;
+  return timer.startedAt + timer.pausedDuration + plannedMs(timer);
+}
+
+/**
+ * The end is announced with a sound and a vibration only if it is noticed right away. Coming back
+ * to the app long after it ended (it was closed, or the device slept) only shows the notice.
+ */
+export const ALERT_WINDOW_MS = 10_000;
+
+export function alertsOnEnd(endedAt: number | null, now: number): boolean {
+  return endedAt !== null && now - endedAt <= ALERT_WINDOW_MS;
+}
+
 /** Only before the phase starts: changing the length of a running session would falsify it. */
 export function choosePreset(timer: TimerState, preset: Preset): TimerState {
   return timer.startedAt === null ? { ...timer, preset } : timer;

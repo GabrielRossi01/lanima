@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 4 em andamento (modo foco: cronômetro, temas, sons e registro das sessões prontos).** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 4 concluída (modo foco: cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões); Fase 5 (arquivos) em andamento.** Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -253,7 +253,8 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Fila no aparelho** (`features/focus/session-store.ts`): a sessão conta na hora e sobe quando houver rede (ao concluir, abrir, voltar ao app ou reconectar; sem repetir em laço). A cópia enviada fica 2 dias, porque outra aba pode ainda não ter a lista nova; a soma junta as duas pelo início. Sair com sessão não enviada pede confirmação.
 - **Números do dia** (`lib/focus/sessions.ts`): minutos, sessões, pontos (10 por hora, sem arredondar para cima) e sequência (dias com 25 min; hoje só soma). Os 30 dias recentes vêm sessão a sessão; os anteriores, somados por dia pela view `focus_days`.
 - **Sons com nome novo quando mudam:** o arquivo antigo continua no cache de quem já tocou. A chuva atual foi escolhida pela medição (4% da energia abaixo de 150 Hz; a anterior tinha 80%).
-- **Ainda nesta fase:** Wake Lock, som e vibração no fim.
+- **Tela acesa** (`features/focus/use-wake-lock.ts`): Wake Lock enquanto a sessão corre, também minimizada; solto na pausa e pedido de novo ao voltar do segundo plano (o navegador o solta lá).
+- **Aviso do fim** (`features/focus/end-alert.ts`): dois tons suaves feitos na hora com Web Audio (sem arquivo) e vibração no Android (o Safari não vibra). Só se o fim for percebido em até 10 s: voltar ao app bem depois mostra só o aviso. No iOS o som só sai depois de um toque, então os toques com sessão destravam o áudio; sem sessão ele é suspenso. Com o som silenciado, só vibra.
 
 ### Por que o cacheComponents está desligado
 
