@@ -31,6 +31,9 @@ async function movePointUp(page: Page, number: string) {
   await page.getByRole("button", { name: `Mover o ponto ${number}` }).focus();
   await page.keyboard.press("Space");
   await expect(announced(`Ponto ${number} sobre a posição ${number}`)).toBeAttached();
+  // dnd-kit measures where the points are in the frames after the drag starts; an arrow before
+  // that has nowhere to go (CI once pressed it 5 ms after the start and the point stayed).
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   await page.keyboard.press("ArrowUp");
   await expect(announced(`Ponto ${number} sobre a posição ${above}`)).toBeAttached();
   await page.keyboard.press("Space");
@@ -223,7 +226,12 @@ function pointTexts(page: Page, topic: number) {
     .evaluateAll((buttons) => buttons.map((b) => b.textContent?.trim() ?? ""));
 }
 
-test.describe("Edições do resumo", () => {
+test.describe("Edições do resumo: o aviso de salvar", () => {
+  // This test holds the save request with page.route; once the service worker controls the page,
+  // requests go through it and page.route doesn't see them (Playwright: "serviceWorkers: block").
+  // It tests the layout while saving, not offline.
+  test.use({ serviceWorkers: "block" });
+
   test("“Salvando…” e “Salvo” não mexem na lista (um arraste em curso não perde o lugar)", async ({
     page,
     account,
@@ -252,7 +260,9 @@ test.describe("Edições do resumo", () => {
     expect(await top()).toBe(saving);
     expect(Math.abs(saving - before)).toBeLessThan(30);
   });
+});
 
+test.describe("Edições do resumo", () => {
   test("5 edições rápidas seguidas ficam todas salvas depois de recarregar", async ({ page, account }) => {
     await openNewSummary(page, account, "Rapidas");
 

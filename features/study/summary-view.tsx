@@ -608,8 +608,10 @@ export function SummaryView({ id }: { id: string }) {
           {saveState ? SAVE_LABELS[saveState] : ""}
         </span>
       </div>
+      {/* The title has the whole line up to a desktop screen; the buttons go under it (side by side
+          on a tablet they squeezed it to a syllable per line). */}
       <header className="mb-6 flex flex-wrap items-start gap-4">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-full xl:basis-0">
           <h1 className="m-0 font-serif text-[30px] leading-[38px] font-semibold tracking-[-0.5px] wrap-break-word">
             {summary.title}
           </h1>
