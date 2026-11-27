@@ -425,6 +425,91 @@ export function addImage(userId: string, pageId: string, blob: Blob): Promise<st
   });
 }
 
+/**
+ * A picture of a page, from the device or, the first time on this device, downloaded and kept here
+ * (so it opens offline next time). Null when it can't be had now (offline, or gone).
+ */
+export async function loadImage(userId: string, pageId: string, imageId: string): Promise<Blob | null> {
+  const local = await getImageBlob(userId, imageId);
+  if (local instanceof Blob) return local;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return null;
+  const { data, error } = await getSupabase().storage.from(IMAGES_BUCKET).download(`${userId}/${imageId}`);
+  if (error || !data) return null;
+  await serial(userId, () =>
+    putRows("notebookImages", [{ userId, id: imageId, pageId, blob: data, mimeType: data.type, sent: true }]),
+  );
+  return data;
+}
+
+/** Pages open in the editor: their undo may still bring a picture back. */
+const held = new Set<string>();
+
+/**
+ * The editor holds its page while open. On release, a send is asked for: pictures that left the
+ * page are freed then (see pruneImages).
+ */
+export function holdPage(userId: string, pageId: string): () => void {
+  held.add(pageId);
+  return () => {
+    held.delete(pageId);
+    changed(userId);
+  };
+}
+
+/** The pictures a page's content shows. */
+function imagesOf(content: unknown): Set<string> {
+  const elements = (content as { elements?: unknown } | null)?.elements;
+  const ids = new Set<string>();
+  if (Array.isArray(elements))
+    for (const e of elements) {
+      const imageId = (e as { type?: unknown; imageId?: unknown } | null)?.imageId;
+      if ((e as { type?: unknown }).type === "imagem" && typeof imageId === "string") ids.add(imageId);
+    }
+  return ids;
+}
+
+/**
+ * Pictures that left their page (erased with the lasso, an insert undone) stop counting in the
+ * 250 MB. Run with every send, after the server's copy was read back; never on a page open in the
+ * editor. Only pictures this device knows: one pasted on another device may not have reached its
+ * page here yet.
+ */
+async function pruneImages(userId: string, supabase: Supabase) {
+  const pages = new Map((await rowsOf("notebookPages", userId)).map((p) => [p.id, p]));
+  const unused = (await rowsOf("notebookImages", userId)).filter((image) => {
+    const page = pages.get(image.pageId);
+    return page && !page.deleted && !held.has(image.pageId) && !imagesOf(page.content).has(image.id);
+  });
+  if (unused.length === 0) return;
+  await serial(userId, () =>
+    removeRows(
+      "notebookImages",
+      userId,
+      unused.filter((i) => !i.sent).map((i) => i.id),
+    ),
+  );
+  const sent = unused.filter((i) => i.sent);
+  if (sent.length === 0) return;
+  const removed = await supabase.storage.from(IMAGES_BUCKET).remove(sent.map((i) => storagePath(userId, i.id)));
+  if (removed.error) return;
+  const deleted = await supabase
+    .from("notebook_images")
+    .delete()
+    .in(
+      "id",
+      sent.map((i) => i.id),
+    );
+  stopIfOffline(deleted);
+  if (deleted.error) return;
+  await serial(userId, () =>
+    removeRows(
+      "notebookImages",
+      userId,
+      sent.map((i) => i.id),
+    ),
+  );
+}
+
 // --- Sending and reading back ------------------------------------------------------------
 
 export interface SyncResult {
@@ -753,6 +838,7 @@ async function syncOnce(userId: string): Promise<SyncResult> {
     await pushImages(userId, supabase, result);
     await pushDeletions(userId, supabase, result);
     await pull(userId, supabase, result);
+    await pruneImages(userId, supabase);
   } catch (error) {
     if (error instanceof Offline) return { ...result, status: "offline" };
     console.error("[lanima] sincronização do caderno:", error);

@@ -5,7 +5,8 @@
  */
 
 export type PointerKind = "pen" | "touch" | "mouse";
-export type Role = "draw" | "gesture" | "ignore";
+/** "erase": the pen's side button or eraser end, a temporary eraser whatever the tool. */
+export type Role = "draw" | "erase" | "gesture" | "ignore";
 
 /** After the pen lifts, the hand still rests on the screen for a moment. */
 export const PALM_GRACE_MS = 600;
@@ -31,7 +32,7 @@ export class InputArbiter {
   private lastPenUp = -Infinity;
   /** Touches being used for a gesture, and the one drawing (if any) with its start. */
   private gesture = new Set<number>();
-  private drawing: { id: number; kind: PointerKind; since: number } | null = null;
+  private drawing: { id: number; kind: PointerKind; since: number; erase?: boolean } | null = null;
   private ignored = new Set<number>();
 
   constructor(private readonly fingerDraws: () => boolean) {}
@@ -44,8 +45,8 @@ export class InputArbiter {
       for (const id of this.gesture) this.ignored.add(id);
       this.gesture.clear();
       if (!p.primary) {
-        this.drawing = null;
-        return { role: "ignore", cancelDrawing: cancel };
+        this.drawing = { id: p.id, kind: "pen", since: p.time, erase: true };
+        return { role: "erase", cancelDrawing: cancel };
       }
       this.drawing = { id: p.id, kind: "pen", since: p.time };
       return { role: "draw", cancelDrawing: cancel };
@@ -85,7 +86,7 @@ export class InputArbiter {
 
   /** The role a pointer has now (a finger can turn from drawing into a gesture). */
   roleOf(id: number): Role {
-    if (this.drawing?.id === id) return "draw";
+    if (this.drawing?.id === id) return this.drawing.erase ? "erase" : "draw";
     if (this.gesture.has(id)) return "gesture";
     return "ignore";
   }

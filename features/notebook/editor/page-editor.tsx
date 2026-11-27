@@ -1,20 +1,31 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Minus, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 import { toast } from "@/components/ui/toast";
 import { PAPER, type InkTheme } from "@/lib/ink/render";
 import { PAGE_HEIGHT, PAGE_WIDTH, STROKE_SIZES, type Stroke } from "@/lib/ink/strokes";
-import { jsonbTextBytes, PAGE_FULL_RATIO, PAGE_MAX_BYTES, pageBytes, type PageBackground } from "@/lib/notebook/model";
-import { updatePage, type LocalPage } from "@/lib/notebook/sync";
-import { InkEngine, type EngineState } from "./ink-engine";
-import { EditorToolbar } from "./editor-toolbar";
-import { fingerDrawsNow, useTools } from "./tool-store";
+import {
+  jsonbTextBytes,
+  PAGE_FULL_RATIO,
+  PAGE_MAX_BYTES,
+  pageBytes,
+  type ImageElement,
+  type PageBackground,
+  type PageElement,
+} from "@/lib/notebook/model";
+import { addImage, holdPage, updatePage, type LocalPage } from "@/lib/notebook/sync";
+import { EditorToolbar, UndoRedo } from "./editor-toolbar";
+import { InkEngine, newPageItemId, type EngineState, type PageDoc, type ToolChoice } from "./ink-engine";
+import { PageElements } from "./page-elements";
+import { ERASER_RADIUS, ERASER_REACH, fingerDrawsNow, isInkTool, useTools } from "./tool-store";
 
-/** Saves this long after the last stroke (drawing comes in bursts). */
+/** Saves this long after the last change (drawing comes in bursts). */
 const SAVE_DELAY_MS = 500;
 /** Room for the floating toolbar above the page. */
 const TOOLBAR_SPACE = 84;
+/** The notebook bucket takes pictures up to 5 MB (they are compressed to ~400 KB first). */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function paperStyle(background: PageBackground, theme: InkTheme): CSSProperties {
   const paper = PAPER[theme];
@@ -43,7 +54,35 @@ function paperStyle(background: PageBackground, theme: InkTheme): CSSProperties 
   return base;
 }
 
-const idsOf = (strokes: readonly Stroke[]) => strokes.map((s) => s.id).join(",");
+/** What tells two copies of a page apart (stroke ids are never reused; elements are few). */
+const docKey = (doc: { strokes: readonly Stroke[]; elements: readonly PageElement[] }) =>
+  `${doc.strokes.map((s) => s.id).join(",")}|${JSON.stringify(doc.elements)}`;
+
+function currentTool(): ToolChoice {
+  const s = useTools.getState();
+  if (isInkTool(s.tool)) return { tool: s.tool, color: s.colors[s.tool], size: STROKE_SIZES[s.tool][s.sizes[s.tool]] };
+  if (s.tool === "borracha") return { tool: "borracha", mode: s.eraser, radius: ERASER_RADIUS, reach: ERASER_REACH };
+  return { tool: s.tool };
+}
+
+/** The picture's size in pixels, for its place on the page. */
+async function imageSize(blob: Blob): Promise<{ width: number; height: number }> {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(blob);
+    const size = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return size;
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    return { width: image.naturalWidth, height: image.naturalHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 interface PageEditorProps {
   page: LocalPage;
@@ -61,10 +100,21 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
   const markerRef = useRef<HTMLCanvasElement>(null);
   const inkRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<HTMLCanvasElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const engineRef = useRef<InkEngine | null>(null);
   /** Takes a newer copy of the page (another device), set up with the engine. */
   const adoptRef = useRef<((page: LocalPage) => void) | null>(null);
-  const [state, setState] = useState<EngineState>({ canUndo: false, canRedo: false, strokeCount: 0, zoom: 100 });
+  const writing = useTools((s) => s.tool === "texto");
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [state, setState] = useState<EngineState>({
+    canUndo: false,
+    canRedo: false,
+    strokeCount: page.strokes.length,
+    zoom: 100,
+    elements: page.elements,
+    selection: null,
+    moving: null,
+  });
 
   // Kept in refs: the engine reads them while drawing, without remounting.
   const latest = useRef({ page, theme, onAddPage });
@@ -81,7 +131,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
     if (!viewport || !paper || !marker || !ink || !live) return;
 
     const initial = latest.current.page;
-    let strokes = initial.strokes;
+    let doc: PageDoc = { strokes: initial.strokes, elements: initial.elements };
     let bytes = pageBytes(initial);
     let warned = false;
     let dirty = false;
@@ -90,7 +140,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
       clearTimeout(timer);
       if (!dirty) return;
       dirty = false;
-      updatePage(userId, initial.id, { strokes }, { trusted: true }).catch(() =>
+      updatePage(userId, initial.id, { strokes: doc.strokes, elements: doc.elements }, { trusted: true }).catch(() =>
         toast({ title: "Não foi possível salvar a página neste aparelho", tone: "danger" }),
       );
     };
@@ -108,26 +158,22 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
       marker,
       ink,
       live,
-      strokes,
+      doc,
       theme: latest.current.theme,
       top: TOOLBAR_SPACE,
       fingerDraws: fingerDrawsNow,
-      pen: () => {
-        const { tool, colors, sizes } = useTools.getState();
-        return { tool, color: colors[tool], size: STROKE_SIZES[tool][sizes[tool]] };
-      },
+      tool: currentTool,
+      sideEraser: () => ({ radius: ERASER_RADIUS, reach: ERASER_REACH }),
       canAdd: () => {
         if (bytes < PAGE_MAX_BYTES) return true;
         fullToast("Página cheia");
         return false;
       },
       onState: setState,
-      onStrokes: (next, added) => {
-        strokes = next;
+      onDoc: (next, added) => {
+        doc = next;
         // Counted as each stroke comes (measuring the whole page every time would cost too much).
-        bytes = added
-          ? bytes + jsonbTextBytes(added) + 2
-          : pageBytes({ strokes, elements: latest.current.page.elements });
+        bytes = added ? bytes + jsonbTextBytes(added) + 2 : pageBytes(doc);
         if (!warned && bytes >= PAGE_MAX_BYTES * PAGE_FULL_RATIO) {
           warned = true;
           fullToast("Página quase cheia");
@@ -136,6 +182,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
         clearTimeout(timer);
         timer = setTimeout(save, SAVE_DELAY_MS);
       },
+      onTextCreated: setFocusId,
     });
     engineRef.current = engine;
 
@@ -148,6 +195,14 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        engine.deleteSelection();
+        return;
+      }
+      if (e.key === "Escape") {
+        engine.clearSelection();
+        return;
+      }
       if (!(e.ctrlKey || e.metaKey)) return;
       const key = e.key.toLowerCase();
       if (key === "z" && !e.shiftKey) engine.undo();
@@ -159,20 +214,23 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
 
     // Changes from another device arrive here while the page is open: taken when nothing of hers
     // waits to be saved (the newest change wins, as on the server).
-    let known = idsOf(strokes);
-    const adopt = (next: LocalPage) => {
-      const ids = idsOf(next.strokes);
-      if (dirty || ids === known) return;
-      known = ids;
-      if (ids === idsOf(strokes)) return;
-      strokes = next.strokes;
-      bytes = pageBytes(next);
-      engine.replaceStrokes(next.strokes);
+    let known = docKey(doc);
+    adoptRef.current = (next: LocalPage) => {
+      const key = docKey(next);
+      if (dirty || key === known) return;
+      known = key;
+      if (key === docKey(doc)) return;
+      doc = { strokes: next.strokes, elements: next.elements };
+      bytes = pageBytes(doc);
+      engine.replaceDoc(doc);
     };
-    adoptRef.current = adopt;
+
+    // While open, undo may bring a deleted picture back: it is kept until she leaves the page.
+    const release = holdPage(userId, initial.id);
 
     return () => {
       save();
+      release();
       engine.destroy();
       engineRef.current = null;
       adoptRef.current = null;
@@ -191,6 +249,57 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
     engineRef.current?.setTheme(theme);
   }, [theme]);
 
+  // Leaving the text tool closes the text box being written in.
+  useEffect(() => {
+    if (!writing && document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur();
+  }, [writing]);
+
+  const onFocused = useCallback(() => setFocusId(null), []);
+
+  const insertImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const engine = engineRef.current;
+    if (!file || !engine) return;
+    try {
+      const { compressPhoto } = await import("@/features/files/reader");
+      const { blob } = await compressPhoto(file);
+      if (blob.size > MAX_IMAGE_BYTES) {
+        toast({ title: "Imagem grande demais", description: "Use uma imagem de até 5 MB.", tone: "danger" });
+        return;
+      }
+      const { width, height } = await imageSize(blob);
+      const imageId = await addImage(userId, page.id, blob);
+      let w = Math.min(480, PAGE_WIDTH - 80);
+      let h = (w * height) / Math.max(width, 1);
+      if (h > 900) {
+        w = (w * 900) / h;
+        h = 900;
+      }
+      const [cx, cy] = engine.visibleCenter();
+      const round = (n: number) => Math.round(n * 10) / 10;
+      const element: ImageElement = {
+        id: newPageItemId(),
+        type: "imagem",
+        x: round(Math.min(Math.max(cx - w / 2, 20), PAGE_WIDTH - 20 - w)),
+        y: round(Math.min(Math.max(cy - h / 2, 20), PAGE_HEIGHT - 20 - h)),
+        w: round(w),
+        h: round(h),
+        imageId,
+      };
+      engine.addElement(element);
+    } catch (failure) {
+      toast({
+        title: "Não foi possível inserir a imagem",
+        description: failure instanceof Error ? failure.message : undefined,
+        tone: "danger",
+      });
+    }
+  };
+
+  const selection = state.selection;
+  const engine = () => engineRef.current;
+
   return (
     <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-bg">
       <div
@@ -200,11 +309,24 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
       >
         <div
           ref={paperRef}
-          aria-hidden
           data-testid="papel"
           className="pointer-events-none absolute top-0 left-0 origin-top-left rounded-[6px] shadow-[0_1px_2px_rgba(31,42,51,0.06),0_12px_32px_rgba(31,42,51,0.08)]"
           style={paperStyle(page.background, theme)}
-        />
+        >
+          <PageElements
+            userId={userId}
+            pageId={page.id}
+            elements={state.elements}
+            writing={writing}
+            selected={selection?.elementIds ?? []}
+            moving={state.moving}
+            focusId={focusId}
+            onFocused={onFocused}
+            onBegin={(id) => engine()?.beginText(id)}
+            onText={(id, text) => engine()?.setText(id, text)}
+            onEnd={(id) => engine()?.endText(id)}
+          />
+        </div>
         <canvas
           ref={markerRef}
           aria-hidden
@@ -220,12 +342,57 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
         <canvas ref={liveRef} aria-hidden className="pointer-events-none absolute top-0 left-0" />
       </div>
 
+      {selection && (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute rounded-md border-2 border-dashed border-brand"
+            style={{
+              left: selection.screen.x,
+              top: selection.screen.y,
+              width: selection.screen.w,
+              height: selection.screen.h,
+            }}
+          />
+          {!state.moving && (
+            <div
+              role="group"
+              aria-label={`Seleção: ${selection.count} ${selection.count === 1 ? "item" : "itens"}`}
+              className="absolute flex -translate-x-1/2 items-center rounded-full border border-line bg-surface p-1 shadow-float"
+              style={{
+                left: Math.max(selection.screen.x + selection.screen.w / 2, 90),
+                top: selection.screen.y > 140 ? selection.screen.y - 56 : selection.screen.y + selection.screen.h + 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => engine()?.deleteSelection()}
+                className="flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-danger-text hover:bg-surface-alt"
+              >
+                <Trash2 aria-hidden size={18} strokeWidth={1.75} />
+                Apagar seleção
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
       <EditorToolbar
         theme={theme}
         canUndo={state.canUndo}
         canRedo={state.canRedo}
-        onUndo={() => engineRef.current?.undo()}
-        onRedo={() => engineRef.current?.redo()}
+        onUndo={() => engine()?.undo()}
+        onRedo={() => engine()?.redo()}
+        onInsertImage={() => fileRef.current?.click()}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        aria-label="Escolher imagem ou foto"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => void insertImage(e)}
       />
 
       <div
@@ -236,7 +403,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
         <button
           type="button"
           aria-label="Diminuir zoom"
-          onClick={() => engineRef.current?.zoomBy(1 / 1.25)}
+          onClick={() => engine()?.zoomBy(1 / 1.25)}
           className="flex size-11 items-center justify-center rounded-full text-fg hover:bg-surface-alt"
         >
           <Minus aria-hidden size={18} strokeWidth={1.75} />
@@ -244,7 +411,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
         <button
           type="button"
           aria-label={`Zoom ${state.zoom}%: ajustar à largura`}
-          onClick={() => engineRef.current?.fit()}
+          onClick={() => engine()?.fit()}
           className="min-h-11 min-w-14 rounded-full px-2 text-sm font-semibold text-fg tabular-nums hover:bg-surface-alt"
         >
           {state.zoom}%
@@ -252,12 +419,20 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
         <button
           type="button"
           aria-label="Aumentar zoom"
-          onClick={() => engineRef.current?.zoomBy(1.25)}
+          onClick={() => engine()?.zoomBy(1.25)}
           className="flex size-11 items-center justify-center rounded-full text-fg hover:bg-surface-alt"
         >
           <Plus aria-hidden size={18} strokeWidth={1.75} />
         </button>
       </div>
+      {/* On phones undo and redo live here, by the thumb (the toolbar has no room for them). */}
+      <UndoRedo
+        canUndo={state.canUndo}
+        canRedo={state.canRedo}
+        onUndo={() => engine()?.undo()}
+        onRedo={() => engine()?.redo()}
+        className="absolute right-3 bottom-[max(12px,env(safe-area-inset-bottom))] flex rounded-full border border-line bg-surface p-1 shadow-float md:hidden"
+      />
     </div>
   );
 }

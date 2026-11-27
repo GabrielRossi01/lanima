@@ -472,6 +472,9 @@ describe("caderno offline e sincronização", () => {
   it("apagar o caderno apaga também as imagens guardadas", async () => {
     const { notebookId, pageId } = await sync.createNotebook(ANA, { subjectId: null, title: "Aula" });
     const imageId = await sync.addImage(ANA, pageId, new Blob(["x"], { type: "image/webp" }));
+    await sync.updatePage(ANA, pageId, {
+      elements: [{ id: "i1", type: "imagem", x: 10, y: 10, w: 100, h: 100, imageId }],
+    });
     await sync.syncNotebooks(ANA);
     expect(server.storage.has(`${ANA}/${imageId}`)).toBe(true);
     // (Not the size: the fake IndexedDB of jsdom doesn't keep a Blob as a Blob; browsers do. E2E.)
@@ -483,6 +486,26 @@ describe("caderno offline e sincronização", () => {
     expect(server.notebooks.size + server.notebook_pages.size + server.notebook_images.size + server.storage.size).toBe(
       0,
     );
+  });
+
+  it("uma imagem tirada da página só libera o espaço quando a página sai do editor", async () => {
+    const { pageId } = await sync.createNotebook(ANA, { subjectId: null, title: "Aula" });
+    const imageId = await sync.addImage(ANA, pageId, new Blob(["x"], { type: "image/webp" }));
+    const element = { id: "i1", type: "imagem" as const, x: 10, y: 10, w: 100, h: 100, imageId };
+    await sync.updatePage(ANA, pageId, { elements: [element] });
+    await sync.syncNotebooks(ANA);
+    expect(server.storage.has(`${ANA}/${imageId}`)).toBe(true);
+
+    // Erased while the page is open: undo could still bring it back.
+    const release = sync.holdPage(ANA, pageId);
+    await sync.updatePage(ANA, pageId, { elements: [] });
+    await sync.syncNotebooks(ANA);
+    expect(server.notebook_images.has(imageId)).toBe(true);
+
+    release();
+    await sync.syncNotebooks(ANA);
+    expect(server.notebook_images.has(imageId)).toBe(false);
+    expect(server.storage.has(`${ANA}/${imageId}`)).toBe(false);
   });
 
   it("depois de sair, uma gravação atrasada não volta", async () => {

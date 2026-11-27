@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { clampCamera, fitScale, initialCamera, toPage, zoomAround, zoomPercent } from "@/lib/ink/camera";
+import {
+  elementInLasso,
+  eraseArea,
+  insidePolygon,
+  moveStroke,
+  strokeInLasso,
+  textBoxHeight,
+  touchesStroke,
+} from "@/lib/ink/erase";
 import { History } from "@/lib/ink/history";
+import type { Stroke } from "@/lib/ink/strokes";
 import { InputArbiter, PALM_GRACE_MS, TwoFingerTap } from "@/lib/ink/input";
 
 const tablet = { width: 1074, height: 760, top: 84 };
@@ -60,8 +70,12 @@ describe("caneta, palma e dedos", () => {
     expect(a.down({ id: 1, kind: "pen", time: 50, primary: true })).toEqual({ role: "draw", cancelDrawing: 2 });
   });
 
-  it("o botão lateral da S Pen não desenha", () => {
-    expect(arbiter().down({ id: 1, kind: "pen", time: 0, primary: false }).role).toBe("ignore");
+  it("o botão lateral da S Pen não desenha: vira borracha enquanto apertado", () => {
+    const a = arbiter();
+    expect(a.down({ id: 1, kind: "pen", time: 0, primary: false }).role).toBe("erase");
+    expect(a.roleOf(1)).toBe("erase");
+    // The palm is still ignored while it erases.
+    expect(a.down({ id: 2, kind: "touch", time: 10, primary: true }).role).toBe("ignore");
   });
 
   it("sem “Desenhar com o dedo”, um dedo rola e dois dão zoom", () => {
@@ -121,6 +135,94 @@ describe("toque de dois dedos", () => {
     three.up(1, 100);
     three.up(2, 100);
     expect(three.up(3, 110)).toBe(false);
+  });
+});
+
+describe("borracha e laço", () => {
+  const line = (id: string, y: number): Stroke => ({
+    id,
+    tool: "caneta",
+    color: "grafite",
+    size: 4,
+    points: [
+      [100, y, 0.5],
+      [500, y, 0.5],
+    ],
+  });
+  let n = 0;
+  const newId = () => `novo${n++}`;
+
+  it("a borracha por traço pega o traço que ela toca, inclusive no meio de um trecho reto", () => {
+    expect(touchesStroke(line("a", 100), 300, 105, 6)).toBe(true);
+    expect(touchesStroke(line("a", 100), 300, 120, 6)).toBe(false);
+    expect(touchesStroke(line("a", 100), 520, 100, 6)).toBe(false);
+  });
+
+  it("a borracha por área corta o traço em dois e deixa o resto", () => {
+    const pieces = eraseArea(line("a", 100), 300, 100, 14, newId)!;
+    expect(pieces).toHaveLength(2);
+    expect(pieces[0].points[0]).toEqual([100, 100, 0.5]);
+    expect(pieces[0].points.at(-1)![0]).toBeLessThan(300 - 14);
+    expect(pieces[1].points[0][0]).toBeGreaterThan(300 + 14);
+    expect(pieces[1].points.at(-1)).toEqual([500, 100, 0.5]);
+    // New ids, same pen.
+    expect(pieces.map((p) => p.id)).not.toContain("a");
+    expect(pieces[0]).toMatchObject({ tool: "caneta", color: "grafite", size: 4 });
+    // Away from the stroke: untouched.
+    expect(eraseArea(line("a", 100), 300, 200, 14, newId)).toBeNull();
+    // Over a short stroke: nothing left.
+    expect(
+      eraseArea(
+        {
+          ...line("b", 100),
+          points: [
+            [295, 100, 0.5],
+            [305, 100, 0.5],
+          ],
+        },
+        300,
+        100,
+        14,
+        newId,
+      ),
+    ).toEqual([]);
+  });
+
+  it("o laço pega o traço com a maior parte dentro, e o elemento com o meio dentro", () => {
+    const lasso: [number, number][] = [
+      [50, 50],
+      [600, 50],
+      [600, 150],
+      [50, 150],
+    ];
+    expect(insidePolygon(300, 100, lasso)).toBe(true);
+    expect(insidePolygon(300, 200, lasso)).toBe(false);
+    expect(strokeInLasso(line("a", 100), lasso)).toBe(true);
+    expect(strokeInLasso(line("a", 300), lasso)).toBe(false);
+    expect(elementInLasso({ id: "t", type: "texto", x: 100, y: 60, w: 300, text: "Fêmur", size: 24 }, lasso)).toBe(
+      true,
+    );
+    expect(
+      elementInLasso(
+        { id: "i", type: "imagem", x: 100, y: 120, w: 300, h: 300, imageId: "a0000000-0000-4000-8000-000000000001" },
+        lasso,
+      ),
+    ).toBe(false);
+  });
+
+  it("mover leva o traço junto, com 1 casa decimal", () => {
+    expect(moveStroke(line("a", 100), 10.04, -5.06).points).toEqual([
+      [110, 94.9, 0.5],
+      [510, 94.9, 0.5],
+    ]);
+  });
+
+  it("a caixa de texto cresce com as linhas", () => {
+    const box = { id: "t", type: "texto" as const, x: 0, y: 0, w: 260, text: "curto", size: 20 };
+    expect(textBoxHeight(box)).toBeCloseTo(27);
+    expect(textBoxHeight({ ...box, text: "a\nb\nc" })).toBeCloseTo(81);
+    // 25 characters fit in a line: 40 make two.
+    expect(textBoxHeight({ ...box, text: "x".repeat(40) })).toBeCloseTo(54);
   });
 });
 

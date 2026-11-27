@@ -1,7 +1,8 @@
 import type { CDPSession, Page } from "@playwright/test";
 import type { TestAccount } from "./helpers/accounts";
 import { expect, test } from "./helpers/fixtures";
-import { lineStroke, seedNotebook, serverPage } from "./helpers/notebook";
+import { join } from "node:path";
+import { lineStroke, seedNotebook, serverImages, serverPage } from "./helpers/notebook";
 
 // Phase 7, part 3: writing on the page. The pen (with pressure) and the fingers are driven through
 // Chromium's DevTools protocol, the same events a S Pen sends; the real S Pen and Apple Pencil are
@@ -78,6 +79,46 @@ async function openPage(
 }
 
 const strokes = (page: Page) => page.getByRole("img", { name: /^Página \d+: \d+ traços?$/ });
+
+/** A point of the page (page units: 1000 wide) on the screen. */
+async function pagePoint(page: Page, px: number, py: number): Promise<Point> {
+  const box = (await page.getByTestId("papel").boundingBox())!;
+  const scale = box.width / 1000;
+  return [box.x + px * scale, box.y + py * scale];
+}
+
+/** The pen along a path (one point: a tap). `right`: with the side button pressed. */
+async function penPath(cdp: CDPSession, points: Point[], button: "left" | "right" = "left", steps = 6) {
+  const base = { pointerType: "pen" as const, button, force: 0.5 };
+  const buttons = button === "left" ? 1 : 2;
+  const [x0, y0] = points[0];
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", ...base, x: x0, y: y0, clickCount: 1, buttons });
+  for (let i = 1; i < points.length; i++) {
+    const [ax, ay] = points[i - 1];
+    const [bx, by] = points[i];
+    for (let k = 1; k <= steps; k++) {
+      const x = ax + ((bx - ax) * k) / steps;
+      const y = ay + ((by - ay) * k) / steps;
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...base, x, y, buttons });
+    }
+  }
+  const [xn, yn] = points[points.length - 1];
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    ...base,
+    x: xn,
+    y: yn,
+    clickCount: 1,
+    buttons: 0,
+  });
+}
+
+/** Picks a tool: on its button, or on phones under "Mais ferramentas". */
+async function chooseTool(page: Page, name: string) {
+  const button = page.getByRole("button", { name, exact: true });
+  if (!(await button.isVisible())) await page.getByRole("button", { name: "Mais ferramentas" }).click();
+  await button.click();
+}
 
 /** Picks a color: its swatch on the toolbar, or on narrow screens through the "Cores" button. */
 async function pickSwatch(page: Page, label: string) {
@@ -219,10 +260,11 @@ test.describe("Caderno: escrever na página", () => {
         ["lapis", "grafite", 3],
       ]);
 
-    await toolbar.getByRole("button", { name: "Desfazer" }).click();
+    // On phones undo and redo are at the bottom, not on the toolbar.
+    await page.getByRole("button", { name: "Desfazer" }).click();
     await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
     await expect.poll(async () => (await serverPage(pageId)).strokes.length, { timeout: 15_000 }).toBe(1);
-    await toolbar.getByRole("button", { name: "Refazer" }).click();
+    await page.getByRole("button", { name: "Refazer" }).click();
     await expect.poll(async () => (await serverPage(pageId)).strokes.length, { timeout: 15_000 }).toBe(2);
   });
 
@@ -299,5 +341,135 @@ test.describe("Caderno: escrever sem internet", () => {
     await context.setOffline(false);
     await expect.poll(async () => (await serverPage(pageId)).strokes.length, { timeout: 20_000 }).toBe(1);
     await expect(page.getByRole("status")).toContainText("Salvo");
+  });
+});
+
+test.describe("Caderno: borracha, laço, texto e imagens", () => {
+  test("borracha por traço e por área; o botão lateral da caneta apaga sem trocar de ferramenta", async ({
+    page,
+    account,
+  }) => {
+    const { pageId, cdp } = await openPage(page, account, {
+      strokes: [lineStroke("a", 150), lineStroke("b", 300), lineStroke("c", 450)],
+    });
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 3 traços");
+
+    // The side button pressed: the pen erases what it touches, and stays the pen.
+    await penPath(cdp, [await pagePoint(page, 400, 120), await pagePoint(page, 400, 180)], "right");
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 2 traços");
+    await expect(page.getByRole("button", { name: "Caneta", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Borracha", exact: true }).click();
+    await penPath(cdp, [await pagePoint(page, 300, 270), await pagePoint(page, 300, 330)]);
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
+
+    // By area: only what it passes over goes; the stroke is cut in two.
+    await page.getByRole("button", { name: /^Borracha: / }).click();
+    await page.getByRole("radio", { name: "Por área" }).click();
+    await penPath(cdp, [await pagePoint(page, 430, 420), await pagePoint(page, 430, 480)]);
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 2 traços");
+    await expect
+      .poll(async () => (await serverPage(pageId)).strokes.map((s) => s.id).includes("c"), { timeout: 15_000 })
+      .toBe(false);
+    expect((await serverPage(pageId)).strokes).toHaveLength(2);
+
+    // One undo puts back the whole pass of the eraser.
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
+  });
+
+  test("laço: seleciona, move e apaga; desfazer traz de volta", async ({ page, account }) => {
+    const { pageId, cdp } = await openPage(page, account, { strokes: [lineStroke("a", 150), lineStroke("b", 400)] });
+    await chooseTool(page, "Laço: selecionar, mover e apagar");
+    const loop: Point[] = [
+      [60, 100],
+      [820, 100],
+      [820, 200],
+      [60, 200],
+      [60, 110],
+    ];
+    await penPath(cdp, await Promise.all(loop.map(([x, y]) => pagePoint(page, x, y))));
+    await expect(page.getByRole("group", { name: "Seleção: 1 item" })).toBeVisible();
+
+    // Dragged from inside the selection: 100 down.
+    await penPath(cdp, [await pagePoint(page, 400, 150), await pagePoint(page, 400, 250)]);
+    await expect
+      .poll(async () => (await serverPage(pageId)).strokes.find((s) => s.id === "a")?.points[0][1] ?? 0, {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(240);
+    const moved = (await serverPage(pageId)).strokes.find((s) => s.id === "a")!;
+    expect(moved.points[0][1]).toBeLessThan(260);
+    expect((await serverPage(pageId)).strokes.find((s) => s.id === "b")!.points[0][1]).toBe(400);
+
+    await page.getByRole("button", { name: "Apagar seleção" }).click();
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
+    await expect
+      .poll(async () => (await serverPage(pageId)).strokes.map((s) => s.id), { timeout: 15_000 })
+      .toEqual(["b"]);
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 2 traços");
+  });
+
+  test("caixa de texto: um toque cria; o texto fica salvo; uma caixa vazia some", async ({ page, account }) => {
+    const { pageId, cdp } = await openPage(page, account);
+    await chooseTool(page, "Caixa de texto");
+    await penPath(cdp, [await pagePoint(page, 100, 200)]);
+    const boxes = page.getByRole("textbox", { name: "Caixa de texto" });
+    await expect(boxes.first()).toBeFocused();
+    await page.keyboard.type("Fêmur: o osso mais longo");
+    await page.getByRole("button", { name: "Caneta", exact: true }).click();
+    await expect
+      .poll(async () => (await serverPage(pageId)).elements.map((e) => [e.type, e.text]), { timeout: 15_000 })
+      .toEqual([["texto", "Fêmur: o osso mais longo"]]);
+
+    await chooseTool(page, "Caixa de texto");
+    // In the middle of the page (its lower left corner is under the zoom control on a tablet).
+    await penPath(cdp, [await pagePoint(page, 500, 420)]);
+    await expect(boxes).toHaveCount(2);
+    await page.getByRole("button", { name: "Caneta", exact: true }).click();
+    await expect(boxes).toHaveCount(1);
+
+    // The pen writes over the text when the text tool is off.
+    await penStroke(cdp, await pagePoint(page, 80, 205), await pagePoint(page, 500, 215));
+    await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
+
+    await page.waitForTimeout(800);
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Caixa de texto" })).toHaveValue("Fêmur: o osso mais longo");
+  });
+
+  test("imagem: entra comprimida, sobe ao servidor e libera o espaço quando apagada", async ({ page, account }) => {
+    const { pageId, cdp } = await openPage(page, account);
+    const chooser = page.waitForEvent("filechooser");
+    await chooseTool(page, "Inserir imagem ou foto");
+    await (await chooser).setFiles(join(__dirname, "..", "fixtures", "files", "livro-pagina.png"));
+    const image = page.getByRole("img", { name: "Imagem colada" });
+    await expect(image).toBeVisible();
+    await expect
+      .poll(async () => (await serverImages(pageId)).map((i) => [i.mime_type, i.stored, Boolean(i.uploaded_at)]), {
+        timeout: 20_000,
+      })
+      .toEqual([["image/webp", true, true]]);
+    const [stored] = await serverImages(pageId);
+    expect(stored.size_bytes).toBeLessThan(600_000);
+    expect((await serverPage(pageId)).elements).toMatchObject([{ type: "imagem", imageId: stored.id }]);
+
+    // Lasso around it, delete; leaving the page frees its place in the 250 MB.
+    await chooseTool(page, "Laço: selecionar, mover e apagar");
+    const box = (await image.boundingBox())!;
+    const pad = 12;
+    await penPath(cdp, [
+      [box.x - pad, box.y - pad],
+      [box.x + box.width + pad, box.y - pad],
+      [box.x + box.width + pad, box.y + box.height + pad],
+      [box.x - pad, box.y + box.height + pad],
+      [box.x - pad, box.y],
+    ]);
+    await page.getByRole("button", { name: "Apagar seleção" }).click();
+    await expect(image).toHaveCount(0);
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "Caderno" }).click();
+    await expect.poll(async () => (await serverImages(pageId)).length, { timeout: 20_000 }).toBe(0);
   });
 });

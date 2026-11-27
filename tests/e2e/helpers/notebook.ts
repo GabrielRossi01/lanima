@@ -63,11 +63,33 @@ export interface ServerStroke {
 export async function serverPage(pageId: string) {
   const { data, error } = await adminClient()
     .from("notebook_pages")
-    .select("strokes, background, version")
+    .select("strokes, elements, background, version")
     .eq("id", pageId)
     .single();
   if (error) throw error;
-  return { ...data, strokes: data.strokes as unknown as ServerStroke[] };
+  return {
+    ...data,
+    strokes: data.strokes as unknown as ServerStroke[],
+    elements: data.elements as unknown as ({ id: string; type: string; text?: string; imageId?: string } & Record<
+      string,
+      unknown
+    >)[],
+  };
+}
+
+/** The pictures of a page on the server: their rows, and whether each file is in the bucket. */
+export async function serverImages(pageId: string) {
+  const { data, error } = await adminClient()
+    .from("notebook_images")
+    .select("id, storage_path, mime_type, size_bytes, uploaded_at")
+    .eq("page_id", pageId);
+  if (error) throw error;
+  return Promise.all(
+    data.map(async (row) => {
+      const file = await adminClient().storage.from("notebook").download(row.storage_path);
+      return { ...row, stored: !file.error };
+    }),
+  );
 }
 
 /** Her notebooks on the server, with their pages in order. */
