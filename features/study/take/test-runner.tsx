@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useFiles } from "@/features/files/queries";
+import { useNotebookDocuments } from "@/features/notebook/documents";
 import { useTimerStore } from "@/features/focus/timer-store";
 import { useSubjects } from "@/features/subjects/queries";
 import { DIFFICULTIES } from "@/lib/ai/schemas";
@@ -150,6 +151,7 @@ export function TestRunner() {
   const local = useLocalAttempts();
   const subjects = useSubjects().data ?? [];
   const files = useFiles().data ?? [];
+  const notebookPages = useNotebookDocuments().data ?? [];
   useAttemptSync();
 
   const [attempt, setAttempt] = useState<LocalAttempt | null>(null);
@@ -167,7 +169,9 @@ export function TestRunner() {
   const chosenMode: Mode = mode ?? test?.config.mode ?? "treino";
   const now = useNow(attempt !== null && attempt.mode === "prova");
   const fileName = (documentId: string) =>
-    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ?? null;
+    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ??
+    notebookPages.find((p) => p.id === documentId)?.name ??
+    null;
 
   function update(next: LocalAttempt) {
     setAttempt(next);

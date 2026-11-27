@@ -15,6 +15,11 @@ export function editedWhen(editedAt: number, now: number): string {
   return `${d} ${MONTHS_SHORT[m - 1]}`;
 }
 
+/** A notebook page as a source of summaries and tests: "Aula 07 · pág. 2". */
+export function pageSourceName(notebookTitle: string, position: number): string {
+  return `${notebookTitle} · pág. ${position + 1}`;
+}
+
 export function pagesLabel(n: number): string {
   return `${n} ${n === 1 ? "página" : "páginas"}`;
 }

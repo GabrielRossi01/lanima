@@ -1,14 +1,16 @@
 "use client";
 
-import { BookOpen, CalendarClock, CircleCheck, FileText, ListTree, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarClock, CircleCheck, FileText, ListTree, NotebookPen, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { SearchField } from "@/components/ui/input";
 import { useFiles } from "@/features/files/queries";
 import { useGoals } from "@/features/goals/queries";
+import { useNotebooks } from "@/features/notebook/queries";
 import { useAssessments, useSubjects, useTopics } from "@/features/subjects/queries";
 import { cn } from "@/lib/cn";
 import { formatDate, type IsoDate } from "@/lib/dates/calendar";
+import { editorHref } from "@/lib/notebook/links";
 import { SEARCH_KIND_LABEL, searchItems, type SearchItem, type SearchKind } from "@/lib/search/search";
 
 const KIND_ICON: Record<SearchKind, LucideIcon> = {
@@ -17,11 +19,12 @@ const KIND_ICON: Record<SearchKind, LucideIcon> = {
   avaliacao: CalendarClock,
   meta: CircleCheck,
   arquivo: FileText,
+  nota: NotebookPen,
 };
 
 /**
- * Search at the top of Início: subjects, syllabus topics, assessments, goals and files (accents and
- * case ignored). Notes, summaries and questions join in their phases.
+ * Search at the top of Início: subjects, syllabus topics, assessments, goals, files and the notebook
+ * (titles and the text of the text boxes), accents and case ignored.
  */
 export function GlobalSearch({ today, className }: { today: IsoDate | null; className?: string }) {
   const [query, setQuery] = useState("");
@@ -30,6 +33,7 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
   const assessments = useAssessments().data ?? [];
   const goals = useGoals(today).data ?? [];
   const files = useFiles().data ?? [];
+  const notebooks = useNotebooks().data ?? [];
   const resultsId = useId();
 
   const nameOf = new Map(subjects.map((s) => [s.id, s.name]));
@@ -69,6 +73,29 @@ export function GlobalSearch({ today, className }: { today: IsoDate | null; clas
       detail: f.subject_id ? (nameOf.get(f.subject_id) ?? "") : "Sem matéria",
       href: `/arquivos#arquivo-${f.id}`,
     })),
+    // Notebooks by title, and the pages whose text boxes have the words.
+    ...notebooks.flatMap((n) => {
+      const subject = n.subjectId ? (nameOf.get(n.subjectId) ?? "") : "Sem matéria";
+      const first = n.pages[0];
+      const notebook: SearchItem[] = first
+        ? [{ kind: "nota", id: n.id, title: n.title, detail: subject, href: editorHref(first.id) }]
+        : [];
+      const pages = n.pages.flatMap((p, i): SearchItem[] =>
+        p.text
+          ? [
+              {
+                kind: "nota",
+                id: p.id,
+                title: `${n.title} · pág. ${i + 1}`,
+                detail: p.text.replace(/\s+/g, " ").slice(0, 90),
+                body: p.text,
+                href: editorHref(p.id),
+              },
+            ]
+          : [],
+      );
+      return [...notebook, ...pages];
+    }),
   ];
   const results = searchItems(items, query);
   const open = query.trim().length > 0;

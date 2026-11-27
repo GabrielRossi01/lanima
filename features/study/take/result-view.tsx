@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useFiles } from "@/features/files/queries";
+import { useNotebookDocuments } from "@/features/notebook/documents";
 import { DIFFICULTY_LABELS } from "@/lib/ai/schemas";
 import { cn } from "@/lib/cn";
 import { formatDate, todayIn } from "@/lib/dates/calendar";
@@ -117,6 +118,7 @@ export function ResultView() {
   const tests = useTests();
   const summaries = useSummaries().data ?? [];
   const files = useFiles().data ?? [];
+  const notebookPages = useNotebookDocuments().data ?? [];
   useAttemptSync();
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -195,7 +197,9 @@ export function ResultView() {
   const today = todayIn(new Date());
   const when = `${shortDay(finishedAt, today)}, ${new Date(finishedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h")}`;
   const fileName = (documentId: string) =>
-    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ?? null;
+    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ??
+    notebookPages.find((p) => p.id === documentId)?.name ??
+    null;
 
   // "Para revisar" leads to the same topic in a summary of the test, when there is one.
   const summaryIds = test?.config.sources?.summaryIds ?? mine?.attempt.summaryIds ?? [];

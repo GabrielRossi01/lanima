@@ -6,6 +6,7 @@ import type { SourceKey } from "./keys";
 import type { AiFailure } from "./messages";
 import { ProviderError } from "./providers";
 import type { UsageLog } from "./generate";
+import { pageSourceName } from "@/lib/notebook/format";
 import type { Database } from "@/lib/supabase/database.types";
 import { createSupabaseServer } from "@/lib/supabase/server";
 
@@ -48,7 +49,9 @@ export interface LoadedSources {
 export async function loadSources(supabase: Client, documentIds: readonly string[]): Promise<LoadedSources> {
   const { data: docs, error } = await supabase
     .from("documents")
-    .select("id, status, content_hash, excluded_pages, files(name, subject_id)")
+    .select(
+      "id, status, content_hash, excluded_pages, files(name, subject_id), notebook_pages(position, notebooks(title, subject_id))",
+    )
     .in("id", [...documentIds])
     .eq("status", "pronto");
   if (error) throw error;
@@ -67,8 +70,16 @@ export async function loadSources(supabase: Client, documentIds: readonly string
   // In the order she picked them.
   const order = new Map(documentIds.map((id, i) => [id, i]));
   ready.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-  const file = (d: (typeof ready)[number]) =>
-    (Array.isArray(d.files) ? d.files[0] : d.files) as { name: string; subject_id: string | null } | null;
+  // A file, or a notebook page ("Usar no resumo"): its name and subject either way.
+  const file = (d: (typeof ready)[number]): { name: string; subject_id: string | null } | null => {
+    const f = Array.isArray(d.files) ? d.files[0] : d.files;
+    if (f) return f;
+    const page = Array.isArray(d.notebook_pages) ? d.notebook_pages[0] : d.notebook_pages;
+    const notebook = page && (Array.isArray(page.notebooks) ? page.notebooks[0] : page.notebooks);
+    return page && notebook
+      ? { name: pageSourceName(notebook.title, page.position), subject_id: notebook.subject_id }
+      : null;
+  };
   return {
     documents: ready.map((d) => ({
       id: d.id,

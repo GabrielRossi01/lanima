@@ -278,7 +278,9 @@ export function StudyView() {
   const [subject, setSubject] = useState(ALL);
   // "?resumir=<ids>": from Arquivos ("Resumir em tópicos"), the sheet opens with those files chosen.
   const [fromFiles] = useState(() => parseIds(params.get("resumir")));
-  const [newSummary, setNewSummary] = useState(fromFiles.length > 0);
+  // "?paginas=<ids>": from the notebook ("Usar no resumo"), with the readings of those pages.
+  const [fromPages] = useState(() => parseIds(params.get("paginas")));
+  const [newSummary, setNewSummary] = useState(fromFiles.length + fromPages.length > 0);
   const tests = useTests();
   const used = subjects.filter(
     (s) =>
@@ -290,7 +292,7 @@ export function StudyView() {
   function closeSheet() {
     setNewSummary(false);
     // Reloading doesn't open it again.
-    if (params.get("resumir")) router.replace("/estudo", { scroll: false });
+    if (params.get("resumir") || params.get("paginas")) router.replace("/estudo", { scroll: false });
   }
 
   return (
@@ -336,8 +338,9 @@ export function StudyView() {
         <NewSummarySheet
           open
           onClose={closeSheet}
-          subjectId={subject === ALL || fromFiles.length > 0 ? null : subject}
+          subjectId={subject === ALL || fromFiles.length + fromPages.length > 0 ? null : subject}
           fileIds={fromFiles}
+          pageDocumentIds={fromPages}
         />
       )}
     </>

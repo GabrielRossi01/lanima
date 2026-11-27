@@ -32,15 +32,30 @@ export async function exportPdf(
 ): Promise<void> {
   const [pdf, fonts] = await Promise.all([import("@/lib/study/pdf"), loadFonts()]);
   const bytes = await make(pdf, fonts);
+  downloadFile(bytes, pdf.pdfFileName(title));
+}
+
+/** Hands a PDF made on the device to the browser as a download. */
+export function downloadFile(bytes: Uint8Array, fileName: string) {
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = pdf.pdfFileName(title);
+  link.download = fileName;
   document.body.append(link);
   link.click();
   link.remove();
   // Safari reads the blob after the click returns.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** The app's DM Sans for a PDF; null when it can't be had (offline before the first export). */
+export async function loadSansFont(): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(PDF_FONT_FILES.sans.path);
+    return response.ok ? await response.arrayBuffer() : null;
+  } catch {
+    return null;
+  }
 }
 
 /** "26 de novembro de 2026". */

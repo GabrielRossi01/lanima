@@ -11,6 +11,8 @@ import { todayIn } from "@/lib/dates/calendar";
 import { plural, shortDay } from "@/lib/study/format";
 import type { Subject } from "@/lib/subjects/subjects";
 import { DETAIL_LABELS } from "@/lib/ai/schemas";
+import type { NotebookDocument } from "@/features/notebook/documents";
+import { NotebookPagesPicker } from "../notebook-pages-picker";
 import type { Summary } from "../queries";
 import { SourcePicker } from "../source-picker";
 
@@ -46,6 +48,9 @@ export function StepContent(props: {
   files: StoredFile[];
   selectedFiles: ReadonlySet<string>;
   onToggleFile: (id: string) => void;
+  pages: NotebookDocument[];
+  selectedPages: ReadonlySet<string>;
+  onTogglePage: (id: string) => void;
   summaries: Summary[];
   selectedSummaries: ReadonlySet<string>;
   onToggleSummary: (id: string) => void;
@@ -61,13 +66,14 @@ export function StepContent(props: {
   const chosenFiles = props.files.filter((f) => props.selectedFiles.has(f.id) && f.document?.status === "pronto");
   const usable = props.files.filter((f) => f.document?.status === "pronto").length;
   const chosenSummaries = props.summaries.filter((s) => props.selectedSummaries.has(s.id));
-  const sources = chosenFiles.length + chosenSummaries.length;
+  const chosenPages = props.pages.filter((p) => props.selectedPages.has(p.id) && p.ready);
+  const sources = chosenFiles.length + chosenSummaries.length + chosenPages.length;
   const pages = chosenFiles.reduce((sum, f) => sum + (f.document?.page_count ?? 0), 0);
   const allTopics = [...props.topics.toReview, ...props.topics.fromSummaries, ...props.topics.fromSyllabus];
   const onTopics = allTopics.filter(props.isTopicOn).length;
   const subjectName = props.subjects.find((s) => s.id === props.subjectId)?.name;
 
-  if (props.files.length === 0 && props.summaries.length === 0) {
+  if (props.files.length === 0 && props.summaries.length === 0 && props.pages.length === 0) {
     return (
       <EmptyState
         icon={FolderOpen}
@@ -132,6 +138,25 @@ export function StepContent(props: {
             não podem entrar.
           </p>
         </section>
+
+        {props.pages.length > 0 && (
+          <section className="flex flex-col gap-2.5" aria-labelledby="teste-caderno">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="teste-caderno" className="m-0 text-base font-semibold">
+                Páginas do caderno
+              </h2>
+              <span className="text-[13px] text-fg-2 tabular-nums">
+                {chosenPages.length} de {props.pages.length} {props.pages.length === 1 ? "marcada" : "marcadas"}
+              </span>
+            </div>
+            <NotebookPagesPicker
+              pages={props.pages}
+              selected={props.selectedPages}
+              onToggle={props.onTogglePage}
+              label="Páginas do caderno do teste"
+            />
+          </section>
+        )}
 
         {props.summaries.length > 0 && (
           <section className="flex flex-col gap-2.5" aria-labelledby="teste-resumos">
@@ -261,6 +286,7 @@ export function StepContent(props: {
             <li>
               {plural(chosenFiles.length, "arquivo", "arquivos")} ·{" "}
               {plural(chosenSummaries.length, "resumo", "resumos")}
+              {chosenPages.length > 0 && ` · ${plural(chosenPages.length, "página do caderno", "páginas do caderno")}`}
             </li>
             {pages > 0 && <li>{plural(pages, "página com texto", "páginas com texto")}</li>}
             <li>{onTopics === 0 ? "Todos os assuntos" : `${onTopics} de ${allTopics.length} tópicos`}</li>

@@ -26,6 +26,7 @@ import {
   FileText,
   GripVertical,
   ListChecks,
+  NotebookPen,
   Pencil,
   RefreshCw,
   Trash2,
@@ -43,6 +44,9 @@ import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
 import { fileLink, useFiles, type StoredFile } from "@/features/files/queries";
 import { TextPreviewSheet } from "@/features/files/text-preview";
+import { useNotebookDocuments, type NotebookDocument } from "@/features/notebook/documents";
+import { SaveSummarySheet } from "@/features/notebook/save-summary-sheet";
+import { editorHref } from "@/lib/notebook/links";
 import { useSubjects } from "@/features/subjects/queries";
 import { DETAIL_LABELS, HIGHLIGHTS, type Point, type SummaryContent } from "@/lib/ai/schemas";
 import { cn } from "@/lib/cn";
@@ -95,24 +99,51 @@ const MARKER_LABEL: Record<Highlight, string> = {
 /** Files of the summary by reading id, to name and open the sources. */
 function useSourceFiles(summary: Summary | undefined) {
   const files = useFiles().data ?? [];
+  const pages = useNotebookDocuments().data ?? [];
   const byDocument = new Map<string, StoredFile>();
   for (const f of files) if (f.document) byDocument.set(f.document.id, f);
-  return { byDocument, loaded: useFiles().data !== undefined, summaryDocs: summary?.document_ids ?? [] };
+  // Notebook pages used as sources ("Usar no resumo").
+  const pageByDocument = new Map(pages.map((p) => [p.id, p]));
+  return {
+    byDocument,
+    pageByDocument,
+    loaded: useFiles().data !== undefined,
+    summaryDocs: summary?.document_ids ?? [],
+  };
+}
+
+const sourceClasses =
+  "inline-flex min-h-6 max-w-[220px] shrink-0 items-center gap-1 rounded-sm bg-surface-alt px-2 text-xs font-medium text-accent";
+
+/** A notebook page as a source: it opens in the notebook. */
+function NotebookSource({ page }: { page: NotebookDocument }) {
+  return (
+    <Link
+      href={editorHref(page.pageId)}
+      aria-label={`Abrir fonte: ${page.name}`}
+      className={cn(sourceClasses, "hover:bg-active")}
+    >
+      <NotebookPen aria-hidden size={13} strokeWidth={1.75} className="shrink-0" />
+      <span className="truncate">{page.name}</span>
+    </Link>
+  );
 }
 
 /** Opens the file at the page (PDFs) or its text (the other kinds). */
 function SourceButton({
   file,
+  notebookPage,
   page,
   onPreview,
 }: {
   file: StoredFile | undefined;
+  notebookPage?: NotebookDocument;
   page: number;
   onPreview: (file: StoredFile) => void;
 }) {
+  if (!file && notebookPage) return <NotebookSource page={notebookPage} />;
   const label = file ? `${file.name.replace(/\.[^.]+$/, "")} · p. ${page}` : `Arquivo excluído · p. ${page}`;
-  const classes =
-    "inline-flex min-h-6 max-w-[220px] shrink-0 items-center gap-1 rounded-sm bg-surface-alt px-2 text-xs font-medium text-accent";
+  const classes = sourceClasses;
   if (!file) return <span className={classes}>{label}</span>;
   async function open() {
     if (file!.kind !== "pdf") return onPreview(file!);
@@ -145,13 +176,14 @@ interface PointRowProps {
   path: PointPath;
   editing: boolean;
   file: StoredFile | undefined;
+  notebookPage?: NotebookDocument;
   onPreview: (file: StoredFile) => void;
   onMark: () => void;
   onSave: (texto: string) => void;
   onDelete: () => void;
 }
 
-function PointRow({ point, path, editing, file, onPreview, onMark, onSave, onDelete }: PointRowProps) {
+function PointRow({ point, path, editing, file, notebookPage, onPreview, onMark, onSave, onDelete }: PointRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: point.id,
     disabled: !editing,
@@ -252,7 +284,7 @@ function PointRow({ point, path, editing, file, onPreview, onMark, onSave, onDel
         </button>
       )}
       {point.fonte ? (
-        <SourceButton file={file} page={point.fonte.pagina} onPreview={onPreview} />
+        <SourceButton file={file} notebookPage={notebookPage} page={point.fonte.pagina} onPreview={onPreview} />
       ) : (
         <span className="inline-flex min-h-6 shrink-0 items-center rounded-sm bg-subtle px-2 text-xs text-fg-2">
           seu ponto
@@ -434,7 +466,7 @@ export function SummaryView({ id }: { id: string }) {
   const summaries = useSummary(id);
   const summary = summaries.data;
   const subjects = useSubjects().data ?? [];
-  const { byDocument } = useSourceFiles(summary);
+  const { byDocument, pageByDocument } = useSourceFiles(summary);
   const save = useSaveSummaryContent();
   const remove = useDeleteSummary();
   const saveState = useSaveState((s) => s.bySummary[id]);
@@ -451,6 +483,7 @@ export function SummaryView({ id }: { id: string }) {
   const [preview, setPreview] = useState<StoredFile | null>(null);
   const [confirm, setConfirm] = useState<"regenerate" | "delete" | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [savingToNotebook, setSavingToNotebook] = useState(false);
 
   if (!summary) {
     if (summaries.isPending) {
@@ -523,6 +556,7 @@ export function SummaryView({ id }: { id: string }) {
       path={path}
       editing={editing}
       file={point.fonte ? byDocument.get(point.fonte.documentId) : undefined}
+      notebookPage={point.fonte ? pageByDocument.get(point.fonte.documentId) : undefined}
       onPreview={setPreview}
       onMark={() => setMarking(path)}
       onSave={(texto) => commit((c) => updatePoint(c, path, { texto }))}
@@ -540,7 +574,8 @@ export function SummaryView({ id }: { id: string }) {
           {
             content: summary!.content,
             meta: [subject?.name, longDate(new Date())].filter(Boolean).join(" · "),
-            fileName: (documentId) => byDocument.get(documentId)?.name.replace(/\.[^.]+$/, "") ?? null,
+            fileName: (documentId) =>
+              byDocument.get(documentId)?.name.replace(/\.[^.]+$/, "") ?? pageByDocument.get(documentId)?.name ?? null,
           },
           fonts,
         ),
@@ -598,6 +633,8 @@ export function SummaryView({ id }: { id: string }) {
                   <FileText aria-hidden size={13} strokeWidth={1.75} className="shrink-0" />
                   <span className="truncate">{file.name}</span>
                 </button>
+              ) : pageByDocument.has(summary.document_ids[i]) ? (
+                <NotebookSource key={i} page={pageByDocument.get(summary.document_ids[i])!} />
               ) : (
                 <span key={i} className="inline-flex h-6 items-center rounded-sm bg-subtle px-2 text-xs text-fg-2">
                   Arquivo excluído
@@ -631,6 +668,12 @@ export function SummaryView({ id }: { id: string }) {
             variant="outline"
             disabled={exporting}
             onClick={() => void exportSummary()}
+          />
+          <IconButton
+            icon={NotebookPen}
+            label="Salvar no caderno"
+            variant="outline"
+            onClick={() => setSavingToNotebook(true)}
           />
           <IconButton icon={Trash2} label="Excluir resumo" variant="outline" onClick={() => setConfirm("delete")} />
           <Link href={`/estudo/novo-teste?resumo=${summary.id}`} className={buttonClasses("primary", "m")}>
@@ -769,6 +812,14 @@ export function SummaryView({ id }: { id: string }) {
         }}
       />
       {preview && <TextPreviewSheet file={preview} onClose={() => setPreview(null)} />}
+      {savingToNotebook && (
+        <SaveSummarySheet
+          open
+          onClose={() => setSavingToNotebook(false)}
+          content={summary.content}
+          subjectId={summary.subject_id}
+        />
+      )}
       <ConfirmDialog
         open={confirm === "regenerate"}
         title="Gerar de novo?"

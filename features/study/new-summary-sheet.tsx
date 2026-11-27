@@ -17,6 +17,8 @@ import { DETAIL_LABELS, DETAILS, type Detail } from "@/lib/ai/schemas";
 import { formatDate, todayIn } from "@/lib/dates/calendar";
 import { sortTopics, upcomingAssessments } from "@/lib/subjects/subjects";
 import { summariesKey, useAiRemaining } from "./queries";
+import { useNotebookDocuments } from "@/features/notebook/documents";
+import { NotebookPagesPicker } from "./notebook-pages-picker";
 import { isUsable, SourcePicker } from "./source-picker";
 import { AiFailureCard, AiProgress, useGenerate } from "./use-generate";
 
@@ -37,11 +39,14 @@ export function NewSummarySheet({
   onClose,
   subjectId: initialSubject = null,
   fileIds = [],
+  pageDocumentIds = [],
 }: {
   open: boolean;
   onClose: () => void;
   subjectId?: string | null;
   fileIds?: readonly string[];
+  /** Notebook pages already chosen ("Usar no resumo"): their readings. */
+  pageDocumentIds?: readonly string[];
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -55,11 +60,15 @@ export function NewSummarySheet({
 
   const [subject, setSubject] = useState<string>(initialSubject ?? ALL);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(fileIds));
+  const pages = useNotebookDocuments().data ?? [];
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(() => new Set(pageDocumentIds));
   const [detail, setDetail] = useState<Detail>("medio");
   const [focus, setFocus] = useState("");
 
   const visible = files.filter((f) => (subject === ALL ? true : f.subject_id === subject));
   const chosen = files.filter((f) => selected.has(f.id) && isUsable(f));
+  const visiblePages = pages.filter((p) => subject === ALL || p.subjectId === subject || selectedPages.has(p.id));
+  const chosenPages = pages.filter((p) => selectedPages.has(p.id) && p.ready);
   const today = todayIn(new Date());
   const focusOptions =
     subject === ALL
@@ -72,18 +81,20 @@ export function NewSummarySheet({
           ...sortTopics(topics.filter((t) => t.subject_id === subject)).map((t) => t.title),
         ];
 
-  const toggle = (id: string) =>
-    setSelected((set) => {
-      const next = new Set(set);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const flip = (set: ReadonlySet<string>, id: string) => {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  };
+  const toggle = (id: string) => setSelected((set) => flip(set, id));
+  const togglePage = (id: string) => setSelectedPages((set) => flip(set, id));
 
   async function generate() {
-    const subjectOfFiles = chosen.find((f) => f.subject_id)?.subject_id ?? null;
+    const subjectOfFiles =
+      chosen.find((f) => f.subject_id)?.subject_id ?? chosenPages.find((p) => p.subjectId)?.subjectId ?? null;
     const result = await run("/api/ai/resumo", {
-      documentIds: chosen.map((f) => f.document!.id),
+      documentIds: [...chosen.map((f) => f.document!.id), ...chosenPages.map((p) => p.id)],
       detail,
       focus: focus || null,
       subjectId: subject === ALL ? subjectOfFiles : subject,
@@ -114,7 +125,11 @@ export function NewSummarySheet({
               <Button variant="ghost" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button icon={Sparkles} disabled={chosen.length === 0 || outOfQuota} onClick={() => void generate()}>
+              <Button
+                icon={Sparkles}
+                disabled={chosen.length + chosenPages.length === 0 || outOfQuota}
+                onClick={() => void generate()}
+              >
                 Gerar resumo
               </Button>
             </>
@@ -161,6 +176,27 @@ export function NewSummarySheet({
                 <SourcePicker files={visible} selected={selected} onToggle={toggle} label="Arquivos para resumir" />
               )}
             </section>
+            {visiblePages.length > 0 && (
+              <section className="flex flex-col gap-2.5" aria-labelledby="novo-resumo-caderno">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 id="novo-resumo-caderno" className="m-0 text-base font-semibold">
+                    Páginas do caderno
+                  </h3>
+                  <span className="text-xs text-fg-2">
+                    {chosenPages.length === 1 ? "1 marcada" : `${chosenPages.length} marcadas`}
+                  </span>
+                </div>
+                <NotebookPagesPicker
+                  pages={visiblePages}
+                  selected={selectedPages}
+                  onToggle={togglePage}
+                  label="Páginas do caderno para resumir"
+                />
+                <p className="type-caption m-0 text-fg-2">
+                  Entram as páginas enviadas com “Usar no resumo”: o texto das caixas e das fotos coladas.
+                </p>
+              </section>
+            )}
             <div className="flex flex-col gap-2">
               <span className="text-[13px] font-semibold">Nível de detalhe</span>
               <SegmentedControl

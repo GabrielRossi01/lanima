@@ -7,6 +7,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { useFiles } from "@/features/files/queries";
+import { useNotebookDocuments } from "@/features/notebook/documents";
 import { useSubjects } from "@/features/subjects/queries";
 import type { PdfQuestion } from "@/lib/study/pdf";
 import { friendlyError } from "@/lib/supabase/errors";
@@ -15,9 +16,14 @@ import { useSummaries } from "./queries";
 import { useQuestionBank, useTests, type Question } from "./test-queries";
 
 /** A source's name without the extension, by reading (document) id. */
+/** The name of a source: a file (without its extension) or a notebook page ("Aula 07 · pág. 2"). */
 export function useSourceName(): (documentId: string) => string | null {
   const files = useFiles().data ?? [];
-  return (documentId) => files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ?? null;
+  const pages = useNotebookDocuments().data ?? [];
+  return (documentId) =>
+    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ??
+    pages.find((p) => p.id === documentId)?.name ??
+    null;
 }
 
 const toPdf = (q: Question): PdfQuestion => ({

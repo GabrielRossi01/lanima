@@ -7,6 +7,11 @@ export function summarizeHref(fileIds: readonly string[]): string {
   return `/estudo?${new URLSearchParams({ resumir: fileIds.join(",") }).toString()}`;
 }
 
+/** "Usar no resumo" of the notebook: the readings of those pages chosen. */
+export function summarizePagesHref(documentIds: readonly string[]): string {
+  return `/estudo?${new URLSearchParams({ paginas: documentIds.join(",") }).toString()}`;
+}
+
 export function newTestHref(input: { fileIds?: readonly string[]; subjectId?: string | null }): string {
   const params = new URLSearchParams();
   if (input.subjectId) params.set("materia", input.subjectId);

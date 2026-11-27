@@ -16,6 +16,7 @@ import {
 } from "@/lib/notebook/model";
 import { addImage, holdPage, updatePage, type LocalPage } from "@/lib/notebook/sync";
 import { EditorToolbar, UndoRedo } from "./editor-toolbar";
+import { registerFlush } from "./flush";
 import { InkEngine, newPageItemId, type EngineState, type PageDoc, type ToolChoice } from "./ink-engine";
 import { PageElements } from "./page-elements";
 import { ERASER_RADIUS, ERASER_REACH, fingerDrawsNow, isInkTool, useTools } from "./tool-store";
@@ -136,14 +137,24 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
     let warned = false;
     let dirty = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const save = () => {
+    let saving: Promise<void> = Promise.resolve();
+    /** Saves what waits now; resolves when the device has it. */
+    const save = (): Promise<void> => {
       clearTimeout(timer);
-      if (!dirty) return;
-      dirty = false;
-      updatePage(userId, initial.id, { strokes: doc.strokes, elements: doc.elements }, { trusted: true }).catch(() =>
-        toast({ title: "Não foi possível salvar a página neste aparelho", tone: "danger" }),
-      );
+      if (dirty) {
+        dirty = false;
+        saving = updatePage(
+          userId,
+          initial.id,
+          { strokes: doc.strokes, elements: doc.elements },
+          { trusted: true },
+        ).catch(() => {
+          toast({ title: "Não foi possível salvar a página neste aparelho", tone: "danger" });
+        });
+      }
+      return saving;
     };
+    const unregister = registerFlush(initial.id, save);
 
     const fullToast = (title: string) =>
       toast({
@@ -229,7 +240,8 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
     const release = holdPage(userId, initial.id);
 
     return () => {
-      save();
+      void save();
+      unregister();
       release();
       engine.destroy();
       engineRef.current = null;

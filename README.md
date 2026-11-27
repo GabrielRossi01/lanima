@@ -2,7 +2,7 @@
 
 Planner de estudos de Biomedicina, instalável como app (PWA) no Galaxy Tab, no iPad, em celulares e no computador. Custo zero: Vercel Hobby + Supabase Free + planos gratuitos de IA.
 
-> **Estado atual: Fase 6 concluída (Resumos e testes: resumo em tópicos editável com as fontes, banco de questões, teste em 3 passos com níveis e tipos, modos treino e prova, resultado por tópico e nível, "Refazer só as erradas", testes offline e PDFs).** Fase 5: Arquivos com envio, fotos comprimidas, 250 MB por conta, leitura do texto no aparelho de PDF, Word, slides e fotos com OCR, prévia por página. Fase 4: modo foco com cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões. Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
+> **Estado atual: Fase 7 concluída (Caderno: escrita com S Pen, Apple Pencil ou dedo, com pressão e rejeição da palma; caneta, lápis, marca-texto, borracha, laço, caixas de texto e imagens; páginas, zoom e miniaturas; tudo offline e sincronizado; "Usar no resumo", PDF vetorial, compartilhar e "Salvar no caderno").** Fase 6: Resumos e testes (resumo em tópicos editável com as fontes, banco de questões, teste em 3 passos, modos treino e prova, resultado por tópico e nível, testes offline e PDFs). Fase 5: Arquivos com envio, fotos comprimidas, 250 MB por conta, leitura do texto no aparelho de PDF, Word, slides e fotos com OCR, prévia por página. Fase 4: modo foco com cronômetro, temas, sons, tela acesa, aviso do fim e registro das sessões. Fase 3: Matérias com cor, ícone e aulas da semana, conteúdo do plano de ensino (importar, marcar, reordenar), avaliações com contagem regressiva, metas do dia com as atrasadas no topo, Início com métricas, busca e próxima prova. Fase 2: login por e-mail (link e código) ou Google, onboarding e perfil. Fase 1: sistema visual, AppShell, temas e PWA. As próximas fases estão em `PROMPT_CLAUDE_CODE.md`, seção 10.
 
 ## Rodar no computador
 
@@ -210,6 +210,7 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 | tesseract.js / @tesseract.js-data/por   | 7.0.0 / 1.0.0   | OCR em português num Web Worker, modelo LSTM "best_int" (1,4 MB)                                                                |
 | pdf-lib / @pdf-lib/fontkit              | 1.17.1 / 1.1.1  | "Exportar em PDF" no aparelho (e os arquivos de exemplo dos testes); carregados só ao exportar                                  |
 | @fontsource/fraunces / dm-sans          | 5.3.0 / 5.3.0   | Fraunces e DM Sans (OFL) embutidas nos PDFs, convertidas para TrueType pelo `copy-vendor`                                       |
+| perfect-freehand                        | 1.2.3           | Contorno dos traços do caderno a partir da pressão da caneta (MIT)                                                              |
 
 ## Decisões técnicas da Fase 1
 
@@ -274,7 +275,7 @@ Versões estáveis instaladas em 22/11/2026, conferidas no npm. Onde a versão d
 - **Os leitores vêm do próprio app:** `scripts/copy-vendor.mjs` copia o worker do pdf.js, os dados dele, o motor do OCR e o português para `public/vendor/<pacote>-<versão>` antes do `dev` e do `build` (a pasta não vai para o git). Não entram no precache: o service worker guarda na primeira vez que um arquivo precisa (~6 MB) e depois funcionam offline.
 - **Fila na aba:** envio e leitura continuam se ela trocar de tela; uma leitura por vez (o OCR pesa no tablet), com a tela acesa enquanto isso. Se o app fechar no meio, depois de 10 minutos sem notícia o arquivo mostra "Leitura interrompida" e "Ler de novo" (baixa o arquivo e lê).
 - **Online primeiro:** a lista fica guardada no aparelho e abre offline; enviar, renomear, mover e excluir pedem internet, com aviso.
-- **"Resumir em tópicos" e "Criar teste"** (no aviso depois do envio, no menu de cada arquivo e na barra de seleção) chegaram na Fase 6. As outras exportações chegam nas fases que criam esses conteúdos (caderno na 7, backup na 11).
+- **"Resumir em tópicos" e "Criar teste"** (no aviso depois do envio, no menu de cada arquivo e na barra de seleção) chegaram na Fase 6. O caderno em PDF chegou na Fase 7 (pelo menu de cada caderno); o backup chega na 11.
 - **Arquivos de exemplo dos testes** (`tests/fixtures/files`): escritos para o projeto, gerados por `node scripts/make-fixtures.mjs`.
 
 ## IA grátis (Fase 6)
@@ -300,7 +301,7 @@ No plano gratuito, o Google pode usar o texto enviado para melhorar os modelos: 
 - **Listas no aparelho:** as chaves de cache de estudo começam com `["study", <id da pessoa>]`. O app apaga ao abrir as listas guardadas de outra pessoa, olhando esse segundo item.
 - **Sequência e Início:** um dia conta na sequência com 25 minutos de foco **ou** um teste concluído. "Acerto médio" é a média dos testes de hoje e dos 6 dias antes, no fuso de São Paulo.
 - **PDFs no aparelho** (`lib/study/pdf.ts`): pdf-lib com Fraunces e DM Sans, uma coluna, as fontes citadas no rodapé de cada página e o gabarito à parte quando ela pede. As fontes do `@fontsource` vêm em WOFF; o `copy-vendor` converte para TrueType (`scripts/woff-to-ttf.mjs`), porque o PDF precisa da fonte crua e o recorte de glifos do fontkit quebra com WOFF. Sem as fontes (offline antes da primeira exportação), o PDF sai com as fontes padrão. As ligaduras ficam desligadas para o texto copiado do PDF sair igual.
-- **Fica para depois:** "Salvar no caderno" (fase 7), "Gerar questões sobre isto" no Atlas (fase 10) e os pontos dos testes no ranking (fase 9; a regra já está em `pointsFor`).
+- **Fica para depois:** "Gerar questões sobre isto" no Atlas (fase 10) e os pontos dos testes no ranking (fase 9; a regra já está em `pointsFor`). "Salvar no caderno" chegou na Fase 7.
 
 ### Por que o cacheComponents está desligado
 
@@ -312,6 +313,22 @@ O template do Next 16.4 vem com `cacheComponents` e `partialPrefetching` ligados
 
 **Alternativa futura para religar a flag:** o “configurator mode” do Serwist (`@serwist/next/config` + rodar `serwist build` depois do `next build`), que gera o service worker como arquivo estático, fora de qualquer route handler. Um teste E2E de regressão (“service worker é estático…”) garante que o `sw.js` continue com `s-maxage` de 1 ano.
 
+## Decisões técnicas da Fase 7 (caderno)
+
+- **Banco** (`supabase/migrations/20261127000002_notebooks.sql`): `notebooks`, `notebook_pages` (traços e elementos em JSON, `version` subida por gatilho, até 1,5 MB de JSON por página) e `notebook_images` (fotos coladas, no bucket privado `notebook`, que contam nos 250 MB da conta junto com os arquivos). `documents` agora lê um arquivo **ou** uma página do caderno. Testes de RLS e das regras em `supabase/tests/phase7.test.sql`.
+- **Offline e sincronização** (`lib/notebook/sync.ts`): tudo é gravado primeiro no aparelho (Dexie) e sobe depois, quando há rede, com nova tentativa de 2 s a 60 s se falhar. Cada mudança leva a hora em que foi feita: por página, **a mais nova vale** (`save_notebook_page`), e uma gravação mais velha que chega atrasada não muda nada. Um relógio adiantado conta como "agora". A página aberta e a lista abrem sem internet (estão no precache).
+- **O editor** (`features/notebook/editor/ink-engine.ts`): o papel é um fundo CSS que o navegador escala; os traços prontos ficam em dois canvas (marca-texto atrás, tinta na frente), redesenhados só quando a vista ou os traços mudam, e só o que aparece na tela; o traço em andamento tem um canvas só dele. Pointer Events com pontos agrupados (`getCoalescedEvents`) e previstos (`getPredictedEvents`), contorno do perfect-freehand com a pressão. Com 2.000 traços, cada quadro do traço em andamento leva poucos milissegundos (medido no E2E).
+- **Caneta, palma e dedos** (`lib/ink/input.ts`): a caneta desenha; enquanto ela está na tela (e 0,6 s depois), um toque é a palma e é ignorado. Um dedo rola e dois dão zoom (50% a 400%); com "Desenhar com o dedo" (ligado por padrão no celular), um dedo escreve. O botão lateral da S Pen (ou a ponta de borracha) apaga enquanto está apertado. Toque de dois dedos desfaz.
+- **Formato dos traços:** `{ id, tool, color, size, points: [[x, y, pressão]] }` numa folha A4 de 1000 de largura, 1 casa decimal (pressão com 2) e pontos simplificados (Ramer–Douglas–Peucker) antes de salvar. As cores são nomes, não códigos: o grafite vira branco no tema escuro e o marca-texto usa as cores fechadas.
+- **Marca-texto:** cor cheia com "multiplicar" no tema claro, em vez da opacidade 0,4 do prompt: com as cores pastel, 0,4 ficava quase invisível e diferente do mockup. Continua transparente (os pontos e a tinta aparecem) e passar duas vezes não escurece.
+- **Tamanho da página:** 1,5 MB de JSON comportam cerca de 2.000 a 3.000 traços de letra à mão. Aos 90%, o app avisa "Página quase cheia" com o botão "Nova página".
+- **Imagens:** comprimidas como as fotos de Arquivos (WebP de cerca de 400 KB), guardadas no aparelho e enviadas depois. Uma imagem que saiu da página libera o espaço na sincronização seguinte, nunca enquanto a página está aberta (o desfazer ainda pode trazê-la de volta), e só as que este aparelho conhece.
+- **"Usar no resumo":** o texto das caixas de texto e o OCR das fotos coladas (o mesmo leitor de Arquivos) viram a leitura da página, uma fonte de resumos e testes como um arquivo ("Aula 07 · pág. 2").
+- **Melhoria futura: ler a letra à mão.** Nesta versão a escrita à mão não passa por OCR, porque em português o resultado ainda é fraco. Quando houver um reconhecimento de escrita bom e grátis (no aparelho, para não enviar a página a terceiros), ele entra aqui: os traços já guardam a ordem e a pressão de cada ponto, que é o que esses modelos usam.
+- **PDF e compartilhar** (`lib/notebook/pdf.ts`): a página ou o caderno inteiro, feitos no aparelho com pdf-lib. Os traços saem em vetor (o mesmo contorno da tela), as caixas de texto como texto de verdade e as fotos embutidas (o WebP vira JPEG, porque o pdf-lib só aceita PNG e JPEG). "Compartilhar" usa a folha do sistema (Web Share API com arquivo); onde ela não existe, o PDF é baixado.
+- **"Salvar no caderno"** (no Resumo): os tópicos viram caixas de texto em páginas novas, num caderno escolhido ou num novo com o nome do resumo.
+- **Testes:** a caneta com pressão e os toques são simulados pelo protocolo do Chromium (`Input.dispatchMouseEvent` com `pointerType: "pen"`, `Input.dispatchTouchEvent`); por isso esses testes rodam só no Chromium. **O aceite da fase é no aparelho:** S Pen no Chrome do Galaxy Tab e Apple Pencil no Safari do iPad (pressão, palma, botão lateral e fluidez).
+
 ## Estrutura
 
 ```
@@ -322,9 +339,10 @@ app/                  rotas (App Router); (app) com menu, (full) em tela cheia
   design/             página de componentes
 components/ui/        componentes-base
 components/layout/    AppShell, navegação, instalação, tema
-features/             telas e lógica por módulo (auth, onboarding, perfil, matérias, foco, arquivos, estudo)
+features/             telas e lógica por módulo (auth, onboarding, perfil, matérias, foco, arquivos, estudo, caderno)
 lib/                  tema, PWA, datas, cores, Supabase, regras de login e perfil; extract/ (leitura de PDF, Word, slides e OCR);
-                      ai/ (provedores, prompts, schemas, cota); study/ (correção, resumo, PDFs)
+                      ai/ (provedores, prompts, schemas, cota); study/ (correção, resumo, PDFs);
+                      ink/ (traços, desenho, câmera, caneta e palma, borracha e laço); notebook/ (modelo, sincronização, PDF)
 proxy.ts              renova o cookie da sessão (Next 16: antigo middleware)
 supabase/             config local, migrações, seed, testes de RLS e modelo de e-mail
 tests/unit/           Vitest

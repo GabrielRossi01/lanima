@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, FileQuestion, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Download, FileQuestion, FileText, MoreHorizontal, Plus, Share2, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { addPage, deletePage, updatePage } from "@/lib/notebook/sync";
 import { useTheme } from "@/lib/theme/use-theme";
 import { PageThumbnail } from "../page-thumbnail";
 import { SAVE_STATE_LABELS, useNotebooks, useNotebookSaveState, usePage } from "../queries";
+import { ExportSheet, UseInSummarySheet } from "./page-actions";
 import { PageEditor } from "./page-editor";
 import { fingerDrawsNow, setFingerDraws, useTools } from "./tool-store";
 
@@ -47,6 +48,8 @@ export function NotebookScreen() {
   const { resolved } = useTheme();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  /** "Usar no resumo", "Exportar como PDF" or "Compartilhar" open. */
+  const [action, setAction] = useState<"resumo" | "baixar" | "compartilhar" | null>(null);
 
   const notebook = notebooks.data?.find((n) => n.id === page.data?.notebookId);
   const loading = page.isPending || notebooks.isPending;
@@ -115,7 +118,18 @@ export function NotebookScreen() {
           </p>
         </div>
         <div className="flex justify-self-end">
-          <IconButton icon={MoreHorizontal} label="Mais opções" onClick={() => setOptionsOpen(true)} />
+          {/* On phones these three are in "Mais opções": the title needs the room. */}
+          <div className="hidden gap-2 md:flex">
+            <IconButton icon={FileText} label="Usar no resumo" onClick={() => setAction("resumo")} />
+            <IconButton icon={Share2} label="Compartilhar" onClick={() => setAction("compartilhar")} />
+            <IconButton icon={Download} label="Exportar como PDF" onClick={() => setAction("baixar")} />
+          </div>
+          <IconButton
+            icon={MoreHorizontal}
+            label="Mais opções"
+            onClick={() => setOptionsOpen(true)}
+            className="md:ml-2"
+          />
         </div>
       </header>
 
@@ -178,8 +192,31 @@ export function NotebookScreen() {
             setOptionsOpen(false);
             setDeleting(true);
           }}
+          onAction={(which) => {
+            setOptionsOpen(false);
+            setAction(which);
+          }}
         />
       </Sheet>
+      {userId && pageId && notebook && (
+        <>
+          <UseInSummarySheet
+            open={action === "resumo"}
+            onClose={() => setAction(null)}
+            userId={userId}
+            pageId={pageId}
+          />
+          <ExportSheet
+            open={action === "baixar" || action === "compartilhar"}
+            mode={action === "compartilhar" ? "compartilhar" : "baixar"}
+            onClose={() => setAction(null)}
+            userId={userId}
+            notebook={notebook}
+            pageId={pageId}
+            pageNumber={number}
+          />
+        </>
+      )}
       <ConfirmDialog
         open={deleting}
         title={`Excluir a página ${number}?`}
@@ -198,16 +235,37 @@ function EditorOptions({
   onBackground,
   canDelete,
   onDelete,
+  onAction,
 }: {
   background: PageBackground;
   onBackground: (background: PageBackground) => void;
   canDelete: boolean;
   onDelete: () => void;
+  onAction: (action: "resumo" | "baixar" | "compartilhar") => void;
 }) {
   const chosen = useTools((s) => s.fingerDraws);
   const fingerDraws = chosen ?? fingerDrawsNow();
+  const row =
+    "flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium text-fg hover:bg-surface-alt";
   return (
     <div className="flex flex-col gap-5 pb-2">
+      {/* On tablets these are icons on the top bar. */}
+      <ul className="m-0 flex list-none flex-col gap-1 p-0 md:hidden">
+        {(
+          [
+            ["resumo", FileText, "Usar no resumo"],
+            ["compartilhar", Share2, "Compartilhar"],
+            ["baixar", Download, "Exportar como PDF"],
+          ] as const
+        ).map(([which, Icon, label]) => (
+          <li key={which}>
+            <button type="button" onClick={() => onAction(which)} className={row}>
+              <Icon aria-hidden size={20} strokeWidth={1.75} className="shrink-0 text-accent" />
+              {label}
+            </button>
+          </li>
+        ))}
+      </ul>
       <Switch
         checked={fingerDraws}
         onChange={setFingerDraws}

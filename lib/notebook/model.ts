@@ -53,6 +53,10 @@ export const imageElementSchema = z.object({
   imageId: z.uuid(),
 });
 
+let seq = 0;
+/** A short id for a stroke or an element: unique on this device, and with the time, across devices. */
+export const newPageItemId = () => `${Date.now().toString(36)}${(seq++ % 1296).toString(36).padStart(2, "0")}`;
+
 export const elementSchema = z.discriminatedUnion("type", [textElementSchema, imageElementSchema]);
 export type PageElement = z.infer<typeof elementSchema>;
 export type TextElement = z.infer<typeof textElementSchema>;

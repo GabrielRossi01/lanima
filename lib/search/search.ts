@@ -4,7 +4,7 @@ export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("pt-BR").trim();
 }
 
-export type SearchKind = "materia" | "topico" | "avaliacao" | "meta" | "arquivo";
+export type SearchKind = "materia" | "topico" | "avaliacao" | "meta" | "arquivo" | "nota";
 
 export interface SearchItem {
   kind: SearchKind;
@@ -12,6 +12,8 @@ export interface SearchItem {
   title: string;
   /** Context shown under the title ("Anatomia Humana · tópico"). */
   detail: string;
+  /** Searched but not shown (the text boxes of a notebook page). */
+  body?: string;
   href: string;
 }
 
@@ -21,6 +23,7 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   avaliacao: "Avaliações",
   meta: "Metas",
   arquivo: "Arquivos",
+  nota: "Caderno",
 };
 
 /**
@@ -34,7 +37,7 @@ export function searchItems(items: readonly SearchItem[], query: string, limit =
   const scored = items
     .map((item) => {
       const title = normalizeText(item.title);
-      const haystack = `${title} ${normalizeText(item.detail)}`;
+      const haystack = `${title} ${normalizeText(item.detail)}${item.body ? ` ${normalizeText(item.body)}` : ""}`;
       if (!words.every((w) => haystack.includes(w))) return null;
       return { item, score: title.startsWith(first) ? 0 : title.includes(first) ? 1 : 2 };
     })

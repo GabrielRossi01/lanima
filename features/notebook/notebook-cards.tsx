@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudOff, MoreHorizontal, PenLine, Pencil, Trash2 } from "lucide-react";
+import { CloudOff, Download, MoreHorizontal, PenLine, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { editedWhen, pagesLabel } from "@/lib/notebook/format";
 import { editorHref } from "@/lib/notebook/links";
 import { deleteNotebook } from "@/lib/notebook/sync";
+import { downloadNotebookPdf, makeNotebookPdf } from "./export-notebook";
 import { NotebookFormSheet } from "./notebook-form-sheet";
 import { PageThumbnail } from "./page-thumbnail";
 import type { NotebookWithPages } from "./queries";
@@ -93,6 +94,22 @@ export function NotebookGrid({
               onClick: () => {
                 setEditing(menuFor);
                 setMenuFor(null);
+              },
+            },
+            {
+              icon: Download,
+              label: "Exportar em PDF",
+              onClick: () => {
+                const target = menuFor;
+                setMenuFor(null);
+                if (!target || !userId) return;
+                makeNotebookPdf(userId, { title: target.title, pageIds: target.pages.map((p) => p.id) }).then(
+                  (pdf) => {
+                    downloadNotebookPdf(pdf);
+                    toast({ title: "PDF pronto", description: pdf.fileName, tone: "success" });
+                  },
+                  () => toast({ title: "Não foi possível fazer o PDF", tone: "danger" }),
+                );
               },
             },
             {

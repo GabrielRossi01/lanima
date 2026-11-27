@@ -30,7 +30,7 @@ import {
   type InkTheme,
 } from "@/lib/ink/render";
 import { finishStroke, PAGE_WIDTH, type InkColor, type InkPoint, type InkTool, type Stroke } from "@/lib/ink/strokes";
-import type { PageElement, TextElement } from "@/lib/notebook/model";
+import { newPageItemId, type PageElement, type TextElement } from "@/lib/notebook/model";
 
 /**
  * The notebook page on screen (section 7.2). Layers: the paper (a CSS background scaled by the
@@ -127,8 +127,7 @@ const LIVE_REDRAW_MS = 8;
 const TAP_SLOP = 8;
 const TEXT_SIZE = 24;
 
-let seq = 0;
-export const newPageItemId = () => `${Date.now().toString(36)}${(seq++ % 1296).toString(36).padStart(2, "0")}`;
+export { newPageItemId };
 
 export class InkEngine {
   private doc: PageDoc;

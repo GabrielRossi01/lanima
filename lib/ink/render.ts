@@ -258,7 +258,11 @@ export function drawElementsPreview(
 }
 
 /** Breaks text in lines that fit `width`, keeping her line breaks. */
-export function wrapText(ctx: Pick<CanvasRenderingContext2D, "measureText">, text: string, width: number): string[] {
+export function wrapText(
+  ctx: { measureText: (text: string) => { width: number } },
+  text: string,
+  width: number,
+): string[] {
   const lines: string[] = [];
   for (const paragraph of text.split("\n")) {
     let line = "";

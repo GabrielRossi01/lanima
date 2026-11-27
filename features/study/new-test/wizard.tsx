@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useFiles } from "@/features/files/queries";
+import { useNotebookDocuments } from "@/features/notebook/documents";
 import { useSubjects, useTopics } from "@/features/subjects/queries";
 import { proposalCounts } from "@/lib/ai/generate";
 import { QUESTION_TYPES } from "@/lib/ai/schemas";
@@ -60,6 +61,8 @@ export function NewTestWizard() {
   // The summary may arrive after the first render (list still loading): its subject wins then.
   const effectiveSubject = subjectId ?? fromSummary?.subject_id ?? null;
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(() => new Set(fromFiles));
+  const notebookPages = useNotebookDocuments().data ?? [];
+  const [selectedPages, setSelectedPages] = useState<Set<string>>(() => new Set());
   const [pickedSummaries, setPickedSummaries] = useState<Set<string> | null>(null);
   const selectedSummaries = pickedSummaries ?? new Set(fromSummary ? [fromSummary.id] : []);
   const [offTopics, setOffTopics] = useState<Set<string>>(new Set());
@@ -89,6 +92,11 @@ export function NewTestWizard() {
     (s) => !effectiveSubject || s.subject_id === effectiveSubject || selectedSummaries.has(s.id),
   );
   const chosenFiles = visibleFiles.filter((f) => selectedFiles.has(f.id) && isUsable(f));
+  const visiblePages = notebookPages.filter(
+    (p) => !effectiveSubject || p.subjectId === effectiveSubject || selectedPages.has(p.id),
+  );
+  const chosenPages = visiblePages.filter((p) => selectedPages.has(p.id) && p.ready);
+  const documentIds = [...chosenFiles.map((f) => f.document!.id), ...chosenPages.map((p) => p.id)];
   const chosenSummaries = visibleSummaries.filter((s) => selectedSummaries.has(s.id));
 
   // Topics: those of the chosen summaries, then the subject's syllabus (without repeating).
@@ -133,7 +141,7 @@ export function NewTestWizard() {
   }
 
   const requestBody = (counts: Counts, extra?: { types?: TestConfig["types"]; topics?: string[] }) => ({
-    documentIds: chosenFiles.map((f) => f.document!.id),
+    documentIds,
     summaryIds: chosenSummaries.map((s) => s.id),
     counts,
     types: extra?.types ?? config.types,
@@ -218,7 +226,7 @@ export function NewTestWizard() {
         config: {
           ...configWithTopics,
           sources: {
-            documentIds: chosenFiles.map((f) => f.document!.id),
+            documentIds,
             summaryIds: chosenSummaries.map((s) => s.id),
           },
         },
@@ -239,7 +247,9 @@ export function NewTestWizard() {
   const status =
     progress !== null ? <AiProgress message={progress} /> : failure ? <AiFailureCard failure={failure} /> : null;
   const fileName = (documentId: string) =>
-    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ?? null;
+    files.find((f) => f.document?.id === documentId)?.name.replace(/\.[^.]+$/, "") ??
+    notebookPages.find((p) => p.id === documentId)?.name ??
+    null;
 
   return (
     <>
@@ -256,6 +266,9 @@ export function NewTestWizard() {
           files={visibleFiles}
           selectedFiles={selectedFiles}
           onToggleFile={(id) => setSelectedFiles((set) => toggle(set, id))}
+          pages={visiblePages}
+          selectedPages={selectedPages}
+          onTogglePage={(id) => setSelectedPages((set) => toggle(set, id))}
           summaries={visibleSummaries}
           selectedSummaries={selectedSummaries}
           onToggleSummary={(id) => setPickedSummaries(toggle(selectedSummaries, id))}

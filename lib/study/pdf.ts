@@ -559,12 +559,4 @@ export function studyPdf(input: StudyPdfInput, files: PdfFontFiles | null): Prom
   });
 }
 
-/** "Ossos · revisão.pdf": a file name the systems accept. */
-export function pdfFileName(title: string): string {
-  const clean = title
-    .replace(/[\\/:*?"<>|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
-  return `${clean || "Lanima"}.pdf`;
-}
+export { pdfFileName } from "./file-name";

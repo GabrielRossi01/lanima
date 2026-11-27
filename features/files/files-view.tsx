@@ -1,6 +1,8 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Archive, Cloud, FolderOpen, ListChecks, NotebookPen, type LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,9 +10,11 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { FilterChip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { useAuth } from "@/features/auth/auth-provider";
 import { StudyPdfSheet } from "@/features/study/pdf-sheets";
 import { useSubjects } from "@/features/subjects/queries";
 import { formatBytes, matchesFilter, QUOTA_BYTES, type KindFilter } from "@/lib/files/files";
+import { getSupabase } from "@/lib/supabase/client";
 import { errorTag } from "@/lib/supabase/errors";
 import { FileList } from "./file-list";
 import { useFiles } from "./queries";
@@ -29,7 +33,18 @@ const NO_SUBJECT = "nenhuma";
 
 export function StorageCard() {
   const files = useFiles();
-  const used = usedBytes(files.data);
+  const userId = useAuth().user?.id;
+  // Files and notebook pictures share the 250 MB; offline, the files the device knows.
+  const total = useQuery({
+    queryKey: ["files", userId, "espaco-usado"],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const { data, error } = await getSupabase().rpc("storage_used");
+      if (error) throw error;
+      return Number(data);
+    },
+  });
+  const used = total.data ?? usedBytes(files.data);
   const share = Math.min(100, (used / QUOTA_BYTES) * 100);
   return (
     <Card>
@@ -43,7 +58,9 @@ export function StorageCard() {
         label="Espaço usado"
         tone={share >= 90 ? "danger" : share >= 75 ? "warning" : "brand"}
       />
-      <p className="type-caption m-0 text-fg-2">Cada conta tem 250 MB. As fotos são comprimidas antes de enviar.</p>
+      <p className="type-caption m-0 text-fg-2">
+        Cada conta tem 250 MB, para arquivos e imagens do caderno. As fotos são comprimidas antes de enviar.
+      </p>
     </Card>
   );
 }
@@ -68,6 +85,7 @@ function ImportCard() {
 
 /** Arquivos.html, "Exportar": what can be taken out of the app, made on the device. */
 function ExportCard() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const row = (icon: LucideIcon, title: string, detail: string, onClick?: () => void) => {
     const Icon = icon;
@@ -97,7 +115,7 @@ function ExportCard() {
       <CardHeader title="Exportar" as="h2" />
       <div className="flex flex-col gap-1">
         {row(ListChecks, "Resumos e testes", "PDF, com gabarito no fim", () => setOpen(true))}
-        {row(NotebookPen, "Caderno em PDF", "Chega com o caderno, na fase 7")}
+        {row(NotebookPen, "Caderno em PDF", "No Caderno, pelo menu “⋯” de cada caderno", () => router.push("/caderno"))}
         {row(Archive, "Backup completo", "Arquivo .zip com tudo, na fase 11")}
       </div>
       {open && <StudyPdfSheet open onClose={() => setOpen(false)} />}
