@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { clampCamera, fitScale, initialCamera, toPage, zoomAround, zoomPercent } from "@/lib/ink/camera";
 import {
+  elementAt,
   elementInLasso,
   eraseArea,
   insidePolygon,
   moveStroke,
+  strokeAt,
   strokeInLasso,
   textBoxHeight,
   touchesStroke,
@@ -208,6 +210,24 @@ describe("borracha e laço", () => {
         lasso,
       ),
     ).toBe(false);
+  });
+
+  it("um toque acha o elemento de cima, ou o traço", () => {
+    const image = {
+      id: "i",
+      type: "imagem" as const,
+      x: 100,
+      y: 100,
+      w: 300,
+      h: 200,
+      imageId: "a0000000-0000-4000-8000-000000000001",
+    };
+    const text = { id: "t", type: "texto" as const, x: 150, y: 150, w: 200, text: "Fêmur", size: 24 };
+    expect(elementAt([image, text], 200, 160)?.id).toBe("t");
+    expect(elementAt([image, text], 120, 280)?.id).toBe("i");
+    expect(elementAt([image, text], 600, 600)).toBeNull();
+    expect(strokeAt([line("a", 100), line("b", 100)], 300, 102, 6)?.id).toBe("b");
+    expect(strokeAt([line("a", 100)], 300, 130, 6)).toBeNull();
   });
 
   it("mover leva o traço junto, com 1 casa decimal", () => {

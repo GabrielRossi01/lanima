@@ -9,10 +9,12 @@ import {
   type Viewport,
 } from "@/lib/ink/camera";
 import {
+  elementAt,
   elementBox,
   elementInLasso,
   eraseArea,
   moveStroke,
+  strokeAt,
   strokeInLasso,
   touchesStroke,
   unionBox,
@@ -125,6 +127,8 @@ interface Selection {
 const LIVE_REDRAW_MS = 8;
 /** A press that moves less than this (CSS px) is a tap. */
 const TAP_SLOP = 8;
+/** …and lifts within this (ms). */
+const TAP_MS = 350;
 const TEXT_SIZE = 24;
 
 export { newPageItemId };
@@ -146,6 +150,11 @@ export class InkEngine {
   /** The page before a text box was opened for writing (one undo step per box edited). */
   private editing: { id: string; before: PageDoc } | null = null;
   private gesture = new Map<number, { x: number; y: number }>();
+  /**
+   * A finger that touched alone and hasn't moved: if it lifts soon, it was a tap, which selects the
+   * picture or text box under it (the pen keeps writing).
+   */
+  private fingerTap: { id: number; x: number; y: number; time: number } | null = null;
   private rect: DOMRect | null = null;
   private frame = 0;
   private needs = { layers: false, live: false };
@@ -222,11 +231,14 @@ export class InkEngine {
     return [(v.x0 + v.x1) / 2, (Math.max(v.y0, top) + v.y1) / 2];
   }
 
-  /** She started writing in a text box. */
+  /** She started writing in a text box: it is selected too, with "Apagar texto" at hand. */
   beginText(id: string) {
-    if (this.editing?.id === id) return;
-    this.closeEditing();
-    this.editing = { id, before: this.doc };
+    if (this.editing?.id !== id) {
+      this.closeEditing();
+      this.editing = { id, before: this.doc };
+    }
+    this.selection = { strokes: new Set(), elements: new Set([id]) };
+    this.emit();
   }
 
   /** Each change of a text box's text: saved, but one undo step for the whole box. */
@@ -522,6 +534,9 @@ export class InkEngine {
         if (this.action === before) this.finishAction();
         this.gesture.set(before.id, before.screen);
       }
+      // Only a finger alone can be a tap; a second one makes it a scroll or a zoom.
+      this.fingerTap =
+        kind === "touch" && this.gesture.size === 0 ? { id: e.pointerId, x: sx, y: sy, time: e.timeStamp } : null;
       this.gesture.set(e.pointerId, screen);
       return;
     }
@@ -665,6 +680,8 @@ export class InkEngine {
     const previous = this.gesture.get(e.pointerId);
     if (!previous || this.arbiter.roleOf(e.pointerId) !== "gesture") return;
     const [sx, sy] = this.local(e);
+    const tap = this.fingerTap;
+    if (tap?.id === e.pointerId && Math.hypot(sx - tap.x, sy - tap.y) > TAP_SLOP) this.fingerTap = null;
     const points = [...this.gesture.entries()];
     this.gesture.set(e.pointerId, { x: sx, y: sy });
     if (points.length === 1) {
@@ -693,11 +710,30 @@ export class InkEngine {
     }
     const tapped = kind === "touch" && this.tap.up(e.pointerId, e.timeStamp);
     this.arbiter.up(e.pointerId, kind, e.timeStamp);
+    const fingerTap = this.fingerTap?.id === e.pointerId ? this.fingerTap : null;
+    if (fingerTap) this.fingerTap = null;
     if (this.gesture.delete(e.pointerId) && this.gesture.size === 0) {
       clearTimeout(this.settleTimer);
       this.request("layers");
     }
     if (tapped && !cancelled) this.undo();
+    else if (fingerTap && !cancelled && e.timeStamp - fingerTap.time < TAP_MS)
+      this.selectAt(fingerTap.x, fingerTap.y, false);
+  }
+
+  /**
+   * A tap selects what is under it, like in a design tool: a picture or a text box (and, with the
+   * lasso, also a stroke). A tap on nothing lets go of the selection.
+   */
+  private selectAt(sx: number, sy: number, strokes: boolean) {
+    const [x, y] = toPage(this.cam, sx, sy);
+    const element = elementAt(this.doc.elements, x, y);
+    const stroke = !element && strokes ? strokeAt(this.doc.strokes, x, y, Math.max(6, TAP_SLOP / this.cam.z)) : null;
+    this.selection =
+      element || stroke
+        ? { strokes: new Set(stroke ? [stroke.id] : []), elements: new Set(element ? [element.id] : []) }
+        : null;
+    this.emit();
   }
 
   private wheel(e: WheelEvent) {
@@ -746,6 +782,15 @@ export class InkEngine {
         return;
       case "lasso": {
         const polygon = action.points;
+        // Barely moved: a tap, which selects what is under it.
+        const xs = polygon.map((p) => p[0]);
+        const ys = polygon.map((p) => p[1]);
+        const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * this.cam.z;
+        if (extent <= TAP_SLOP) {
+          const [x, y] = polygon[0];
+          this.selectAt(this.cam.x + x * this.cam.z, this.cam.y + y * this.cam.z, true);
+          return;
+        }
         const selection: Selection = {
           strokes: new Set(
             polygon.length > 2 ? this.doc.strokes.filter((s) => strokeInLasso(s, polygon)).map((s) => s.id) : [],

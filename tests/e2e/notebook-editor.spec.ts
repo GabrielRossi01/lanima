@@ -402,13 +402,66 @@ test.describe("Caderno: borracha, laço, texto e imagens", () => {
     expect(moved.points[0][1]).toBeLessThan(260);
     expect((await serverPage(pageId)).strokes.find((s) => s.id === "b")!.points[0][1]).toBe(400);
 
-    await page.getByRole("button", { name: "Apagar seleção" }).click();
+    // One stroke selected: the button says what goes.
+    await page.getByRole("button", { name: "Apagar traço" }).click();
     await expect(strokes(page)).toHaveAccessibleName("Página 1: 1 traço");
     await expect
       .poll(async () => (await serverPage(pageId)).strokes.map((s) => s.id), { timeout: 15_000 })
       .toEqual(["b"]);
     await page.getByRole("button", { name: "Desfazer" }).click();
     await expect(strokes(page)).toHaveAccessibleName("Página 1: 2 traços");
+  });
+
+  test("um toque seleciona a imagem ou o texto e já oferece apagar, sem trocar a caneta", async ({ page, account }) => {
+    const image = {
+      id: "i1",
+      type: "imagem",
+      x: 100,
+      y: 400,
+      w: 300,
+      h: 200,
+      imageId: "a0000000-0000-4000-8000-000000000001",
+    };
+    const text = { id: "t1", type: "texto", x: 100, y: 200, w: 500, text: "Fêmur: o osso mais longo", size: 24 };
+    const { pageIds } = await seedNotebook(account, { title: "Aula 07", pages: [{ elements: [image, text] }] });
+    await page.addInitScript(() =>
+      localStorage.setItem("lanima:caderno:ferramentas", JSON.stringify({ fingerDraws: false })),
+    );
+    await page.goto(`/caderno/editar?pagina=${pageIds[0]}`);
+    await expect(page.getByRole("heading", { level: 1, name: "Aula 07" })).toBeVisible();
+    const cdp = await page.context().newCDPSession(page);
+    const tap = async (point: Point) => {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ id: 0, x: point[0], y: point[1] }],
+      });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+
+    // With the pen in hand: a finger tap on the picture selects it.
+    await tap(await pagePoint(page, 250, 500));
+    await expect(page.getByRole("button", { name: "Caneta", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Apagar imagem" }).click();
+    await expect
+      .poll(async () => (await serverPage(pageIds[0])).elements.map((e) => e.id), { timeout: 15_000 })
+      .toEqual(["t1"]);
+
+    // The text box too; a tap on nothing lets go.
+    await tap(await pagePoint(page, 200, 215));
+    await expect(page.getByRole("button", { name: "Apagar texto" })).toBeVisible();
+    await tap(await pagePoint(page, 750, 320));
+    await expect(page.getByRole("button", { name: "Apagar texto" })).toHaveCount(0);
+
+    // Writing in a text box: it is selected, with "Apagar texto" at hand.
+    await chooseTool(page, "Caixa de texto");
+    await page.getByRole("textbox", { name: "Caixa de texto" }).click();
+    await page.getByRole("button", { name: "Apagar texto" }).click();
+    await expect(page.getByRole("textbox", { name: "Caixa de texto" })).toHaveCount(0);
+    await expect.poll(async () => (await serverPage(pageIds[0])).elements, { timeout: 15_000 }).toEqual([]);
+
+    // Undo brings it back.
+    await page.getByRole("button", { name: "Desfazer" }).click();
+    await expect(page.getByRole("textbox", { name: "Caixa de texto" })).toHaveValue("Fêmur: o osso mais longo");
   });
 
   test("caixa de texto: um toque cria; o texto fica salvo; uma caixa vazia some", async ({ page, account }) => {
@@ -455,18 +508,11 @@ test.describe("Caderno: borracha, laço, texto e imagens", () => {
     expect(stored.size_bytes).toBeLessThan(600_000);
     expect((await serverPage(pageId)).elements).toMatchObject([{ type: "imagem", imageId: stored.id }]);
 
-    // Lasso around it, delete; leaving the page frees its place in the 250 MB.
+    // A tap on it with the lasso selects it; delete; leaving the page frees its place in the 250 MB.
     await chooseTool(page, "Laço: selecionar, mover e apagar");
     const box = (await image.boundingBox())!;
-    const pad = 12;
-    await penPath(cdp, [
-      [box.x - pad, box.y - pad],
-      [box.x + box.width + pad, box.y - pad],
-      [box.x + box.width + pad, box.y + box.height + pad],
-      [box.x - pad, box.y + box.height + pad],
-      [box.x - pad, box.y],
-    ]);
-    await page.getByRole("button", { name: "Apagar seleção" }).click();
+    await penPath(cdp, [[box.x + box.width / 2, box.y + box.height / 2]]);
+    await page.getByRole("button", { name: "Apagar imagem" }).click();
     await expect(image).toHaveCount(0);
     await page.waitForTimeout(800);
     await page.getByRole("button", { name: "Caderno" }).click();

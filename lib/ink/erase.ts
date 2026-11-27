@@ -114,6 +114,23 @@ export function elementInLasso(element: PageElement, polygon: readonly (readonly
   return insidePolygon((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, polygon);
 }
 
+/** The element under a tap (the one on top, the last placed), with a little room around it. */
+export function elementAt(elements: readonly PageElement[], x: number, y: number, pad = 6): PageElement | null {
+  for (let i = elements.length - 1; i >= 0; i--) {
+    const b = elementBox(elements[i]);
+    if (x >= b.x0 - pad && x <= b.x1 + pad && y >= b.y0 - pad && y <= b.y1 + pad) return elements[i];
+  }
+  return null;
+}
+
+/** The stroke under a tap (the last drawn on top). */
+export function strokeAt(strokes: readonly Stroke[], x: number, y: number, reach: number): Stroke | null {
+  for (let i = strokes.length - 1; i >= 0; i--) {
+    if (touchesStroke(strokes[i], x, y, reach)) return strokes[i];
+  }
+  return null;
+}
+
 export function unionBox(boxes: readonly Box[]): Box | null {
   if (boxes.length === 0) return null;
   return boxes.reduce((a, b) => ({

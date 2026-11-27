@@ -310,6 +310,16 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
   };
 
   const selection = state.selection;
+  // One item selected (a tap on it): the button says what goes.
+  const single = selection?.count === 1 ? state.elements.find((e) => e.id === selection.elementIds[0]) : undefined;
+  const deleteLabel =
+    selection?.count !== 1
+      ? "Apagar seleção"
+      : single?.type === "imagem"
+        ? "Apagar imagem"
+        : single?.type === "texto"
+          ? "Apagar texto"
+          : "Apagar traço";
   const engine = () => engineRef.current;
 
   return (
@@ -382,7 +392,7 @@ export function PageEditor({ page, userId, theme, pageNumber, onAddPage }: PageE
                 className="flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-danger-text hover:bg-surface-alt"
               >
                 <Trash2 aria-hidden size={18} strokeWidth={1.75} />
-                Apagar seleção
+                {deleteLabel}
               </button>
             </div>
           )}
