@@ -43,7 +43,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeBootScript() }} />
       </head>
       <body>
-        <SerwistProvider swUrl="/serwist/sw.js" disable={process.env.NODE_ENV === "development"}>
+        {/*
+          reloadOnOnline off: Serwist's default reloads the page whenever the network comes back,
+          losing an open sheet, text being typed or a test in progress (and once in CI it reloaded
+          the test page in the middle of going to the result). Lists refetch on their own and the
+          outboxes send on "online"; only the offline fallback page reloads (OfflineReload).
+        */}
+        <SerwistProvider swUrl="/serwist/sw.js" disable={process.env.NODE_ENV === "development"} reloadOnOnline={false}>
           <Providers>{children}</Providers>
           <Toaster />
         </SerwistProvider>

@@ -261,8 +261,12 @@ test.describe("Fazer o teste sem internet", () => {
     await expect(page.getByText("Offline · será sincronizado")).toBeVisible();
     expect(await attemptsOf(account)).toEqual([]);
 
+    // Back online, the page is not reloaded (a mark left on it stays): the attempt goes up through
+    // the queue and the screen updates by itself.
+    await page.evaluate(() => Object.assign(window, { __lanimaMark: true }));
     await context.setOffline(false);
     await expect.poll(async () => (await attemptsOf(account))[0]?.score, { timeout: 15_000 }).toBe(20);
     await expect(page.getByText("Offline · será sincronizado")).toHaveCount(0);
+    expect(await page.evaluate(() => "__lanimaMark" in window)).toBe(true);
   });
 });

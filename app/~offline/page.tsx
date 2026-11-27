@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { WifiOff } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineReload } from "./offline-reload";
 
 export const metadata: Metadata = { title: "Sem conexão" };
 
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "Sem conexão" };
 export default function Offline() {
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
+      <OfflineReload />
       <EmptyState
         icon={WifiOff}
         title="Você está sem internet"

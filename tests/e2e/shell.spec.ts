@@ -212,6 +212,26 @@ test.describe("PWA", () => {
     expect(new URL(scope).pathname).toBe("/");
   });
 
+  test("sem internet, uma tela nunca aberta mostra o aviso; quando a rede volta, abre a tela pedida", async ({
+    page,
+    context,
+    browserName,
+    account,
+  }) => {
+    void account;
+    test.skip(browserName !== "chromium", "Precache do service worker verificado no Chromium (Galaxy Tab).");
+    await page.goto("/inicio");
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 30_000 });
+    await page.waitForFunction(async () => Boolean(await caches.match("/~offline")), null, { timeout: 30_000 });
+    await context.setOffline(true);
+    // Never opened on this device, and not in the precache.
+    await page.goto("/grupo");
+    await expect(page.getByRole("heading", { name: "Você está sem internet" })).toBeVisible();
+    await context.setOffline(false);
+    // The fallback page reloads itself (only it: the rest of the app keeps its state).
+    await expect(page.getByRole("heading", { level: 1, name: "Grupo e ranking" })).toBeVisible({ timeout: 15_000 });
+  });
+
   test("Android: botão “Instalar o Lanima” usa o prompt nativo", async ({ page, browserName, account }) => {
     void account;
     test.skip(browserName !== "chromium", "beforeinstallprompt só existe no Chromium.");
