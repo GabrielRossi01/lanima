@@ -2,6 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearLocalDb } from "@/lib/db/local";
 import { finishStroke, quantizePoint, simplifyPoints, type InkPoint } from "@/lib/ink/strokes";
+import { editedWhen } from "@/lib/notebook/format";
 import { mergeNotebooks, mergePages } from "@/lib/notebook/merge";
 import { isPageFull, jsonbTextBytes, PAGE_MAX_BYTES, pageText, type PageElement } from "@/lib/notebook/model";
 import { LAST_USER_KEY } from "@/lib/query/device-cache";
@@ -246,6 +247,22 @@ describe("tamanho e texto da página", () => {
       { id: "i", type: "imagem", x: 0, y: 0, w: 100, h: 100, imageId: "a0000000-0000-4000-8000-000000000001" },
     ];
     expect(pageText(elements)).toBe("Fêmur\n\nTíbia");
+  });
+});
+
+// --- When a page was changed ----------------------------------------------------------------
+
+describe("quando a página foi editada", () => {
+  // 27/11 15:00 in São Paulo (UTC-3).
+  const now = Date.parse("2026-11-27T18:00:00Z");
+  it("em minutos e horas no mesmo dia, depois ontem, dias e a data", () => {
+    expect(editedWhen(now - 20_000, now)).toBe("agora");
+    expect(editedWhen(now - 12 * 60_000, now)).toBe("há 12 min");
+    expect(editedWhen(now - 5 * 3_600_000, now)).toBe("há 5 h");
+    // 23:30 of the day before in São Paulo, though under 24 h ago.
+    expect(editedWhen(Date.parse("2026-11-27T02:30:00Z"), now)).toBe("ontem");
+    expect(editedWhen(now - 4 * 86_400_000, now)).toBe("há 4 dias");
+    expect(editedWhen(Date.parse("2026-11-18T15:00:00Z"), now)).toBe("18 nov");
   });
 });
 

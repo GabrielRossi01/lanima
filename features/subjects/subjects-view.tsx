@@ -10,6 +10,7 @@ import { FilterChip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SubjectCard } from "@/components/ui/subject-card";
 import { useFiles } from "@/features/files/queries";
+import { useNotebooks } from "@/features/notebook/queries";
 import { todayIn } from "@/lib/dates/calendar";
 import { useNow } from "@/lib/hooks/use-now";
 import { subjectIcon } from "@/lib/subjects/icons";
@@ -59,6 +60,7 @@ export function SubjectsView() {
   const topics = useTopics();
   const assessments = useAssessments();
   const files = useFiles().data ?? [];
+  const notebooks = useNotebooks().data ?? [];
   const [filter, setFilter] = useState<SubjectFilter>("todas");
   const [sort, setSort] = useState<SubjectSort>("proxima-aula");
   const [creating, setCreating] = useState(false);
@@ -170,7 +172,11 @@ export function SubjectsView() {
                 nextAssessment={next ? assessmentPill(next, today!) : "Sem provas marcadas"}
                 exam={next !== undefined && isExam(next)}
                 progress={progress}
-                counts={{ notes: 0, summaries: 0, files: files.filter((f) => f.subject_id === subject.id).length }}
+                counts={{
+                  notes: notebooks.filter((n) => n.subjectId === subject.id).length,
+                  summaries: 0,
+                  files: files.filter((f) => f.subject_id === subject.id).length,
+                }}
               />
             </li>
           ))}

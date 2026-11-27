@@ -5,6 +5,7 @@ import { mergeNotebooks, mergePages, type ServerNotebook, type ServerPageMeta } 
 import {
   notebookInfoSchema,
   pageContentSchema,
+  pageText,
   type NotebookInfo,
   type PageBackground,
   type PageContent,
@@ -98,14 +99,17 @@ function serial<T>(userId: string, work: () => Promise<T>): Promise<T> {
   return next;
 }
 
-const listeners = new Set<(userId: string) => void>();
-/** Called after any change to the device's copy (hers, or read from the server). */
-export function onNotebookChange(listener: (userId: string) => void): () => void {
+/** "local": she changed something here (to be sent); "server": read from the server. */
+export type ChangeSource = "local" | "server";
+type Listener = (userId: string, source: ChangeSource) => void;
+const listeners = new Set<Listener>();
+/** Called after any change to the device's copy. */
+export function onNotebookChange(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-function changed(userId: string) {
-  for (const listener of listeners) listener(userId);
+function changed(userId: string, source: ChangeSource = "local") {
+  for (const listener of listeners) listener(userId, source);
 }
 
 /** Forgets what waits in memory (sign-out). The IndexedDB copy is erased by clearLocalDb. */
@@ -172,6 +176,18 @@ export async function listPages(userId: string, notebookId?: string): Promise<Lo
     .map(toPage)
     .filter((p): p is LocalPage => p !== null)
     .sort(byPosition);
+}
+
+/** A page without its strokes: what lists need (counts, order, last change, text for search). */
+export type PageSummary = Omit<LocalPage, "strokes" | "elements"> & { strokeCount: number; text: string };
+
+/** Every page of hers, without the strokes (lists and search don't keep them in memory). */
+export async function listPageSummaries(userId: string): Promise<PageSummary[]> {
+  return (await listPages(userId)).map(({ strokes, elements, ...page }) => ({
+    ...page,
+    strokeCount: strokes.length,
+    text: pageText(elements),
+  }));
 }
 
 export async function getPage(userId: string, pageId: string): Promise<LocalPage | null> {
@@ -601,7 +617,7 @@ async function pull(userId: string, supabase: Supabase, result: SyncResult) {
     );
     await removeRows("notebookPages", userId, [...removedPages]);
     result.overwritten += notebooks.overwritten.length + pages.overwritten.length;
-    if (notebooks.put.length + notebooks.remove.length + removedPages.size > 0) changed(userId);
+    if (notebooks.put.length + notebooks.remove.length + removedPages.size > 0) changed(userId, "server");
     return pages.fetch;
   });
 
@@ -638,7 +654,7 @@ async function pull(userId: string, supabase: Supabase, result: SyncResult) {
         });
       }
       await putRows("notebookPages", rows);
-      if (rows.length > 0) changed(userId);
+      if (rows.length > 0) changed(userId, "server");
     });
   }
 }

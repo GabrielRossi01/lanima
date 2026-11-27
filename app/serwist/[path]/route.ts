@@ -23,6 +23,9 @@ export const { dynamic, dynamicParams, revalidate, generateStaticParams, GET } =
     // opened them with network: one page each, the test or attempt comes in the query (app/sw.ts).
     { url: "/estudo/fazer", revision },
     { url: "/estudo/resultado", revision },
+    // The notebook works offline (section 6): its list and the page screen (?pagina=, app/sw.ts).
+    { url: "/caderno", revision },
+    { url: "/caderno/editar", revision },
   ],
   // Serwist's default glob, plus self-hosted fonts (.woff2) so they work offline from the first launch.
   globPatterns: [".next/static/**/*.{js,css,html,ico,png,svg,webp,json,webmanifest,woff2}", "public/**/*"],

@@ -75,8 +75,9 @@ const vendorRules: RuntimeCaching[] = [
  */
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  // /estudo/fazer?teste=… and /estudo/resultado?tentativa=… are the same precached page.
-  precacheOptions: { ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^teste$/, /^tentativa$/] },
+  // /estudo/fazer?teste=…, /estudo/resultado?tentativa=… and /caderno/editar?pagina=… are the same
+  // precached page.
+  precacheOptions: { ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^teste$/, /^tentativa$/, /^pagina$/] },
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,

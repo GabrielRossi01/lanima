@@ -31,6 +31,8 @@ import { formatSchedule, rooms } from "@/lib/subjects/schedule";
 import { summarize } from "@/lib/subjects/subjects";
 import { errorTag, friendlyError } from "@/lib/supabase/errors";
 import { RecentFiles, SubjectFilesTab } from "@/features/files/subject-files";
+import { NotebookFormSheet } from "@/features/notebook/notebook-form-sheet";
+import { RecentNotes, SubjectNotebooksTab } from "@/features/notebook/subject-notebooks";
 import { LastTestCard } from "@/features/study/last-test-card";
 import { SubjectStudyTab } from "@/features/study/study-view";
 import { AssessmentList } from "./assessments";
@@ -66,6 +68,7 @@ export function SubjectDetailView({ id }: { id: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [creatingNote, setCreatingNote] = useState(false);
 
   const today = now ? todayIn(now) : null;
   const ready = subjects.data && topics.data && assessments.data && today;
@@ -130,7 +133,7 @@ export function SubjectDetailView({ id }: { id: string }) {
           <ButtonLink href={`/foco?materia=${subject.id}`} icon={Timer} variant="secondary">
             Estudar com foco
           </ButtonLink>
-          <Button icon={NotebookPen} disabled title="O caderno chega na fase 7">
+          <Button icon={NotebookPen} onClick={() => setCreatingNote(true)}>
             Nova nota
           </Button>
           <IconButton icon={MoreHorizontal} label="Opções da matéria" onClick={() => setMenuOpen(true)} />
@@ -151,8 +154,7 @@ export function SubjectDetailView({ id }: { id: string }) {
                 <TopicsChecklist subjectId={subject.id} topics={summary.topics} onImport={() => setImporting(true)} />
               </Card>
               <Card>
-                <CardHeader title="Anotações recentes" />
-                <p className="type-body m-0 text-fg-2">As anotações do caderno aparecem aqui a partir da fase 7.</p>
+                <RecentNotes subjectId={subject.id} onSeeAll={() => setTab("anotacoes")} />
               </Card>
             </div>
             <div className="flex min-w-0 flex-col gap-5">
@@ -175,7 +177,7 @@ export function SubjectDetailView({ id }: { id: string }) {
           </div>
         </TabPanel>
         <TabPanel value="anotacoes">
-          <Later icon={NotebookPen} title="Anotações" phase={7} />
+          <SubjectNotebooksTab subjectId={subject.id} subjectName={subject.name} />
         </TabPanel>
         <TabPanel value="estudo">
           <SubjectStudyTab subjectId={subject.id} />
@@ -248,6 +250,7 @@ export function SubjectDetailView({ id }: { id: string }) {
       </Sheet>
 
       <SubjectFormSheet open={editing} onClose={() => setEditing(false)} subject={subject} />
+      <NotebookFormSheet open={creatingNote} onClose={() => setCreatingNote(false)} subjectId={subject.id} />
       <ImportSyllabusSheet
         open={importing}
         onClose={() => setImporting(false)}
