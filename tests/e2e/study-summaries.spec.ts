@@ -224,6 +224,35 @@ function pointTexts(page: Page, topic: number) {
 }
 
 test.describe("Edições do resumo", () => {
+  test("“Salvando…” e “Salvo” não mexem na lista (um arraste em curso não perde o lugar)", async ({
+    page,
+    account,
+  }) => {
+    await openNewSummary(page, account, "Enzimas");
+    // A slow answer, so "Salvando…" stays on screen long enough to measure.
+    let release!: () => void;
+    const answered = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/rest\/v1\/summaries\?id=/, async (route) => {
+      if (route.request().method() === "PATCH") await answered;
+      await route.continue();
+    });
+    const list = page.locator("main ol > li").first();
+    const top = async () => (await list.boundingBox())!.y;
+    const before = await top();
+
+    await page
+      .getByRole("button", { name: "Destacar com marca-texto: O esqueleto humano adulto tem 206 ossos." })
+      .click();
+    await page.getByRole("dialog", { name: "Marca-texto" }).getByRole("button", { name: "Rosa" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /^Salvando…$/ })).toBeVisible();
+    // "editado por você" appears with the first edit: the header may change once, here.
+    const saving = await top();
+    release();
+    await expect(page.getByRole("status").filter({ hasText: /^Salvo$/ })).toBeVisible();
+    expect(await top()).toBe(saving);
+    expect(Math.abs(saving - before)).toBeLessThan(30);
+  });
+
   test("5 edições rápidas seguidas ficam todas salvas depois de recarregar", async ({ page, account }) => {
     await openNewSummary(page, account, "Rapidas");
 

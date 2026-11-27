@@ -554,15 +554,25 @@ export function SummaryView({ id }: { id: string }) {
 
   return (
     <>
-      <nav aria-label="Trilha" className="mb-3 flex min-w-0 items-center gap-1.5 text-[13px]">
-        <Link href="/estudo" className="font-medium">
-          Resumos e testes
-        </Link>
-        <ChevronRight aria-hidden size={14} className="shrink-0 text-fg-2" />
-        <span aria-current="page" className="truncate text-fg-2">
-          {summary.title}
+      {/*
+        The save state sits beside the trail, a single line that truncates: "Salvando…" turning into
+        "Salvo" never changes the height of the header, so the list doesn't jump in the middle of a
+        drag (it did on the phone, where the label wrapped to a line of its own).
+      */}
+      <div className="mb-3 flex min-w-0 items-center gap-3">
+        <nav aria-label="Trilha" className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
+          <Link href="/estudo" className="shrink-0 font-medium">
+            Resumos e testes
+          </Link>
+          <ChevronRight aria-hidden size={14} className="shrink-0 text-fg-2" />
+          <span aria-current="page" className="truncate text-fg-2">
+            {summary.title}
+          </span>
+        </nav>
+        <span role="status" className="shrink-0 text-xs leading-5 font-semibold text-accent">
+          {saveState ? SAVE_LABELS[saveState] : ""}
         </span>
-      </nav>
+      </div>
       <header className="mb-6 flex flex-wrap items-start gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="m-0 font-serif text-[30px] leading-[38px] font-semibold tracking-[-0.5px] wrap-break-word">
@@ -599,11 +609,6 @@ export function SummaryView({ id }: { id: string }) {
                 ? `editado por você ${shortDay(summary.updated_at, today)}`
                 : shortDay(summary.created_at, today)}
             </span>
-            {saveState && (
-              <span role="status" className="text-xs font-semibold text-accent">
-                {SAVE_LABELS[saveState]}
-              </span>
-            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
