@@ -1,4 +1,5 @@
 import type { Table } from "dexie";
+import { z } from "zod";
 import { isSignedIn, localDb, type NotebookImageRow, type NotebookPageRow, type NotebookRow } from "@/lib/db/local";
 import { getSupabase } from "@/lib/supabase/client";
 import { mergeNotebooks, mergePages, type ServerNotebook, type ServerPageMeta } from "./merge";
@@ -115,6 +116,7 @@ function changed(userId: string, source: ChangeSource = "local") {
 /** Forgets what waits in memory (sign-out). The IndexedDB copy is erased by clearLocalDb. */
 export function clearNotebookMemory() {
   for (const map of Object.values(memory)) map.clear();
+  checked.clear();
 }
 
 // --- Reading -----------------------------------------------------------------------------
@@ -142,11 +144,23 @@ function toNotebook(row: NotebookRow): LocalNotebook | null {
   return { ...info.data, id: row.id, editedAt: row.editedAt, pending: row.pending };
 }
 
+/** The last pages checked, by their state: the open page is read again after each of its saves. */
+const checked = new Map<string, PageContent>();
+const checkedKey = (row: NotebookPageRow) => `${row.userId}:${row.id}:${row.revision}:${row.version}:${row.editedAt}`;
+
 function toPage(row: NotebookPageRow): LocalPage | null {
-  const content = pageContentSchema.safeParse(row.content);
-  if (!content.success || row.deleted) return null;
+  if (row.deleted) return null;
+  const key = checkedKey(row);
+  let content = checked.get(key);
+  if (!content) {
+    const parsed = pageContentSchema.safeParse(row.content);
+    if (!parsed.success) return null;
+    content = parsed.data;
+    checked.set(key, content);
+    if (checked.size > 8) checked.delete(checked.keys().next().value!);
+  }
   return {
-    ...content.data,
+    ...content,
     id: row.id,
     notebookId: row.notebookId,
     version: row.version,
@@ -181,13 +195,34 @@ export async function listPages(userId: string, notebookId?: string): Promise<Lo
 /** A page without its strokes: what lists need (counts, order, last change, text for search). */
 export type PageSummary = Omit<LocalPage, "strokes" | "elements"> & { strokeCount: number; text: string };
 
+/** What a list needs of a page: its strokes are only counted, not checked one by one. */
+const pageSummarySchema = pageContentSchema.extend({ strokes: z.array(z.unknown()) });
+
 /** Every page of hers, without the strokes (lists and search don't keep them in memory). */
 export async function listPageSummaries(userId: string): Promise<PageSummary[]> {
-  return (await listPages(userId)).map(({ strokes, elements, ...page }) => ({
-    ...page,
-    strokeCount: strokes.length,
-    text: pageText(elements),
-  }));
+  const notebooks = new Set((await listNotebooks(userId)).map((n) => n.id));
+  const rows = await rowsOf("notebookPages", userId);
+  return rows
+    .filter((r) => !r.deleted && notebooks.has(r.notebookId))
+    .flatMap((row) => {
+      const content = pageSummarySchema.safeParse(row.content);
+      if (!content.success) return [];
+      const { strokes, elements, ...rest } = content.data;
+      return [
+        {
+          ...rest,
+          id: row.id,
+          notebookId: row.notebookId,
+          version: row.version,
+          editedAt: row.editedAt,
+          pending: row.pending,
+          refused: row.refused ?? false,
+          strokeCount: strokes.length,
+          text: pageText(elements),
+        },
+      ];
+    })
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
 }
 
 export async function getPage(userId: string, pageId: string): Promise<LocalPage | null> {
@@ -330,12 +365,30 @@ export function addPage(
   });
 }
 
-export function updatePage(userId: string, pageId: string, patch: Partial<PageContent>): Promise<void> {
+/**
+ * Changes a page. `trusted`: the editor's own content (each stroke made by finishStroke), saved
+ * as it is: checking 2,000 strokes on every save would stall the pen.
+ */
+export function updatePage(
+  userId: string,
+  pageId: string,
+  patch: Partial<PageContent>,
+  options: { trusted?: boolean } = {},
+): Promise<void> {
   return serial(userId, async () => {
     const row = await rowOf("notebookPages", userId, pageId);
-    const content = row && pageContentSchema.safeParse(row.content);
-    if (!row || row.deleted || !content?.success) return;
-    const next = pageContentSchema.parse({ ...content.data, ...patch });
+    if (!row || row.deleted) return;
+    let next: PageContent;
+    if (options.trusted) {
+      // What is stored was checked when written; only the shape is looked at here.
+      const stored = row.content as Partial<PageContent> | null;
+      if (!stored || !Array.isArray(stored.strokes) || !Array.isArray(stored.elements)) return;
+      next = { ...(stored as PageContent), ...patch };
+    } else {
+      const content = pageContentSchema.safeParse(row.content);
+      if (!content.success) return;
+      next = pageContentSchema.parse({ ...content.data, ...patch });
+    }
     await putRows("notebookPages", [
       { ...row, content: next, editedAt: Date.now(), revision: row.revision + 1, pending: true, refused: false },
     ]);

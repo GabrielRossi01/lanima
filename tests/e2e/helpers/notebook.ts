@@ -1,9 +1,16 @@
 import type { Json } from "../../../lib/supabase/database.types";
 import { adminClient, type TestAccount } from "./accounts";
 
-/** A stroke across the page, like a line of handwriting (page space: 1000 wide). */
+/**
+ * A stroke across the page, like a line of handwriting (page space: 1000 wide), saved as the app
+ * saves strokes: 1 decimal, 20 points.
+ */
 export function lineStroke(id: string, y: number, color = "grafite") {
-  const points = Array.from({ length: 30 }, (_, i) => [100 + i * 25, y + Math.sin(i / 2) * 8, 0.6]);
+  const points = Array.from({ length: 20 }, (_, i) => [
+    100 + i * 35,
+    Math.round((y + Math.sin(i / 2) * 8) * 10) / 10,
+    0.6,
+  ]);
   return { id, tool: "caneta", color, size: 6, points };
 }
 
@@ -42,6 +49,25 @@ export async function seedNotebook(
     .order("position");
   if (pagesError) throw pagesError;
   return { notebookId: notebook.id, pageIds: rows.map((r) => r.id) };
+}
+
+export interface ServerStroke {
+  id: string;
+  tool: string;
+  color: string;
+  size: number;
+  points: [number, number, number][];
+}
+
+/** A page as the server has it. */
+export async function serverPage(pageId: string) {
+  const { data, error } = await adminClient()
+    .from("notebook_pages")
+    .select("strokes, background, version")
+    .eq("id", pageId)
+    .single();
+  if (error) throw error;
+  return { ...data, strokes: data.strokes as unknown as ServerStroke[] };
 }
 
 /** Her notebooks on the server, with their pages in order. */

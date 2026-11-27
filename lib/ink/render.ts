@@ -34,11 +34,87 @@ export function inkColor(color: InkColor, tool: InkTool, theme: InkTheme): strin
   return INK[theme][color];
 }
 
-/** Opacity of each tool: the pen is solid, the pencil a little lighter, the highlighter see-through. */
-export function inkAlpha(tool: InkTool, theme: InkTheme): number {
-  if (tool === "lapis") return 0.85;
-  if (tool === "marca_texto") return theme === "light" ? 0.4 : 1;
-  return 1;
+/**
+ * Opacity of each tool: the pen is solid, the pencil a little lighter. The highlighter is solid
+ * too but multiplied over the paper in the light theme (drawn behind the ink): see-through like a
+ * real marker, and overlapping passes don't darken. In the dark, the closed colors.
+ */
+export function inkAlpha(tool: InkTool): number {
+  return tool === "lapis" ? 0.85 : 1;
+}
+
+/** A light grain for the pencil: the color with tiny holes, repeated. One per color and theme. */
+const grains = new Map<string, CanvasPattern | null>();
+function pencilGrain(ctx: CanvasRenderingContext2D, color: string): CanvasPattern | string {
+  if (typeof document === "undefined") return color;
+  let pattern = grains.get(color);
+  if (pattern === undefined) {
+    const tile = document.createElement("canvas");
+    tile.width = tile.height = 32;
+    const t = tile.getContext("2d");
+    if (t) {
+      t.fillStyle = color;
+      t.fillRect(0, 0, 32, 32);
+      t.globalCompositeOperation = "destination-out";
+      // Fixed seed: the same grain on every device and every redraw.
+      let seed = 7;
+      for (let i = 0; i < 90; i++) {
+        seed = (seed * 16807) % 2147483647;
+        const x = seed % 32;
+        seed = (seed * 16807) % 2147483647;
+        const y = seed % 32;
+        t.fillStyle = `rgba(0,0,0,${0.35 + (seed % 40) / 100})`;
+        t.fillRect(x, y, 1, 1);
+      }
+    }
+    pattern = t ? ctx.createPattern(tile, "repeat") : null;
+    grains.set(color, pattern);
+  }
+  return pattern ?? color;
+}
+
+/** Bounds of a stroke in page units (with its width), for drawing only what is on screen. */
+const bounds = new WeakMap<object, { x0: number; y0: number; x1: number; y1: number }>();
+export function strokeBounds(stroke: Stroke) {
+  let b = bounds.get(stroke);
+  if (!b) {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const [x, y] of stroke.points) {
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+    const pad = stroke.size;
+    b = { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+    bounds.set(stroke, b);
+  }
+  return b;
+}
+
+/**
+ * One layer of the editor: the highlighters ("marcador", below) or the pen and pencil ("tinta"),
+ * only the strokes that cross `view` (page units). `ctx` is already in page space.
+ */
+export function drawLayer(
+  ctx: CanvasRenderingContext2D,
+  strokes: readonly Stroke[],
+  layer: "marcador" | "tinta",
+  theme: InkTheme,
+  view: { x0: number; y0: number; x1: number; y1: number },
+): number {
+  let drawn = 0;
+  for (const stroke of strokes) {
+    if ((stroke.tool === "marca_texto") !== (layer === "marcador")) continue;
+    const b = strokeBounds(stroke);
+    if (b.x1 < view.x0 || b.x0 > view.x1 || b.y1 < view.y0 || b.y0 > view.y1) continue;
+    drawStroke(ctx, stroke, theme, strokePath(stroke), false);
+    drawn++;
+  }
+  return drawn;
 }
 
 /** Without real pressure (finger, mouse: always 0.5), perfect-freehand simulates it from speed. */
@@ -122,16 +198,27 @@ export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: readonly Str
   for (const pass of [true, false]) {
     for (const stroke of strokes) {
       if ((stroke.tool === "marca_texto") !== pass) continue;
-      drawStroke(ctx, stroke, theme);
+      drawStroke(ctx, stroke, theme, strokePath(stroke));
     }
   }
 }
 
-export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke, theme: InkTheme, path = strokePath(stroke)) {
+/**
+ * `multiply`: blend a light-theme highlighter with what is below on this same canvas (thumbnails,
+ * exports). The editor keeps highlighters on their own canvas, multiplied by CSS instead.
+ */
+export function drawStroke(
+  ctx: CanvasRenderingContext2D,
+  stroke: Pick<Stroke, "tool" | "color">,
+  theme: InkTheme,
+  path: Path2D,
+  multiply = true,
+) {
   ctx.save();
-  ctx.globalAlpha = inkAlpha(stroke.tool, theme);
-  if (stroke.tool === "marca_texto" && theme === "light") ctx.globalCompositeOperation = "multiply";
-  ctx.fillStyle = inkColor(stroke.color, stroke.tool, theme);
+  ctx.globalAlpha = inkAlpha(stroke.tool);
+  if (multiply && stroke.tool === "marca_texto" && theme === "light") ctx.globalCompositeOperation = "multiply";
+  const color = inkColor(stroke.color, stroke.tool, theme);
+  ctx.fillStyle = stroke.tool === "lapis" ? pencilGrain(ctx, color) : color;
   ctx.fill(path);
   ctx.restore();
 }
