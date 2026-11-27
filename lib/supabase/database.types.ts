@@ -231,9 +231,10 @@ export type Database = {
           content_hash: string | null;
           created_at: string;
           excluded_pages: number[];
-          file_id: string;
+          file_id: string | null;
           id: string;
           language: string;
+          notebook_page_id: string | null;
           page_count: number | null;
           pages_approx: boolean;
           status: string;
@@ -246,9 +247,10 @@ export type Database = {
           content_hash?: string | null;
           created_at?: string;
           excluded_pages?: number[];
-          file_id: string;
+          file_id?: string | null;
           id?: string;
           language?: string;
+          notebook_page_id?: string | null;
           page_count?: number | null;
           pages_approx?: boolean;
           status?: string;
@@ -260,9 +262,10 @@ export type Database = {
           content_hash?: string | null;
           created_at?: string;
           excluded_pages?: number[];
-          file_id?: string;
+          file_id?: string | null;
           id?: string;
           language?: string;
+          notebook_page_id?: string | null;
           page_count?: number | null;
           pages_approx?: boolean;
           status?: string;
@@ -276,6 +279,13 @@ export type Database = {
             columns: ["file_id", "user_id"];
             isOneToOne: false;
             referencedRelation: "files";
+            referencedColumns: ["id", "user_id"];
+          },
+          {
+            foreignKeyName: "documents_notebook_page_fkey";
+            columns: ["notebook_page_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "notebook_pages";
             referencedColumns: ["id", "user_id"];
           },
         ];
@@ -426,6 +436,141 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "goals_subject_id_user_id_fkey";
+            columns: ["subject_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "subjects";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      notebook_images: {
+        Row: {
+          created_at: string;
+          id: string;
+          mime_type: string;
+          page_id: string;
+          size_bytes: number;
+          storage_path: string;
+          updated_at: string;
+          uploaded_at: string | null;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          id?: string;
+          mime_type: string;
+          page_id: string;
+          size_bytes: number;
+          storage_path: string;
+          updated_at?: string;
+          uploaded_at?: string | null;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          mime_type?: string;
+          page_id?: string;
+          size_bytes?: number;
+          storage_path?: string;
+          updated_at?: string;
+          uploaded_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notebook_images_page_id_user_id_fkey";
+            columns: ["page_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "notebook_pages";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      notebook_pages: {
+        Row: {
+          background: string;
+          created_at: string;
+          edited_at: string;
+          elements: NonNullable<Json>;
+          id: string;
+          notebook_id: string;
+          position: number;
+          strokes: NonNullable<Json>;
+          updated_at: string;
+          user_id: string;
+          version: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          background?: string;
+          created_at?: string;
+          edited_at?: string;
+          elements?: NonNullable<Json>;
+          id?: string;
+          notebook_id: string;
+          position: number;
+          strokes?: NonNullable<Json>;
+          updated_at?: string;
+          user_id?: string;
+          version?: number;
+        };
+        Update: {
+          background?: string;
+          created_at?: string;
+          edited_at?: string;
+          elements?: NonNullable<Json>;
+          id?: string;
+          notebook_id?: string;
+          position?: number;
+          strokes?: NonNullable<Json>;
+          updated_at?: string;
+          user_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notebook_pages_notebook_id_user_id_fkey";
+            columns: ["notebook_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "notebooks";
+            referencedColumns: ["id", "user_id"];
+          },
+        ];
+      };
+      notebooks: {
+        Row: {
+          created_at: string;
+          edited_at: string;
+          id: string;
+          subject_id: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          edited_at?: string;
+          id?: string;
+          subject_id?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          edited_at?: string;
+          id?: string;
+          subject_id?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notebooks_subject_id_user_id_fkey";
             columns: ["subject_id", "user_id"];
             isOneToOne: false;
             referencedRelation: "subjects";
@@ -878,6 +1023,30 @@ export type Database = {
         };
         Returns: undefined;
       };
+      save_notebook: {
+        Args: { p_edited_at: string; p_id: string; p_subject: string; p_title: string };
+        Returns: {
+          applied: boolean;
+          saved_edited_at: string;
+        }[];
+      };
+      save_notebook_page: {
+        Args: {
+          p_background: string;
+          p_edited_at: string;
+          p_elements: Json;
+          p_id: string;
+          p_notebook: string;
+          p_position: number;
+          p_strokes: Json;
+        };
+        Returns: {
+          applied: boolean;
+          saved_edited_at: string;
+          saved_version: number;
+        }[];
+      };
+      storage_used: { Args: Record<PropertyKey, never>; Returns: number };
     };
     Enums: {
       [_ in never]: never;

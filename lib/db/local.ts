@@ -55,12 +55,59 @@ export interface TestAttemptRow {
   sent: boolean;
 }
 
+/**
+ * The notebook lives here (section 6): written first on the device, then sent. `pending` means a
+ * change the server hasn't taken yet; `editedAt` is when she made it (the newest wins, per row).
+ */
+interface NotebookSyncFields {
+  userId: string;
+  id: string;
+  /** Epoch ms of her last change. */
+  editedAt: number;
+  /** Goes up with each change: a send only clears `pending` if nothing changed meanwhile. */
+  revision: number;
+  pending: boolean;
+  /** Deleted here; the row stays until the server deleted it too. */
+  deleted: boolean;
+  /** The server refused it for good (too big, invalid): kept, not sent again. */
+  refused?: boolean;
+}
+
+export interface NotebookRow extends NotebookSyncFields {
+  /** NotebookInfo (lib/notebook/model.ts). */
+  info: unknown;
+  /** Already on the server at least once. */
+  onServer: boolean;
+}
+
+export interface NotebookPageRow extends NotebookSyncFields {
+  notebookId: string;
+  /** PageContent (lib/notebook/model.ts). */
+  content: unknown;
+  /** Server version this content is based on (0: never on the server). */
+  version: number;
+}
+
+/** A picture pasted on a page, kept here until uploaded (and after, to open offline). */
+export interface NotebookImageRow {
+  userId: string;
+  id: string;
+  pageId: string;
+  blob: Blob;
+  mimeType: string;
+  /** Registered and uploaded. */
+  sent: boolean;
+}
+
 type LocalDb = Dexie & {
   focusTimer: EntityTable<FocusTimerRow, "userId">;
   focusPrefs: EntityTable<FocusPrefsRow, "userId">;
   focusSessions: Table<FocusSessionRow, [string, number]>;
   summaryEdits: Table<SummaryEditRow, [string, string]>;
   testAttempts: Table<TestAttemptRow, [string, string]>;
+  notebooks: Table<NotebookRow, [string, string]>;
+  notebookPages: Table<NotebookPageRow, [string, string]>;
+  notebookImages: Table<NotebookImageRow, [string, string]>;
 };
 
 let db: LocalDb | null | undefined;
@@ -74,6 +121,11 @@ export function localDb(): LocalDb | null {
     created.version(2).stores({ focusSessions: "[userId+startedAt], userId" });
     created.version(3).stores({ summaryEdits: "[userId+summaryId], userId" });
     created.version(4).stores({ testAttempts: "[userId+id], userId, [userId+testId]" });
+    created.version(5).stores({
+      notebooks: "[userId+id], userId",
+      notebookPages: "[userId+id], userId, [userId+notebookId]",
+      notebookImages: "[userId+id], userId, [userId+pageId]",
+    });
     db = created;
   }
   return db;

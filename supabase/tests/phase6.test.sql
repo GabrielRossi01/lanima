@@ -42,7 +42,9 @@ insert into public.questions (id, user_id, document_id, topic, difficulty, type,
    '{"documentId": "b1000000-0000-4000-8000-000000000001", "page": 1, "excerpt": "aceleram"}');
 insert into public.tests (id, user_id, title, question_ids) values
   ('b4000000-0000-4000-8000-000000000001', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Enzimas', array['b3000000-0000-4000-8000-000000000001'::uuid]);
--- Small limits, to reach them here.
+-- Small limits, to reach them here, on a day with no other use (the E2E runs leave theirs in a
+-- local database).
+delete from public.ai_usage;
 update public.ai_limits set per_user_summaries = 2, per_user_question_runs = 1, app_daily_requests = 5;
 -- A reservation of Bia, still open.
 insert into public.ai_usage (id, user_id, day, app_day, operation) values
